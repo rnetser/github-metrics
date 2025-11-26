@@ -519,6 +519,12 @@ async def get_repository_statistics(
         param_idx += 1
 
     offset = (page - 1) * page_size
+    MAX_OFFSET = 10000  # Prevent expensive deep pagination
+    if offset > MAX_OFFSET:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail=f"Pagination offset exceeds maximum ({MAX_OFFSET}). Use time filters to narrow results.",
+        )
 
     count_query = f"""
         SELECT COUNT(DISTINCT repository) as total FROM webhooks {where_clause}
@@ -886,8 +892,10 @@ async def get_metrics_summary(
 
         # Ensure summary_row is not None before processing
         if summary_row is None:
-            msg = "Summary query returned no results"
-            raise ValueError(msg)
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Summary query returned no results",
+            )
 
         # Process summary metrics
         total_events = summary_row["total_events"] or 0
@@ -1171,6 +1179,12 @@ async def get_metrics_contributors(
 
     # Calculate offset for pagination
     offset = (page - 1) * page_size
+    MAX_OFFSET = 10000  # Prevent expensive deep pagination
+    if offset > MAX_OFFSET:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail=f"Pagination offset exceeds maximum ({MAX_OFFSET}). Use time filters to narrow results.",
+        )
 
     # Add page_size and offset to params
     param_count += 1
@@ -1615,6 +1629,12 @@ async def get_user_pull_requests(
 
     # Calculate pagination
     offset = (page - 1) * page_size
+    MAX_OFFSET = 10000  # Prevent expensive deep pagination
+    if offset > MAX_OFFSET:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail=f"Pagination offset exceeds maximum ({MAX_OFFSET}). Use time filters to narrow results.",
+        )
     param_count += 1
     limit_param_idx = param_count
     param_count += 1
