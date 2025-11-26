@@ -1,5 +1,4 @@
-"""
-Tests for MetricsTracker class.
+"""Tests for MetricsTracker class.
 
 Tests webhook event tracking including:
 - Event storage with full payload
@@ -69,6 +68,9 @@ class TestMetricsTracker:
         assert "repository" in query
 
         # Verify parameters (skip UUID at index 0)
+        # Parameter order: id (UUID), delivery_id, repository, event_type, action, pr_number,
+        # sender, payload, processing_time_ms, status, error_message, api_calls_count,
+        # token_spend, token_remaining, metrics_available
         assert params[1] == "test-delivery-123"  # delivery_id
         assert params[2] == "testorg/testrepo"  # repository
         assert params[3] == "pull_request"  # event_type
@@ -243,6 +245,7 @@ class TestMetricsTracker:
         mock_db_manager: Mock,
     ) -> None:
         """Test JSON serialization handles non-serializable types (datetime)."""
+        # Intentionally using naive datetime to test serialization fallback
         payload: dict[str, Any] = {"timestamp": datetime(2024, 1, 15, 12, 0, 0), "data": "test"}
 
         await tracker.track_webhook_event(

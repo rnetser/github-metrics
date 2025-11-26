@@ -7,6 +7,7 @@ Runs database migrations, optional webhook setup, and starts the Uvicorn server.
 import asyncio
 import subprocess
 import sys
+import traceback
 from pathlib import Path
 
 import uvicorn
@@ -53,7 +54,7 @@ def run_database_migrations() -> None:
         print("FATAL: Database migration timed out after 60 seconds", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
-        print(f"FATAL: Unexpected error during database migration: {e}", file=sys.stderr)
+        print(f"FATAL: Unexpected error during database migration: {e}\n{traceback.format_exc()}", file=sys.stderr)
         sys.exit(1)
 
 

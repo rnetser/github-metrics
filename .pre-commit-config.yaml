@@ -23,7 +23,6 @@ repos:
       - id: end-of-file-fixer
       - id: check-ast
       - id: check-builtin-literals
-      - id: check-docstring-first
       - id: check-toml
 
   - repo: https://github.com/PyCQA/flake8
@@ -54,7 +53,6 @@ repos:
     rev: v1.18.2
     hooks:
       - id: mypy
-        exclude: (tests/)
         additional_dependencies: [types-requests, types-PyYAML, types-colorama]
 
   - repo: https://github.com/pre-commit/mirrors-eslint

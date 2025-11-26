@@ -39,10 +39,12 @@ class MetricsDashboard {
         Object.keys(this.pagination).forEach(section => {
             const saved = localStorage.getItem(`pageSize_${section}`);
             if (saved) {
-                this.pagination[section].pageSize = parseInt(saved);
+                this.pagination[section].pageSize = parseInt(saved, 10);
             }
         });
 
+        // Note: Dashboard self-initializes asynchronously.
+        // Callers should not assume immediate readiness after construction.
         this.initialize();
     }
 
@@ -978,7 +980,7 @@ class MetricsDashboard {
         document.getElementById('downloadTrendsChart')?.addEventListener('click', () => this.downloadChart('eventTrendsChart'));
 
         // API Usage settings
-        document.getElementById('apiTopN')?.addEventListener('change', (e) => this.updateApiTopN(parseInt(e.target.value)));
+        document.getElementById('apiTopN')?.addEventListener('change', (e) => this.updateApiTopN(parseInt(e.target.value, 10)));
         document.querySelectorAll('input[name="apiSortOrder"]').forEach(radio => {
             radio.addEventListener('change', (e) => this.updateApiSortOrder(e.target.value));
         });
@@ -1334,8 +1336,26 @@ class MetricsDashboard {
      */
     showError(message) {
         console.error(`[Dashboard] Error: ${message}`);
-        // Could implement toast notification here
-        alert(message);
+
+        // Remove any existing error toast
+        const existingToast = document.querySelector('.error-toast');
+        if (existingToast) {
+            existingToast.remove();
+        }
+
+        // Create non-blocking toast notification
+        const toast = document.createElement('div');
+        toast.className = 'error-toast';
+        toast.setAttribute('role', 'alert');
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.remove();
+            }
+        }, 5000);
     }
 
     /**
@@ -1361,7 +1381,7 @@ class MetricsDashboard {
         }
 
         // Use selected range end time as anchor instead of "now"
-        const { startTime, endTime } = this.getTimeRangeDates(this.timeRange);
+        const { endTime } = this.getTimeRangeDates(this.timeRange);
         const anchor = new Date(endTime);
         const labels = [];
         const successCounts = [];
@@ -1400,9 +1420,9 @@ class MetricsDashboard {
                 break;
             case 'custom': {
                 // For custom ranges, derive buckets from date range
-                const { startTime, endTime } = this.getTimeRangeDates('custom');
-                const start = new Date(startTime);
-                const end = new Date(endTime);
+                const customRange = this.getTimeRangeDates('custom');
+                const start = new Date(customRange.startTime);
+                const end = new Date(customRange.endTime);
                 const rangeDuration = end - start;
 
                 // Choose bucket size based on range duration
@@ -1814,7 +1834,7 @@ class MetricsDashboard {
             if (e.target.classList.contains('page-size-select')) {
                 const section = e.target.dataset.section; // kebab-case from HTML
                 const stateKey = this.toCamelCase(section); // Convert to camelCase
-                const newSize = parseInt(e.target.value);
+                const newSize = parseInt(e.target.value, 10);
                 this.changePageSize(stateKey, newSize);
             }
         });
@@ -1973,9 +1993,7 @@ class MetricsDashboard {
      * @returns {string} Escaped text
      */
     escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        return window.MetricsUtils?.escapeHTML(text) || String(text);
     }
 
     /**
@@ -1991,7 +2009,7 @@ class MetricsDashboard {
                 return '-';
             }
             return date.toLocaleDateString();
-        } catch (_error) {
+        } catch {
             return '-';
         }
     }

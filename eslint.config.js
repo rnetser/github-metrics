@@ -4,9 +4,29 @@ export default [
   },
   {
     files: ["**/*.js"],
+    languageOptions: {
+      globals: {
+        // Browser globals
+        window: "readonly",
+        document: "readonly",
+        console: "readonly",
+        fetch: "readonly",
+        URL: "readonly",
+        URLSearchParams: "readonly",
+        localStorage: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        AbortController: "readonly",
+        Blob: "readonly",
+        // Chart.js
+        Chart: "readonly",
+        // Module/CommonJS (for compatibility checks)
+        module: "readonly",
+      },
+    },
     rules: {
       "no-unused-vars": "warn",
-      "no-undef": "off",
+      "no-undef": "error",
     },
   },
 ];

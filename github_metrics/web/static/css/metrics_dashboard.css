@@ -944,3 +944,31 @@ a:hover {
 [data-theme="dark"] a:hover {
   color: #8dc5ff; /* Even lighter blue on hover */
 }
+
+/* Error toast notification */
+.error-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background-color: var(--error-color);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 4px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  z-index: 10000;
+  max-width: 400px;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

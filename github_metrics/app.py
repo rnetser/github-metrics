@@ -38,6 +38,9 @@ from github_metrics.utils.security import (
 )
 from github_metrics.web.dashboard import MetricsDashboardController
 
+# Type alias for IP networks (avoiding private type)
+IPNetwork = ipaddress.IPv4Network | ipaddress.IPv6Network
+
 # Module-level logger
 LOGGER = get_logger(name="github_metrics.app")
 
@@ -46,7 +49,7 @@ db_manager: DatabaseManager | None = None
 metrics_tracker: MetricsTracker | None = None
 dashboard_controller: MetricsDashboardController | None = None
 http_client: httpx.AsyncClient | None = None
-allowed_ips: tuple[ipaddress._BaseNetwork, ...] = ()
+allowed_ips: tuple[IPNetwork, ...] = ()
 
 
 def parse_datetime_string(value: str | None, param_name: str) -> datetime | None:
@@ -79,14 +82,17 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     http_client = httpx.AsyncClient(timeout=10.0)
 
     # Load IP allowlists if verification is enabled
-    ip_ranges: list[ipaddress._BaseNetwork] = []
+    ip_ranges: list[IPNetwork] = []
 
     if config.webhook.verify_github_ips:
         LOGGER.info("Loading GitHub IP allowlist...")
         try:
             github_ips = await get_github_allowlist(http_client)
             for ip_range in github_ips:
-                ip_ranges.append(ipaddress.ip_network(ip_range))
+                try:
+                    ip_ranges.append(ipaddress.ip_network(ip_range))
+                except ValueError:
+                    LOGGER.warning(f"Invalid IP range from GitHub allowlist, skipping: {ip_range}")
             LOGGER.info(f"Loaded {len(github_ips)} GitHub IP ranges")
         except Exception:
             LOGGER.exception("Failed to load GitHub IP allowlist")
@@ -97,7 +103,10 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         try:
             cloudflare_ips = await get_cloudflare_allowlist(http_client)
             for ip_range in cloudflare_ips:
-                ip_ranges.append(ipaddress.ip_network(ip_range))
+                try:
+                    ip_ranges.append(ipaddress.ip_network(ip_range))
+                except ValueError:
+                    LOGGER.warning(f"Invalid IP range from Cloudflare allowlist, skipping: {ip_range}")
             LOGGER.info(f"Loaded {len(cloudflare_ips)} Cloudflare IP ranges")
         except Exception:
             LOGGER.exception("Failed to load Cloudflare IP allowlist")
@@ -369,6 +378,12 @@ async def get_webhook_events(
         param_idx += 1
 
     offset = (page - 1) * page_size
+    MAX_OFFSET = 10000  # Prevent expensive deep pagination
+    if offset > MAX_OFFSET:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail=f"Pagination offset exceeds maximum ({MAX_OFFSET}). Use time filters to narrow results.",
+        )
     count_query = f"SELECT COUNT(*) FROM ({query}) AS filtered"  # noqa: S608
     query += f" ORDER BY created_at DESC LIMIT ${param_idx} OFFSET ${param_idx + 1}"
     params.extend([page_size, offset])
@@ -871,7 +886,8 @@ async def get_metrics_summary(
 
         # Ensure summary_row is not None before processing
         if summary_row is None:
-            raise ValueError("Summary query returned no results")
+            msg = "Summary query returned no results"
+            raise ValueError(msg)
 
         # Process summary metrics
         total_events = summary_row["total_events"] or 0
@@ -1606,7 +1622,7 @@ async def get_user_pull_requests(
 
     # Query for PR data with pagination
     data_query = f"""
-        SELECT DISTINCT ON (pr_number)
+        SELECT DISTINCT ON (repository, (payload->'pull_request'->>'number')::int)
             (payload->'pull_request'->>'number')::int as pr_number,
             payload->'pull_request'->>'title' as title,
             repository,
@@ -1620,7 +1636,7 @@ async def get_user_pull_requests(
         FROM webhooks
         WHERE event_type = 'pull_request'
           AND {where_clause}
-        ORDER BY pr_number DESC, created_at DESC
+        ORDER BY repository, (payload->'pull_request'->>'number')::int DESC, created_at DESC
         LIMIT ${limit_param_idx} OFFSET ${offset_param_idx}
     """  # noqa: S608
 

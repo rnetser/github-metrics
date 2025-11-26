@@ -67,8 +67,8 @@ def _configure_from_env() -> None:
 # Load database configuration
 try:
     _configure_from_env()
-except KeyError as ex:
-    logger.exception(f"Missing required environment variable: {ex}")
+except KeyError:
+    logger.exception("Missing required environment variable")
     raise
 except Exception:
     logger.exception("Failed to load database configuration")

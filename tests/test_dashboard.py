@@ -1,5 +1,4 @@
-"""
-Tests for MetricsDashboardController class.
+"""Tests for MetricsDashboardController class.
 
 Tests dashboard functionality including:
 - WebSocket connection management
@@ -148,11 +147,11 @@ class TestMetricsDashboardController:
         # Connection should be removed from set after disconnect
         assert mock_ws not in dashboard_controller._websocket_connections
 
+    @pytest.mark.usefixtures("mock_logger")
     async def test_handle_websocket_streams_new_events(
         self,
         dashboard_controller: MetricsDashboardController,
         mock_db_manager: Mock,
-        _mock_logger: Mock,
     ) -> None:
         """Test handle_websocket streams new events to client."""
         mock_ws = AsyncMock(spec=WebSocket)
@@ -227,11 +226,11 @@ class TestMetricsDashboardController:
         assert "pull_request" in params
         assert "success" in params
 
+    @pytest.mark.usefixtures("mock_logger")
     async def test_handle_websocket_handles_runtime_error(
         self,
         dashboard_controller: MetricsDashboardController,
         mock_db_manager: Mock,
-        _mock_logger: Mock,
     ) -> None:
         """Test handle_websocket handles RuntimeError during send."""
         mock_ws = AsyncMock(spec=WebSocket)
@@ -345,7 +344,7 @@ class TestMetricsDashboardController:
                 "api_calls_count": 3,
                 "token_spend": 3,
                 "token_remaining": 4997,
-            }
+            },
         ]
 
         mock_db_manager.fetch = AsyncMock(return_value=test_events)

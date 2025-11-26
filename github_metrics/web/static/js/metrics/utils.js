@@ -1,5 +1,5 @@
 /**
- * Utility Functions for GitHub Webhook Metrics Dashboard
+ * Utility Functions for GitHub Metrics
  *
  * Common helper functions for time formatting, number formatting,
  * data processing, DOM manipulation, and validation.
@@ -398,7 +398,6 @@ function debounce(func, delay = 300) {
  */
 function throttle(func, limit = 300) {
     let inThrottle;
-    let lastFunc;
     let lastRan;
 
     return function throttled(...args) {
@@ -406,15 +405,18 @@ function throttle(func, limit = 300) {
             func.apply(this, args);
             lastRan = Date.now();
             inThrottle = true;
+            setTimeout(() => {
+                inThrottle = false;
+            }, limit);
         } else {
-            clearTimeout(lastFunc);
-            lastFunc = setTimeout(() => {
+            // Schedule trailing call with remaining time
+            const remaining = Math.max(0, limit - (Date.now() - lastRan));
+            setTimeout(() => {
                 if ((Date.now() - lastRan) >= limit) {
                     func.apply(this, args);
                     lastRan = Date.now();
                 }
-                inThrottle = false;
-            }, limit - (Date.now() - lastRan));
+            }, remaining);
         }
     };
 }

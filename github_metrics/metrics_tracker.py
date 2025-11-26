@@ -82,6 +82,7 @@ class MetricsTracker:
         payload: dict[str, Any],
         processing_time_ms: int,
         status: str,
+        *,
         pr_number: int | None = None,
         error_message: str | None = None,
         api_calls_count: int = 0,
@@ -176,9 +177,14 @@ class MetricsTracker:
             )
 
             self.logger.info(
-                f"Webhook event tracked successfully: delivery_id={delivery_id}, "
-                f"repository={repository}, event_type={event_type}, action={action}, "
-                f"status={status}, processing_time_ms={processing_time_ms}"
+                "Webhook event tracked successfully: delivery_id=%s, repository=%s, event_type=%s, "
+                "action=%s, status=%s, processing_time_ms=%s",
+                delivery_id,
+                repository,
+                event_type,
+                action,
+                status,
+                processing_time_ms,
             )
 
         except Exception:

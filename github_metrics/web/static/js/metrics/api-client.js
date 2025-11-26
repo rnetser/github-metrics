@@ -224,6 +224,9 @@ class MetricsAPIClient {
         if (response.error) return response;
 
         // Normalize response: extract data array while preserving pagination
+        // Note: Both 'repositories' and 'data' contain identical content.
+        // 'data' is intentionally an alias of 'repositories' for backward
+        // compatibility with existing consumers and must be preserved.
         return {
             repositories: response.repositories || [],
             data: response.repositories || [],
@@ -439,7 +442,7 @@ class MetricsAPIClient {
             } else if (errorData.message) {
                 detail = errorData.message;
             }
-        } catch (error) {
+        } catch {
             // Failed to parse error response - use default detail
             detail = response.statusText || detail;
         }

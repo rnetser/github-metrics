@@ -17,7 +17,6 @@ output-format = "grouped"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "PLC0415", "ARG", "RUF059"]
 
-
 [tool.ruff.format]
 exclude = [".git", ".venv", ".mypy_cache", ".tox", "__pycache__"]
 
@@ -39,7 +38,7 @@ name = "github-metrics"
 version = "0.1.0"
 description = "Standalone metrics service for GitHub webhook event tracking and visualization"
 readme = "README.md"
-requires-python = "==3.13.*"
+requires-python = ">=3.13"
 license = "Apache-2.0"
 authors = [{ name = "myakove" }]
 classifiers = [

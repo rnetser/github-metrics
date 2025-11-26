@@ -32,7 +32,24 @@ GitHub webhook setup (optional - for automatic webhook creation):
 from __future__ import annotations
 
 import os
+import threading
 from dataclasses import dataclass
+
+
+def _parse_bool(value: str) -> bool:
+    """Parse boolean string accepting common truthy variants.
+
+    Args:
+        value: String value to parse
+
+    Returns:
+        bool: True if value is truthy, False otherwise
+
+    Accepts (case-insensitive):
+        - "true", "1", "yes", "on" → True
+        - Everything else → False
+    """
+    return value.lower() in ("true", "1", "yes", "on")
 
 
 @dataclass(frozen=True)
@@ -129,8 +146,8 @@ class MetricsConfig:
 
         # Webhook security configuration
         webhook_secret = os.environ.get("METRICS_WEBHOOK_SECRET", "")
-        verify_github_ips = os.environ.get("METRICS_VERIFY_GITHUB_IPS", "").lower() == "true"
-        verify_cloudflare_ips = os.environ.get("METRICS_VERIFY_CLOUDFLARE_IPS", "").lower() == "true"
+        verify_github_ips = _parse_bool(os.environ.get("METRICS_VERIFY_GITHUB_IPS", ""))
+        verify_cloudflare_ips = _parse_bool(os.environ.get("METRICS_VERIFY_CLOUDFLARE_IPS", ""))
 
         self.webhook = WebhookConfig(
             secret=webhook_secret,
@@ -150,13 +167,16 @@ class MetricsConfig:
         )
 
 
-# Singleton instance - lazy loaded
+# Singleton instance - lazy loaded with thread-safe initialization
 _config: MetricsConfig | None = None
+_config_lock = threading.Lock()
 
 
 def get_config() -> MetricsConfig:
     """
     Get the global configuration instance.
+
+    Thread-safe singleton using double-checked locking pattern.
 
     Returns:
         MetricsConfig: The configuration instance
@@ -165,6 +185,11 @@ def get_config() -> MetricsConfig:
         KeyError: If required environment variable is missing
     """
     global _config
+    # First check without lock for performance
     if _config is None:
-        _config = MetricsConfig()
+        # Acquire lock for initialization
+        with _config_lock:
+            # Double-check after acquiring lock
+            if _config is None:
+                _config = MetricsConfig()
     return _config

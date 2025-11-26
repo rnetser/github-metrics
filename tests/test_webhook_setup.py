@@ -1,5 +1,4 @@
-"""
-Tests for webhook setup module.
+"""Tests for webhook setup module.
 
 Tests webhook creation and management including:
 - Webhook setup for repositories
@@ -175,7 +174,7 @@ class TestSetupWebhooks:
                 assert "error" in result
                 assert result["error"][0] is False
                 assert "Failed to authenticate" in result["error"][1]
-                mock_logger.error.assert_called()
+                mock_logger.exception.assert_called()
         finally:
             os.environ.pop("METRICS_SETUP_WEBHOOK", None)
 
@@ -218,8 +217,8 @@ class TestSetupWebhooks:
                     assert result["testorg/repo2"][0] is False
 
                     # Verify logger calls for both success and failure
-                    info_calls = [call for call in mock_logger.info.call_args_list]
-                    error_calls = [call for call in mock_logger.error.call_args_list]
+                    info_calls = list(mock_logger.info.call_args_list)
+                    error_calls = list(mock_logger.error.call_args_list)
                     assert len(info_calls) >= 1
                     assert len(error_calls) >= 1
         finally:
@@ -416,15 +415,15 @@ class TestCreateWebhookForRepository:
             assert success is True
             assert "created successfully" in message
 
-    async def test_create_webhook_for_repository_url_contains_check(
+    async def test_create_webhook_for_repository_url_exact_match_check(
         self,
         mock_github_api: Mock,
         mock_logger: Mock,
     ) -> None:
-        """Test webhook URL matching uses 'in' operator for flexibility."""
-        # Existing webhook with similar URL
+        """Test webhook URL matching uses exact equality for robustness."""
+        # Existing webhook with exact URL match
         mock_hook = Mock(spec=github.Hook.Hook)
-        mock_hook.config = {"url": "https://example.com/webhook/v1"}
+        mock_hook.config = {"url": "https://example.com/webhook"}
 
         mock_repo = Mock(spec=github.Repository.Repository)
 
@@ -440,7 +439,7 @@ class TestCreateWebhookForRepository:
             return None
 
         with patch("asyncio.to_thread", side_effect=mock_to_thread):
-            # Webhook URL is contained in existing hook URL
+            # Webhook URL matches exactly
             success, message = await _create_webhook_for_repository(
                 repository_name="testorg/testrepo",
                 github_api=mock_github_api,

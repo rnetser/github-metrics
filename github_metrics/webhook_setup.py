@@ -74,7 +74,7 @@ async def setup_webhooks(
     try:
         github_api = github.Github(auth=github.Auth.Token(config.github.token))
     except github.GithubException as ex:
-        logger.error(f"Failed to authenticate with GitHub: {ex}")
+        logger.exception(f"Failed to authenticate with GitHub: {ex}")
         return {"error": (False, f"Failed to authenticate: {ex}")}
 
     # Process each repository
@@ -138,7 +138,7 @@ async def _create_webhook_for_repository(
 
     # Check if webhook already exists
     for hook in hooks:
-        if webhook_url in hook.config.get("url", ""):
+        if hook.config.get("url") == webhook_url:
             return True, f"{repository_name}: Webhook already exists"
 
     # Create new webhook

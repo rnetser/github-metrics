@@ -1,5 +1,4 @@
-"""
-Tests for configuration module.
+"""Tests for configuration module.
 
 Tests configuration loading from environment variables including:
 - Required environment variables validation
@@ -14,6 +13,7 @@ import os
 
 import pytest
 
+import github_metrics.config
 from github_metrics.config import (
     DatabaseConfig,
     GitHubConfig,
@@ -59,7 +59,7 @@ class TestServerConfig:
 
     def test_server_config_creation(self) -> None:
         """Test server configuration creation."""
-        config = ServerConfig(host="0.0.0.0", port=8080, workers=4)  # noqa: S104
+        config = ServerConfig(host="0.0.0.0", port=8080, workers=4)
         assert config.host == "0.0.0.0"
         assert config.port == 8080
         assert config.workers == 4
@@ -118,7 +118,7 @@ class TestMetricsConfig:
 
     def test_config_missing_required_env_var_raises_error(self) -> None:
         """Test missing required environment variable raises KeyError."""
-        # Temporarily remove required env var
+        # Using try/finally for env var cleanup - context manager would be overkill for single test
         original_value = os.environ.pop("METRICS_DB_NAME", None)
         try:
             with pytest.raises(KeyError, match="METRICS_DB_NAME"):
@@ -165,8 +165,6 @@ class TestGetConfig:
     def test_get_config_returns_singleton(self) -> None:
         """Test get_config returns same instance on multiple calls."""
         # Reset singleton
-        import github_metrics.config  # noqa: PLC0415
-
         github_metrics.config._config = None
 
         config1 = get_config()

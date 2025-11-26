@@ -1,5 +1,4 @@
-"""
-Tests for DatabaseManager class.
+"""Tests for DatabaseManager class.
 
 Tests database connection management including:
 - Connection pool lifecycle
@@ -450,8 +449,8 @@ class TestDatabaseManagerErrorHandling:
                     assert manager.pool is mock_pool
                     raise Exception("Test error")
 
-            # Pool should still be closed after exception
-            mock_pool.close.assert_called_once()
+        # Pool should still be closed after exception
+        mock_pool.close.assert_called_once()
 
     async def test_fetchrow_logs_no_rows_debug(
         self,
@@ -470,7 +469,7 @@ class TestDatabaseManagerErrorHandling:
 
         assert result is None
         # Verify debug log for no rows
-        debug_calls = [call for call in mock_logger.debug.call_args_list]
+        debug_calls = list(mock_logger.debug.call_args_list)
         assert any("no rows" in str(call).lower() for call in debug_calls)
 
     async def test_fetchrow_logs_one_row_debug(
@@ -491,7 +490,7 @@ class TestDatabaseManagerErrorHandling:
 
         assert result == mock_record
         # Verify debug log for one row
-        debug_calls = [call for call in mock_logger.debug.call_args_list]
+        debug_calls = list(mock_logger.debug.call_args_list)
         assert any("1 row" in str(call).lower() for call in debug_calls)
 
     async def test_execute_logs_debug_message(

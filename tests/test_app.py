@@ -1,5 +1,4 @@
-"""
-Tests for FastAPI application endpoints.
+"""Tests for FastAPI application endpoints.
 
 Tests HTTP endpoints including:
 - Health check endpoint
@@ -10,15 +9,26 @@ Tests HTTP endpoints including:
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
+from collections.abc import AsyncGenerator
+from concurrent.futures import CancelledError
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
+import asyncpg
+import httpx
 import pytest
-from fastapi import status
+from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
+
+from github_metrics import app as app_module
+from github_metrics.app import app, create_app, parse_datetime_string
 
 
 class TestHealthEndpoint:
@@ -28,8 +38,6 @@ class TestHealthEndpoint:
         """Test health endpoint returns healthy status."""
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.health_check = AsyncMock(return_value=True)
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get("/health")
@@ -45,8 +53,6 @@ class TestHealthEndpoint:
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.health_check = AsyncMock(return_value=False)
 
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/health")
 
@@ -58,8 +64,6 @@ class TestHealthEndpoint:
     def test_health_check_without_db_manager(self) -> None:
         """Test health endpoint when db_manager is None."""
         with patch("github_metrics.app.db_manager", None):
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/health")
 
@@ -74,8 +78,6 @@ class TestFaviconEndpoint:
 
     def test_favicon_returns_png(self) -> None:
         """Test favicon endpoint returns PNG image."""
-        from github_metrics.app import app  # noqa: PLC0415
-
         client = TestClient(app)
         response = client.get("/favicon.ico")
 
@@ -117,8 +119,6 @@ class TestWebhookEndpoint:
             config_mock.webhook.secret = ""
             mock_config.return_value = config_mock
 
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
 
             response = client.post(
@@ -152,8 +152,6 @@ class TestWebhookEndpoint:
             mock_config.return_value = config_mock
             mock_verify_sig.return_value = None  # Signature valid
 
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
 
             response = client.post(
@@ -178,8 +176,6 @@ class TestWebhookEndpoint:
             config_mock = Mock()
             config_mock.webhook.secret = "test_secret"  # pragma: allowlist secret
             mock_config.return_value = config_mock
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
 
@@ -206,8 +202,6 @@ class TestWebhookEndpoint:
             config_mock = Mock()
             config_mock.webhook.secret = ""
             mock_config.return_value = config_mock
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
 
@@ -237,8 +231,6 @@ class TestWebhookEndpoint:
             config_mock.webhook.secret = ""
             mock_config.return_value = config_mock
 
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
 
             response = client.post(
@@ -262,8 +254,6 @@ class TestDashboardEndpoint:
         with patch("github_metrics.app.dashboard_controller") as mock_controller:
             mock_controller.get_dashboard_page = Mock(return_value="<html>Dashboard</html>")
 
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/dashboard")
 
@@ -273,8 +263,6 @@ class TestDashboardEndpoint:
     def test_dashboard_error_when_controller_not_initialized(self) -> None:
         """Test dashboard returns error when controller not initialized."""
         with patch("github_metrics.app.dashboard_controller", None):
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/dashboard")
 
@@ -302,14 +290,12 @@ class TestWebhookEventsEndpoint:
                 "token_spend": 3,
                 "token_remaining": 4997,
                 "error_message": None,
-            }
+            },
         ]
 
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(return_value=1)
             mock_db.fetch = AsyncMock(return_value=mock_rows)
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get("/api/metrics/webhooks")
@@ -326,8 +312,6 @@ class TestWebhookEventsEndpoint:
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(return_value=0)
             mock_db.fetch = AsyncMock(return_value=[])
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get(
@@ -352,8 +336,6 @@ class TestWebhookEventsEndpoint:
             mock_db.fetchval = AsyncMock(return_value=150)
             mock_db.fetch = AsyncMock(return_value=[])
 
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/api/metrics/webhooks", params={"page": 2, "page_size": 50})
 
@@ -369,8 +351,6 @@ class TestWebhookEventsEndpoint:
     def test_get_webhook_events_database_unavailable(self) -> None:
         """Test webhook events when database unavailable."""
         with patch("github_metrics.app.db_manager", None):
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/api/metrics/webhooks")
 
@@ -403,8 +383,6 @@ class TestWebhookEventByIdEndpoint:
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchrow = AsyncMock(return_value=mock_row)
 
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/api/metrics/webhooks/test-123")
 
@@ -417,8 +395,6 @@ class TestWebhookEventByIdEndpoint:
         """Test webhook event retrieval for non-existent ID."""
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchrow = AsyncMock(return_value=None)
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get("/api/metrics/webhooks/nonexistent-id")
@@ -453,7 +429,7 @@ class TestMetricsSummaryEndpoint:
                 "total_events": 50,
                 "success_rate": 96.0,
                 "percentage": 50.0,
-            }
+            },
         ]
 
         # Mock event type distribution
@@ -473,8 +449,6 @@ class TestMetricsSummaryEndpoint:
             mock_db.fetchrow = AsyncMock(side_effect=[mock_summary_row, mock_time_range])
             # Setup fetch to return top_repos and event_types
             mock_db.fetch = AsyncMock(side_effect=[mock_top_repos, mock_event_types])
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get("/api/metrics/summary")
@@ -520,8 +494,6 @@ class TestMetricsSummaryEndpoint:
             # Setup fetch to return empty arrays
             mock_db.fetch = AsyncMock(side_effect=[mock_top_repos, mock_event_types])
 
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/api/metrics/summary")
 
@@ -546,14 +518,12 @@ class TestRepositoryStatisticsEndpoint:
                 "avg_processing_time_ms": 150,
                 "total_api_calls": 150,
                 "total_token_spend": 150,
-            }
+            },
         ]
 
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(return_value=1)
             mock_db.fetch = AsyncMock(return_value=mock_rows)
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get("/api/metrics/repositories")
@@ -571,8 +541,6 @@ class TestParseDatetimeString:
 
     def test_parse_datetime_string_valid_iso8601(self) -> None:
         """Test parsing valid ISO 8601 datetime string."""
-        from github_metrics.app import parse_datetime_string  # noqa: PLC0415
-
         result = parse_datetime_string("2024-01-15T10:30:00Z", "test_param")
         assert result is not None
         assert result.year == 2024
@@ -581,24 +549,16 @@ class TestParseDatetimeString:
 
     def test_parse_datetime_string_with_timezone(self) -> None:
         """Test parsing datetime with timezone offset."""
-        from github_metrics.app import parse_datetime_string  # noqa: PLC0415
-
         result = parse_datetime_string("2024-01-15T10:30:00+00:00", "test_param")
         assert result is not None
 
     def test_parse_datetime_string_none(self) -> None:
         """Test parsing None returns None."""
-        from github_metrics.app import parse_datetime_string  # noqa: PLC0415
-
         result = parse_datetime_string(None, "test_param")
         assert result is None
 
     def test_parse_datetime_string_invalid_format(self) -> None:
         """Test parsing invalid datetime format raises HTTPException."""
-        from fastapi import HTTPException  # noqa: PLC0415
-
-        from github_metrics.app import parse_datetime_string  # noqa: PLC0415
-
         with pytest.raises(HTTPException):
             parse_datetime_string("invalid-date", "test_param")
 
@@ -608,8 +568,6 @@ class TestLifespanContext:
 
     async def test_lifespan_loads_github_ips(self) -> None:
         """Test lifespan loads GitHub IP allowlist when verification enabled."""
-        from collections.abc import AsyncGenerator  # noqa: PLC0415
-        from contextlib import asynccontextmanager  # noqa: PLC0415
 
         # Create a proper async context manager mock for engine.begin()
         @asynccontextmanager
@@ -650,9 +608,6 @@ class TestLifespanContext:
             mock_get_github.return_value = ["192.30.252.0/22", "185.199.108.0/22"]
             mock_get_cloudflare.return_value = []
 
-            # Import app after mocking to trigger lifespan
-            from github_metrics import app as app_module  # noqa: PLC0415
-
             async with app_module.lifespan(app_module.app):
                 # Verify GitHub IPs were loaded
                 mock_get_github.assert_called_once_with(mock_http_client)
@@ -663,8 +618,6 @@ class TestLifespanContext:
 
     async def test_lifespan_loads_cloudflare_ips(self) -> None:
         """Test lifespan loads Cloudflare IP allowlist when verification enabled."""
-        from collections.abc import AsyncGenerator  # noqa: PLC0415
-        from contextlib import asynccontextmanager  # noqa: PLC0415
 
         # Create a proper async context manager mock for engine.begin()
         @asynccontextmanager
@@ -705,8 +658,6 @@ class TestLifespanContext:
             mock_get_github.return_value = []
             mock_get_cloudflare.return_value = ["103.21.244.0/22", "2400:cb00::/32"]
 
-            from github_metrics import app as app_module  # noqa: PLC0415
-
             async with app_module.lifespan(app_module.app):
                 # Verify Cloudflare IPs were loaded
                 mock_get_cloudflare.assert_called_once_with(mock_http_client)
@@ -717,8 +668,6 @@ class TestLifespanContext:
 
     async def test_lifespan_github_ip_fetch_failure_raises(self) -> None:
         """Test lifespan raises exception on GitHub IP fetch failure."""
-        import httpx  # noqa: PLC0415
-
         with (
             patch("github_metrics.app.get_config") as mock_config,
             patch("github_metrics.app.httpx.AsyncClient") as mock_http_client_class,
@@ -734,8 +683,6 @@ class TestLifespanContext:
 
             mock_get_github.side_effect = httpx.RequestError("Network error")
 
-            from github_metrics import app as app_module  # noqa: PLC0415
-
             with pytest.raises(httpx.RequestError):
                 async with app_module.lifespan(app_module.app):
                     pass
@@ -745,7 +692,7 @@ class TestLifespanContext:
         with (
             patch("github_metrics.app.get_config") as mock_config,
             patch("github_metrics.app.httpx.AsyncClient") as mock_http_client_class,
-            patch("github_metrics.app.get_github_allowlist"),  # noqa: F841
+            patch("github_metrics.app.get_github_allowlist"),
             patch("github_metrics.app.get_cloudflare_allowlist") as mock_get_cloudflare,
         ):
             config_mock = Mock()
@@ -758,8 +705,6 @@ class TestLifespanContext:
 
             mock_get_cloudflare.side_effect = Exception("API error")
 
-            from github_metrics import app as app_module  # noqa: PLC0415
-
             with pytest.raises(Exception, match="API error"):
                 async with app_module.lifespan(app_module.app):
                     pass
@@ -770,16 +715,11 @@ class TestWebSocketMetricsStream:
 
     async def test_websocket_closes_when_controller_not_initialized(self) -> None:
         """Test WebSocket endpoint closes when dashboard controller not initialized."""
-        from starlette.websockets import WebSocketDisconnect  # noqa: PLC0415
-
         with patch("github_metrics.app.dashboard_controller", None):
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
 
-            with pytest.raises(WebSocketDisconnect):
-                with client.websocket_connect("/metrics/ws"):
-                    pass
+            with pytest.raises(WebSocketDisconnect), client.websocket_connect("/metrics/ws"):
+                pass
 
 
 class TestWebhookEventsEndpointErrors:
@@ -787,12 +727,9 @@ class TestWebhookEventsEndpointErrors:
 
     def test_get_webhook_events_with_invalid_time_format(self) -> None:
         """Test webhook events with invalid datetime format."""
-
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(return_value=0)
             mock_db.fetch = AsyncMock(return_value=[])
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get(
@@ -805,12 +742,8 @@ class TestWebhookEventsEndpointErrors:
 
     def test_get_webhook_events_database_error(self) -> None:
         """Test webhook events handles database errors."""
-        import asyncpg  # noqa: PLC0415
-
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(side_effect=asyncpg.PostgresError("Database error"))
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get("/api/metrics/webhooks")
@@ -822,8 +755,6 @@ class TestWebhookEventsEndpointErrors:
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(return_value=0)
             mock_db.fetch = AsyncMock(return_value=[])
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get(
@@ -845,8 +776,6 @@ class TestWebhookEventByIdErrors:
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchrow = AsyncMock(side_effect=Exception("Database error"))
 
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/api/metrics/webhooks/test-123")
 
@@ -855,8 +784,6 @@ class TestWebhookEventByIdErrors:
     def test_get_webhook_event_by_id_database_unavailable(self) -> None:
         """Test webhook event by ID when database unavailable."""
         with patch("github_metrics.app.db_manager", None):
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/api/metrics/webhooks/test-123")
 
@@ -871,8 +798,6 @@ class TestRepositoryStatisticsErrors:
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(side_effect=Exception("Database error"))
 
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/api/metrics/repositories")
 
@@ -883,8 +808,6 @@ class TestRepositoryStatisticsErrors:
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(return_value=0)
             mock_db.fetch = AsyncMock(return_value=[])
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get(
@@ -900,8 +823,6 @@ class TestRepositoryStatisticsErrors:
     def test_get_repository_statistics_database_unavailable(self) -> None:
         """Test repository statistics when database unavailable."""
         with patch("github_metrics.app.db_manager", None):
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/api/metrics/repositories")
 
@@ -915,8 +836,6 @@ class TestMetricsSummaryErrors:
         """Test metrics summary handles database errors."""
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchrow = AsyncMock(side_effect=Exception("Database error"))
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get("/api/metrics/summary")
@@ -968,8 +887,6 @@ class TestMetricsSummaryErrors:
             # Setup fetch to return top_repos and event_types
             mock_db.fetch = AsyncMock(side_effect=[mock_top_repos, mock_event_types])
 
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get(
                 "/api/metrics/summary",
@@ -984,8 +901,6 @@ class TestMetricsSummaryErrors:
     def test_get_metrics_summary_database_unavailable(self) -> None:
         """Test metrics summary when database unavailable."""
         with patch("github_metrics.app.db_manager", None):
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/api/metrics/summary")
 
@@ -1016,8 +931,6 @@ class TestWebhookEndpointAdditional:
             config_mock = Mock()
             config_mock.webhook.secret = ""
             mock_config.return_value = config_mock
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.post(
@@ -1055,8 +968,6 @@ class TestWebhookEndpointAdditional:
             config_mock.webhook.secret = ""
             mock_config.return_value = config_mock
 
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.post(
                 "/metrics",
@@ -1077,21 +988,17 @@ class TestCreateApp:
     def test_create_app_without_static_directory(self) -> None:
         """Test create_app when static directory doesn't exist."""
         with patch("pathlib.Path.exists", return_value=False):
-            from github_metrics.app import create_app  # noqa: PLC0415
+            test_app = create_app()
 
-            app = create_app()
-
-            assert app is not None
-            assert app.title == "GitHub Metrics"
+            assert test_app is not None
+            assert test_app.title == "GitHub Metrics"
 
     def test_create_app_with_static_directory(self) -> None:
         """Test create_app mounts static files when directory exists."""
         with patch("pathlib.Path.exists", return_value=True):
-            from github_metrics.app import create_app  # noqa: PLC0415
+            test_app = create_app()
 
-            app = create_app()
-
-            assert app is not None
+            assert test_app is not None
             # Static files would be mounted in routes
 
 
@@ -1114,41 +1021,39 @@ class TestContributorsEndpoint:
                 "merged_prs": 8,
                 "closed_prs": 2,
                 "avg_commits": 3.5,
-            }
+            },
         ]
         mock_reviewers_rows = [
             {
                 "user": "bob",
                 "total_reviews": 15,
                 "prs_reviewed": 12,
-            }
+            },
         ]
         mock_approvers_rows = [
             {
                 "user": "charlie",
                 "total_approvals": 8,
                 "prs_approved": 7,
-            }
+            },
         ]
         mock_lgtm_rows = [
             {
                 "user": "dave",
                 "total_lgtm": 5,
                 "prs_lgtm": 5,
-            }
+            },
         ]
 
         with patch("github_metrics.app.db_manager") as mock_db:
             # Mock fetchval for count queries (4 calls)
             mock_db.fetchval = AsyncMock(
-                side_effect=[mock_creators_count, mock_reviewers_count, mock_approvers_count, mock_lgtm_count]
+                side_effect=[mock_creators_count, mock_reviewers_count, mock_approvers_count, mock_lgtm_count],
             )
             # Mock fetch for data queries (4 calls)
             mock_db.fetch = AsyncMock(
-                side_effect=[mock_creators_rows, mock_reviewers_rows, mock_approvers_rows, mock_lgtm_rows]
+                side_effect=[mock_creators_rows, mock_reviewers_rows, mock_approvers_rows, mock_lgtm_rows],
             )
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get("/api/metrics/contributors")
@@ -1171,8 +1076,6 @@ class TestContributorsEndpoint:
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(side_effect=[0, 0, 0, 0])
             mock_db.fetch = AsyncMock(side_effect=[[], [], [], []])
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get(
@@ -1199,11 +1102,9 @@ class TestContributorsEndpoint:
 
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(
-                side_effect=[mock_creators_count, mock_reviewers_count, mock_approvers_count, mock_lgtm_count]
+                side_effect=[mock_creators_count, mock_reviewers_count, mock_approvers_count, mock_lgtm_count],
             )
             mock_db.fetch = AsyncMock(side_effect=[[], [], [], []])
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get("/api/metrics/contributors", params={"page": 2, "page_size": 10})
@@ -1222,8 +1123,6 @@ class TestContributorsEndpoint:
     def test_get_contributors_database_unavailable(self) -> None:
         """Test contributors when database unavailable."""
         with patch("github_metrics.app.db_manager", None):
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/api/metrics/contributors")
 
@@ -1234,8 +1133,6 @@ class TestContributorsEndpoint:
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(side_effect=Exception("Database error"))
 
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/api/metrics/contributors")
 
@@ -1243,13 +1140,8 @@ class TestContributorsEndpoint:
 
     def test_get_contributors_cancelled_error(self) -> None:
         """Test contributors handles asyncio.CancelledError."""
-        import asyncio  # noqa: PLC0415
-        from concurrent.futures import CancelledError  # noqa: PLC0415
-
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(side_effect=asyncio.CancelledError())
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
 
@@ -1276,14 +1168,12 @@ class TestUserPullRequestsEndpoint:
                 "updated_at": "2024-01-16T12:00:00Z",
                 "commits_count": 5,
                 "head_sha": "abc123def456",  # pragma: allowlist secret
-            }
+            },
         ]
 
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchrow = AsyncMock(return_value=mock_count_row)
             mock_db.fetch = AsyncMock(return_value=mock_pr_rows)
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get("/api/metrics/user-prs", params={"user": "testuser"})
@@ -1305,8 +1195,6 @@ class TestUserPullRequestsEndpoint:
             mock_db.fetchrow = AsyncMock(return_value=mock_count_row)
             mock_db.fetch = AsyncMock(return_value=[])
 
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/api/metrics/user-prs")
 
@@ -1321,8 +1209,6 @@ class TestUserPullRequestsEndpoint:
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchrow = AsyncMock(return_value=mock_count_row)
             mock_db.fetch = AsyncMock(return_value=[])
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get(
@@ -1345,8 +1231,6 @@ class TestUserPullRequestsEndpoint:
             mock_db.fetchrow = AsyncMock(return_value=mock_count_row)
             mock_db.fetch = AsyncMock(return_value=[])
 
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/api/metrics/user-prs", params={"page": 2, "page_size": 20})
 
@@ -1360,8 +1244,6 @@ class TestUserPullRequestsEndpoint:
     def test_get_user_prs_database_unavailable(self) -> None:
         """Test user PRs when database unavailable."""
         with patch("github_metrics.app.db_manager", None):
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/api/metrics/user-prs")
 
@@ -1371,8 +1253,6 @@ class TestUserPullRequestsEndpoint:
         """Test user PRs handles database errors."""
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchrow = AsyncMock(side_effect=Exception("Database error"))
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get("/api/metrics/user-prs")
@@ -1385,17 +1265,15 @@ class TestTrendsEndpoint:
 
     def test_get_trends_success(self) -> None:
         """Test successful trends retrieval."""
-        from datetime import datetime  # noqa: PLC0415
-
         mock_rows = [
             {
-                "bucket": datetime(2024, 1, 15, 10, 0, 0),
+                "bucket": datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC),
                 "total_events": 50,
                 "successful_events": 48,
                 "failed_events": 2,
             },
             {
-                "bucket": datetime(2024, 1, 15, 11, 0, 0),
+                "bucket": datetime(2024, 1, 15, 11, 0, 0, tzinfo=UTC),
                 "total_events": 45,
                 "successful_events": 44,
                 "failed_events": 1,
@@ -1404,8 +1282,6 @@ class TestTrendsEndpoint:
 
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetch = AsyncMock(return_value=mock_rows)
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get("/api/metrics/trends", params={"bucket": "hour"})
@@ -1421,8 +1297,6 @@ class TestTrendsEndpoint:
         """Test trends with time range filters."""
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetch = AsyncMock(return_value=[])
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get(
@@ -1440,9 +1314,7 @@ class TestTrendsEndpoint:
 
     def test_get_trends_invalid_bucket(self) -> None:
         """Test trends with invalid bucket parameter."""
-        with patch("github_metrics.app.db_manager"):  # noqa: F841
-            from github_metrics.app import app  # noqa: PLC0415
-
+        with patch("github_metrics.app.db_manager"):
             client = TestClient(app)
             response = client.get("/api/metrics/trends", params={"bucket": "invalid"})
 
@@ -1452,8 +1324,6 @@ class TestTrendsEndpoint:
     def test_get_trends_database_unavailable(self) -> None:
         """Test trends when database unavailable."""
         with patch("github_metrics.app.db_manager", None):
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/api/metrics/trends")
 
@@ -1464,8 +1334,6 @@ class TestTrendsEndpoint:
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetch = AsyncMock(side_effect=Exception("Database error"))
 
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/api/metrics/trends")
 
@@ -1473,13 +1341,8 @@ class TestTrendsEndpoint:
 
     def test_get_trends_cancelled_error(self) -> None:
         """Test trends handles asyncio.CancelledError."""
-        import asyncio  # noqa: PLC0415
-        from concurrent.futures import CancelledError  # noqa: PLC0415
-
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetch = AsyncMock(side_effect=asyncio.CancelledError())
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
 
@@ -1493,8 +1356,6 @@ class TestMetricsSummaryTrends:
 
     def test_get_metrics_summary_with_trends(self) -> None:
         """Test metrics summary with trend calculations."""
-        from datetime import datetime  # noqa: PLC0415
-
         # Current period summary
         mock_summary_row = {
             "total_events": 100,
@@ -1520,8 +1381,8 @@ class TestMetricsSummaryTrends:
         }
 
         # Mock time range with actual datetime objects
-        start_time = datetime(2024, 1, 15, 0, 0, 0)
-        end_time = datetime(2024, 1, 16, 0, 0, 0)
+        start_time = datetime(2024, 1, 15, 0, 0, 0, tzinfo=UTC)
+        end_time = datetime(2024, 1, 16, 0, 0, 0, tzinfo=UTC)
         mock_time_range = {
             "first_event_time": start_time,
             "last_event_time": end_time,
@@ -1531,8 +1392,6 @@ class TestMetricsSummaryTrends:
             # Order: summary_row, top_repos, event_types, time_range_row, prev_summary_row
             mock_db.fetchrow = AsyncMock(side_effect=[mock_summary_row, mock_time_range, mock_prev_summary_row])
             mock_db.fetch = AsyncMock(side_effect=[[], []])
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get(
@@ -1558,8 +1417,6 @@ class TestMetricsSummaryTrends:
 
     def test_get_metrics_summary_with_time_range_calculations(self) -> None:
         """Test metrics summary time range and rate calculations."""
-        from datetime import datetime  # noqa: PLC0415
-
         # Mock summary with data
         mock_summary_row = {
             "total_events": 240,
@@ -1576,8 +1433,8 @@ class TestMetricsSummaryTrends:
         }
 
         # Mock time range - 24 hour period
-        start_time = datetime(2024, 1, 15, 0, 0, 0)
-        end_time = datetime(2024, 1, 16, 0, 0, 0)
+        start_time = datetime(2024, 1, 15, 0, 0, 0, tzinfo=UTC)
+        end_time = datetime(2024, 1, 16, 0, 0, 0, tzinfo=UTC)
         mock_time_range = {
             "first_event_time": start_time,
             "last_event_time": end_time,
@@ -1587,8 +1444,6 @@ class TestMetricsSummaryTrends:
             # Order: summary_row, top_repos, event_types, time_range_row (no prev period)
             mock_db.fetchrow = AsyncMock(side_effect=[mock_summary_row, mock_time_range])
             mock_db.fetch = AsyncMock(side_effect=[[], []])
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get("/api/metrics/summary")
@@ -1610,8 +1465,6 @@ class TestHTTPExceptionReraise:
         with patch("github_metrics.app.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(return_value=0)
 
-            from github_metrics.app import app  # noqa: PLC0415
-
             client = TestClient(app)
             response = client.get("/api/metrics/webhooks", params={"start_time": "invalid"})
 
@@ -1620,9 +1473,7 @@ class TestHTTPExceptionReraise:
 
     def test_repositories_reraises_http_exception(self) -> None:
         """Test repositories re-raises HTTPException from parse_datetime_string."""
-        with patch("github_metrics.app.db_manager"):  # noqa: F841
-            from github_metrics.app import app  # noqa: PLC0415
-
+        with patch("github_metrics.app.db_manager"):
             client = TestClient(app)
             response = client.get("/api/metrics/repositories", params={"end_time": "invalid"})
 
@@ -1671,11 +1522,9 @@ class TestCalculateTrendFunction:
                     mock_summary_row,
                     {"first_event_time": None, "last_event_time": None},
                     mock_prev_summary_row,
-                ]
+                ],
             )
             mock_db.fetch = AsyncMock(side_effect=[[], []])
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get(
@@ -1720,11 +1569,9 @@ class TestCalculateTrendFunction:
                     mock_summary_row,
                     {"first_event_time": None, "last_event_time": None},
                     mock_prev_summary_row,
-                ]
+                ],
             )
             mock_db.fetch = AsyncMock(side_effect=[[], []])
-
-            from github_metrics.app import app  # noqa: PLC0415
 
             client = TestClient(app)
             response = client.get(

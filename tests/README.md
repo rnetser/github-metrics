@@ -15,6 +15,7 @@ This test suite provides comprehensive coverage for all core components of the G
 ## Test Files
 
 ### `conftest.py`
+
 Central fixtures file providing:
 - Test environment variable setup
 - Mock database manager
@@ -24,6 +25,7 @@ Central fixtures file providing:
 - FastAPI test client
 
 ### `test_config.py` (19 tests)
+
 Tests for configuration module:
 - Database configuration URL construction
 - Server configuration
@@ -34,6 +36,7 @@ Tests for configuration module:
 - Singleton pattern for `get_config()`
 
 ### `test_database.py` (21 tests)
+
 Tests for DatabaseManager class:
 - Connection pool lifecycle (connect, disconnect)
 - Query execution methods (`execute`, `fetch`, `fetchrow`, `fetchval`)
@@ -43,6 +46,7 @@ Tests for DatabaseManager class:
 - Factory function `get_database_manager()`
 
 ### `test_metrics_tracker.py` (7 tests)
+
 Tests for MetricsTracker class:
 - Webhook event tracking with all fields
 - Optional field handling
@@ -52,6 +56,7 @@ Tests for MetricsTracker class:
 - Default value handling
 
 ### `test_security.py` (17 tests)
+
 Tests for security utilities:
 - HMAC signature verification (valid, invalid, missing)
 - IP allowlist verification (IPv4, IPv6, ranges, blocked IPs)
@@ -60,6 +65,7 @@ Tests for security utilities:
 - Error handling for network failures
 
 ### `test_app.py` (20 tests)
+
 Tests for FastAPI application endpoints:
 - `/health` - Health check endpoint
 - `/favicon.ico` - Favicon endpoint

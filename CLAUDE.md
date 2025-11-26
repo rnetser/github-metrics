@@ -40,6 +40,36 @@
 
 ---
 
+## STRICT RULE: Linter Suppressions PROHIBITED
+
+**CRITICAL: ALL forms of linter warning suppression are STRICTLY PROHIBITED.**
+
+### Policy:
+- ❌ **NEVER** add `# noqa` comments to suppress linter warnings
+- ❌ **NEVER** use `# noqa: <code>` inline suppressions
+- ❌ **NEVER** add `per-file-ignores` in `pyproject.toml`
+- ❌ **NEVER** disable rules globally in `pyproject.toml` to work around issues
+- ❌ **NEVER** use ANY workaround to bypass linter rules
+
+### The ONLY Solution:
+**FIX THE CODE.** If the linter complains, the code is wrong. Fix it properly.
+
+### If you think a linter rule is wrong:
+1. **STOP** - Do NOT add any suppression
+2. **ASK** the user for explicit approval
+3. **WAIT** for user response before proceeding
+4. **DOCUMENT** the user's approval in the commit message
+
+### Enforcement:
+- Any PR containing `# noqa` comments → **REJECTED**
+- Any PR adding `per-file-ignores` → **REJECTED**
+- Any PR disabling linter rules → **REJECTED**
+- User must **explicitly approve** any exception
+
+**NO EXCEPTIONS. NO WORKAROUNDS. NO EXCUSES. FIX THE CODE.**
+
+---
+
 ## WHEN Defensive Checks Are ACCEPTABLE
 
 ### 1. Destructors (`__del__`)

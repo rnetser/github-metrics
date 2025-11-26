@@ -16,11 +16,12 @@ import hmac
 import json
 import os
 from typing import Any
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
 
+from github_metrics.app import app
 from github_metrics.config import MetricsConfig
 
 
@@ -35,7 +36,7 @@ def set_test_env_vars() -> None:
         "METRICS_DB_HOST": "localhost",
         "METRICS_DB_PORT": "5432",
         "METRICS_DB_POOL_SIZE": "10",
-        "METRICS_SERVER_HOST": "0.0.0.0",  # noqa: S104
+        "METRICS_SERVER_HOST": "0.0.0.0",
         "METRICS_SERVER_PORT": "8080",
         "METRICS_SERVER_WORKERS": "1",
         "METRICS_WEBHOOK_SECRET": "test_webhook_secret",  # pragma: allowlist secret
@@ -51,7 +52,7 @@ def test_config() -> MetricsConfig:
 
 
 @pytest.fixture
-def mock_db_manager() -> Mock:
+def mock_db_manager() -> AsyncMock:
     """Create mock DatabaseManager for testing."""
     mock = AsyncMock()
     mock.connect = AsyncMock()
@@ -65,7 +66,7 @@ def mock_db_manager() -> Mock:
 
 
 @pytest.fixture
-def mock_metrics_tracker() -> Mock:
+def mock_metrics_tracker() -> AsyncMock:
     """Create mock MetricsTracker for testing."""
     mock = AsyncMock()
     mock.track_webhook_event = AsyncMock()
@@ -172,7 +173,4 @@ def test_client() -> TestClient:
     Note: This fixture creates a real app but tests should mock
     the database and other dependencies in app lifespan.
     """
-    # Import here to avoid circular imports
-    from github_metrics.app import app  # noqa: PLC0415
-
     return TestClient(app)

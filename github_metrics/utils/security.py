@@ -10,6 +10,9 @@ import httpx
 from fastapi import HTTPException, Request, status
 from simple_logger.logger import get_logger
 
+# Type alias for IP networks (avoiding private type)
+IPNetwork = ipaddress.IPv4Network | ipaddress.IPv6Network
+
 # Constants
 HTTP_TIMEOUT_SECONDS: float = 10.0
 GITHUB_META_URL: str = "https://api.github.com/meta"
@@ -21,7 +24,7 @@ LOGGER = get_logger(name="github_metrics.security")
 async def get_github_allowlist(http_client: httpx.AsyncClient) -> list[str]:
     """Fetch GitHub IP allowlist asynchronously."""
     try:
-        response = await http_client.get(GITHUB_META_URL)
+        response = await http_client.get(GITHUB_META_URL, timeout=HTTP_TIMEOUT_SECONDS)
         response.raise_for_status()
         data = response.json()
         return data.get("hooks", [])
@@ -36,7 +39,7 @@ async def get_github_allowlist(http_client: httpx.AsyncClient) -> list[str]:
 async def get_cloudflare_allowlist(http_client: httpx.AsyncClient) -> list[str]:
     """Fetch Cloudflare IP allowlist asynchronously."""
     try:
-        response = await http_client.get(CLOUDFLARE_IPS_URL)
+        response = await http_client.get(CLOUDFLARE_IPS_URL, timeout=HTTP_TIMEOUT_SECONDS)
         response.raise_for_status()
         result = response.json().get("result", {})
         return result.get("ipv4_cidrs", []) + result.get("ipv6_cidrs", [])
@@ -69,7 +72,7 @@ def verify_signature(payload_body: bytes, secret_token: str, signature_header: s
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Request signatures didn't match!")
 
 
-async def verify_ip_allowlist(request: Request, allowed_ips: tuple[ipaddress._BaseNetwork, ...]) -> None:
+async def verify_ip_allowlist(request: Request, allowed_ips: tuple[IPNetwork, ...]) -> None:
     """Verify request IP is in allowlist.
 
     Args:

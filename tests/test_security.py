@@ -1,5 +1,4 @@
-"""
-Tests for security utilities.
+"""Tests for security utilities.
 
 Tests security functions including:
 - Webhook signature verification
@@ -191,7 +190,7 @@ class TestGetGitHubAllowlist:
         result = await get_github_allowlist(mock_client)
 
         assert result == ["192.30.252.0/22", "185.199.108.0/22", "140.82.112.0/20"]
-        mock_client.get.assert_called_once_with("https://api.github.com/meta")
+        mock_client.get.assert_called_once_with("https://api.github.com/meta", timeout=10.0)
 
     async def test_get_github_allowlist_empty_hooks(self) -> None:
         """Test GitHub allowlist with empty hooks list."""
@@ -225,7 +224,7 @@ class TestGetCloudflareAllowlist:
             "result": {
                 "ipv4_cidrs": ["103.21.244.0/22", "103.22.200.0/22"],
                 "ipv6_cidrs": ["2400:cb00::/32", "2606:4700::/32"],
-            }
+            },
         }
         mock_response.raise_for_status = Mock()
 
@@ -240,7 +239,7 @@ class TestGetCloudflareAllowlist:
             "2400:cb00::/32",
             "2606:4700::/32",
         ]
-        mock_client.get.assert_called_once_with("https://api.cloudflare.com/client/v4/ips")
+        mock_client.get.assert_called_once_with("https://api.cloudflare.com/client/v4/ips", timeout=10.0)
 
     async def test_get_cloudflare_allowlist_empty_result(self) -> None:
         """Test Cloudflare allowlist with empty results."""
