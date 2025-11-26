@@ -1,0 +1,178 @@
+"""
+Pytest fixtures for GitHub Metrics test suite.
+
+Provides reusable test fixtures including:
+- Mock database manager
+- Mock configuration
+- FastAPI test client
+- Sample webhook payloads
+- Environment variable setup
+"""
+
+from __future__ import annotations
+
+import hashlib
+import hmac
+import json
+import os
+from typing import Any
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+from fastapi.testclient import TestClient
+
+from github_metrics.config import MetricsConfig
+
+
+# Set test environment variables before any imports
+@pytest.fixture(scope="session", autouse=True)
+def set_test_env_vars() -> None:
+    """Set required environment variables for testing."""
+    os.environ.update({
+        "METRICS_DB_NAME": "test_metrics",
+        "METRICS_DB_USER": "test_user",
+        "METRICS_DB_PASSWORD": "test_pass",  # pragma: allowlist secret
+        "METRICS_DB_HOST": "localhost",
+        "METRICS_DB_PORT": "5432",
+        "METRICS_DB_POOL_SIZE": "10",
+        "METRICS_SERVER_HOST": "0.0.0.0",  # noqa: S104
+        "METRICS_SERVER_PORT": "8080",
+        "METRICS_SERVER_WORKERS": "1",
+        "METRICS_WEBHOOK_SECRET": "test_webhook_secret",  # pragma: allowlist secret
+        "METRICS_VERIFY_GITHUB_IPS": "false",
+        "METRICS_VERIFY_CLOUDFLARE_IPS": "false",
+    })
+
+
+@pytest.fixture
+def test_config() -> MetricsConfig:
+    """Create test configuration instance."""
+    return MetricsConfig()
+
+
+@pytest.fixture
+def mock_db_manager() -> Mock:
+    """Create mock DatabaseManager for testing."""
+    mock = AsyncMock()
+    mock.connect = AsyncMock()
+    mock.disconnect = AsyncMock()
+    mock.execute = AsyncMock(return_value="INSERT 0 1")
+    mock.fetch = AsyncMock(return_value=[])
+    mock.fetchrow = AsyncMock(return_value=None)
+    mock.fetchval = AsyncMock(return_value=0)
+    mock.health_check = AsyncMock(return_value=True)
+    return mock
+
+
+@pytest.fixture
+def mock_metrics_tracker() -> Mock:
+    """Create mock MetricsTracker for testing."""
+    mock = AsyncMock()
+    mock.track_webhook_event = AsyncMock()
+    return mock
+
+
+@pytest.fixture
+def sample_pull_request_payload() -> dict[str, Any]:
+    """Sample GitHub pull_request webhook payload."""
+    return {
+        "action": "opened",
+        "number": 42,
+        "pull_request": {
+            "number": 42,
+            "title": "Test PR",
+            "state": "open",
+            "user": {"login": "testuser"},
+            "head": {"ref": "feature-branch", "sha": "abc123"},
+            "base": {"ref": "main", "sha": "def456"},
+        },
+        "repository": {
+            "full_name": "testorg/testrepo",
+            "name": "testrepo",
+            "owner": {"login": "testorg"},
+        },
+        "sender": {"login": "testuser"},
+    }
+
+
+@pytest.fixture
+def sample_issue_comment_payload() -> dict[str, Any]:
+    """Sample GitHub issue_comment webhook payload."""
+    return {
+        "action": "created",
+        "issue": {
+            "number": 10,
+            "title": "Test Issue",
+            "state": "open",
+            "user": {"login": "testuser"},
+            "pull_request": {"url": "https://api.github.com/repos/testorg/testrepo/pulls/10"},
+        },
+        "comment": {
+            "id": 123456,
+            "body": "/test-command",
+            "user": {"login": "testuser"},
+        },
+        "repository": {
+            "full_name": "testorg/testrepo",
+            "name": "testrepo",
+            "owner": {"login": "testorg"},
+        },
+        "sender": {"login": "testuser"},
+    }
+
+
+@pytest.fixture
+def sample_push_payload() -> dict[str, Any]:
+    """Sample GitHub push webhook payload."""
+    return {
+        "ref": "refs/heads/main",
+        "before": "abc123",
+        "after": "def456",
+        "commits": [
+            {
+                "id": "def456",
+                "message": "Test commit",
+                "author": {"name": "Test User", "email": "test@example.com"},
+            }
+        ],
+        "repository": {
+            "full_name": "testorg/testrepo",
+            "name": "testrepo",
+            "owner": {"login": "testorg"},
+        },
+        "sender": {"login": "testuser"},
+    }
+
+
+@pytest.fixture
+def webhook_headers() -> dict[str, str]:
+    """Standard GitHub webhook headers."""
+    return {
+        "X-GitHub-Delivery": "12345-67890-abcdef",
+        "X-GitHub-Event": "pull_request",
+        "X-Hub-Signature-256": "sha256=test_signature",
+        "Content-Type": "application/json",
+    }
+
+
+@pytest.fixture
+def valid_signature() -> str:
+    """Valid HMAC signature for test webhook payload."""
+    secret = "test_webhook_secret"  # pragma: allowlist secret
+    payload = {"test": "data"}
+    payload_bytes = json.dumps(payload).encode("utf-8")
+    hash_object = hmac.new(secret.encode("utf-8"), msg=payload_bytes, digestmod=hashlib.sha256)
+    return "sha256=" + hash_object.hexdigest()
+
+
+@pytest.fixture
+def test_client() -> TestClient:
+    """Create FastAPI test client.
+
+    Note: This fixture creates a real app but tests should mock
+    the database and other dependencies in app lifespan.
+    """
+    # Import here to avoid circular imports
+    from github_metrics.app import app  # noqa: PLC0415
+
+    return TestClient(app)
