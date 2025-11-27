@@ -127,7 +127,11 @@ async def _create_webhook_for_repository(
     logger: logging.Logger,
 ) -> tuple[bool, str]:
     """
-    Create webhook for a repository if it doesn't exist.
+    Create or update webhook for a repository.
+
+    If a webhook with the same URL exists, it will be updated with the current configuration
+    (including secret). This ensures the webhook configuration stays in sync even if the
+    secret has changed, since GitHub does not allow reading webhook secrets.
 
     All PyGithub calls wrapped in asyncio.to_thread() to avoid blocking.
 
@@ -160,13 +164,24 @@ async def _create_webhook_for_repository(
     except github.GithubException as ex:
         return False, f"Could not list webhooks for {repository_name}: {ex}"
 
-    # Check if webhook already exists
+    # Check if webhook already exists - update it if found
     for hook in hooks:
         if hook.config.get("url") == webhook_url:
-            return True, f"{repository_name}: Webhook already exists"
+            logger.info(f"Updating existing webhook for {repository_name}: {webhook_url}")
+            try:
+                await asyncio.to_thread(
+                    hook.edit,
+                    name="web",
+                    config=hook_config,
+                    events=["*"],
+                    active=True,
+                )
+            except github.GithubException as ex:
+                return False, f"Failed to update webhook for {repository_name}: {ex}"
+            return True, f"{repository_name}: Webhook updated"
 
-    # Create new webhook
-    logger.info("Creating webhook for %s: %s", repository_name, webhook_url)
+    # Create new webhook if it doesn't exist
+    logger.info(f"Creating webhook for {repository_name}: {webhook_url}")
     try:
         await asyncio.to_thread(
             repo.create_hook,

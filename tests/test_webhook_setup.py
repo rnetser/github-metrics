@@ -294,31 +294,44 @@ class TestCreateWebhookForRepository:
         mock_github_api: Mock,
         mock_logger: Mock,
     ) -> None:
-        """Test webhook creation when webhook already exists."""
+        """Test webhook update when webhook already exists."""
         mock_hook = Mock(spec=github.Hook.Hook)
         mock_hook.config = {"url": "https://example.com/webhook"}
+        mock_hook.edit = Mock()
 
         mock_repo = Mock(spec=github.Repository.Repository)
         mock_repo.get_hooks = Mock(return_value=[mock_hook])
 
-        async def mock_to_thread(func: Any, *_args: Any, **_kwargs: Any) -> Any:
+        async def mock_to_thread(func: Any, *args: Any, **kwargs: Any) -> Any:
             if func == mock_github_api.get_repo:
                 return mock_repo
             if callable(func):
-                return func()
-            return [mock_hook]
+                result = func(*args, **kwargs)
+                return result
+            return None
 
         with patch("asyncio.to_thread", side_effect=mock_to_thread):
             success, message = await _create_webhook_for_repository(
                 repository_name="testorg/testrepo",
                 github_api=mock_github_api,
                 webhook_url="https://example.com/webhook",
-                webhook_secret=None,
+                webhook_secret="test_secret",  # pragma: allowlist secret
                 logger=mock_logger,
             )
 
             assert success is True
-            assert "already exists" in message
+            assert "Webhook updated" in message
+            # Verify hook.edit was called with correct parameters
+            mock_hook.edit.assert_called_once_with(
+                name="web",
+                config={
+                    "url": "https://example.com/webhook",
+                    "content_type": "json",
+                    "secret": "test_secret",  # pragma: allowlist secret
+                },
+                events=["*"],
+                active=True,
+            )
 
     async def test_create_webhook_for_repository_list_hooks_failure(
         self,
@@ -420,22 +433,26 @@ class TestCreateWebhookForRepository:
         mock_github_api: Mock,
         mock_logger: Mock,
     ) -> None:
-        """Test webhook URL matching uses exact equality for robustness."""
+        """Test webhook URL matching uses exact equality and updates webhook."""
         # Existing webhook with exact URL match
         mock_hook = Mock(spec=github.Hook.Hook)
         mock_hook.config = {"url": "https://example.com/webhook"}
+        mock_hook.edit = Mock()
 
         mock_repo = Mock(spec=github.Repository.Repository)
 
         call_count = 0
 
-        async def mock_to_thread(_func: Any, *_args: Any, **_kwargs: Any) -> Any:
+        async def mock_to_thread(func: Any, *_args: Any, **_kwargs: Any) -> Any:
             nonlocal call_count
             call_count += 1
             if call_count == 1:  # First call is get_repo
                 return mock_repo
             if call_count == 2:  # Second call is get_hooks
                 return [mock_hook]
+            # Third call is hook.edit
+            if callable(func):
+                return func()
             return None
 
         with patch("asyncio.to_thread", side_effect=mock_to_thread):
@@ -449,4 +466,44 @@ class TestCreateWebhookForRepository:
             )
 
             assert success is True
-            assert "already exists" in message
+            assert "Webhook updated" in message
+            # Verify hook.edit was called
+            mock_hook.edit.assert_called_once()
+
+    async def test_create_webhook_for_repository_update_failure(
+        self,
+        mock_github_api: Mock,
+        mock_logger: Mock,
+    ) -> None:
+        """Test webhook update failure when edit() raises exception."""
+        mock_hook = Mock(spec=github.Hook.Hook)
+        mock_hook.config = {"url": "https://example.com/webhook"}
+        mock_hook.edit = Mock(side_effect=github.GithubException(status=500, data={"message": "Internal error"}))
+
+        mock_repo = Mock(spec=github.Repository.Repository)
+
+        call_count = 0
+
+        async def mock_to_thread(func: Any, *_args: Any, **_kwargs: Any) -> Any:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:  # First call is get_repo
+                return mock_repo
+            if call_count == 2:  # Second call is get_hooks
+                return [mock_hook]
+            # Third call is hook.edit (will raise exception)
+            if callable(func):
+                return func()
+            return None
+
+        with patch("asyncio.to_thread", side_effect=mock_to_thread):
+            success, message = await _create_webhook_for_repository(
+                repository_name="testorg/testrepo",
+                github_api=mock_github_api,
+                webhook_url="https://example.com/webhook",
+                webhook_secret="test_secret",  # pragma: allowlist secret
+                logger=mock_logger,
+            )
+
+            assert success is False
+            assert "Failed to update webhook" in message
