@@ -23,6 +23,9 @@ from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi import status as http_status
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi_mcp import FastApiMCP
+from fastapi_mcp.transport.http import FastApiHttpSessionManager
+from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from simple_logger.logger import get_logger
 
 from github_metrics.config import get_config
@@ -48,6 +51,10 @@ metrics_tracker: MetricsTracker | None = None
 dashboard_controller: MetricsDashboardController | None = None
 http_client: httpx.AsyncClient | None = None
 allowed_ips: tuple[IPNetwork, ...] = ()
+
+# MCP Globals
+http_transport: Any | None = None
+mcp_instance: Any | None = None
 
 
 def parse_datetime_string(value: str | None, param_name: str) -> datetime | None:
@@ -137,6 +144,25 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     dashboard_controller = MetricsDashboardController(dashboard_logger)
     LOGGER.info("Dashboard controller initialized")
 
+    # Initialize MCP session manager if enabled and configured
+    if config.mcp.enabled and http_transport is not None and mcp_instance is not None:
+        if http_transport._session_manager is None:
+            http_transport._session_manager = StreamableHTTPSessionManager(
+                app=mcp_instance.server,
+                event_store=http_transport.event_store,
+                json_response=True,
+                stateless=True,
+            )
+
+            async def run_manager() -> None:
+                if http_transport and http_transport._session_manager:
+                    async with http_transport._session_manager.run():
+                        await asyncio.Event().wait()
+
+            http_transport._manager_task = asyncio.create_task(run_manager())
+            http_transport._manager_started = True
+            LOGGER.info("MCP session manager initialized in lifespan")
+
     yield
 
     # Shutdown
@@ -192,7 +218,7 @@ async def health_check() -> dict[str, Any]:
 
 
 # Favicon endpoint
-@app.get("/favicon.ico", include_in_schema=False)
+@app.get("/favicon.ico", include_in_schema=False, tags=["mcp_exclude"])
 async def favicon() -> Response:
     """Serve favicon.ico."""
     transparent_png = base64.b64decode(
@@ -202,7 +228,7 @@ async def favicon() -> Response:
 
 
 # Webhook endpoint - receives GitHub webhook events
-@app.post("/metrics", operation_id="receive_webhook")
+@app.post("/metrics", operation_id="receive_webhook", tags=["mcp_exclude"])
 async def receive_webhook(request: Request) -> dict[str, str]:
     """Receive and process GitHub webhook events.
 
@@ -296,7 +322,7 @@ async def receive_webhook(request: Request) -> dict[str, str]:
 
 
 # Dashboard endpoints
-@app.get("/dashboard", operation_id="get_dashboard", response_class=HTMLResponse)
+@app.get("/dashboard", operation_id="get_dashboard", response_class=HTMLResponse, tags=["mcp_exclude"])
 async def get_dashboard() -> HTMLResponse:
     """Serve the metrics dashboard HTML page."""
     if dashboard_controller is None:
@@ -1885,3 +1911,33 @@ async def get_metrics_trends(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch metrics trends",
         ) from ex
+
+
+# MCP Integration - Setup AFTER all routes are registered
+_mcp_config = get_config()
+if _mcp_config.mcp.enabled:
+    # Create MCP instance with the main app
+    mcp_instance = FastApiMCP(app, exclude_tags=["mcp_exclude"])
+
+    # Create stateless HTTP transport to avoid session management issues
+    http_transport = FastApiHttpSessionManager(
+        mcp_server=mcp_instance.server,
+        event_store=None,  # No event store needed for stateless mode
+        json_response=True,
+    )
+    # Manually patch to use stateless mode
+    http_transport._session_manager = None  # Force recreation with stateless=True
+
+    # Register the HTTP endpoint manually
+    @app.api_route("/mcp", methods=["GET", "POST", "DELETE"], include_in_schema=False, operation_id="mcp_http")
+    async def handle_mcp_streamable_http(request: Request) -> Response:
+        # Session manager is initialized in lifespan
+        if http_transport is None or http_transport._session_manager is None:
+            LOGGER.error("MCP session manager not initialized")
+            raise HTTPException(
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="MCP server not initialized"
+            )
+
+        return await http_transport.handle_fastapi_request(request)
+
+    LOGGER.info("MCP server mounted at /mcp")

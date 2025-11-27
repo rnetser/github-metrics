@@ -22,12 +22,29 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from fastapi.testclient import TestClient
 
-from github_metrics.app import app
-from github_metrics.config import DatabaseConfig, MetricsConfig
-from github_metrics.database import DatabaseManager
+# Set test environment variables before importing app modules
+# This must happen before the app imports below
+os.environ.update({
+    "METRICS_DB_NAME": "test_metrics",
+    "METRICS_DB_USER": "test_user",
+    "METRICS_DB_PASSWORD": "test_pass",  # pragma: allowlist secret
+    "METRICS_DB_HOST": "localhost",
+    "METRICS_DB_PORT": "5432",
+    "METRICS_DB_POOL_SIZE": "10",
+    "METRICS_SERVER_HOST": "0.0.0.0",
+    "METRICS_SERVER_PORT": "8080",
+    "METRICS_SERVER_WORKERS": "1",
+    "METRICS_WEBHOOK_SECRET": "test_webhook_secret",  # pragma: allowlist secret
+    "METRICS_VERIFY_GITHUB_IPS": "false",
+    "METRICS_VERIFY_CLOUDFLARE_IPS": "false",
+    "METRICS_MCP_ENABLED": "true",
+})
+
+from github_metrics.app import app  # noqa: E402
+from github_metrics.config import DatabaseConfig, MetricsConfig  # noqa: E402
+from github_metrics.database import DatabaseManager  # noqa: E402
 
 
-# Set test environment variables before any imports
 @pytest.fixture(scope="session", autouse=True)
 def set_test_env_vars() -> None:
     """Set required environment variables for testing."""
@@ -44,6 +61,7 @@ def set_test_env_vars() -> None:
         "METRICS_WEBHOOK_SECRET": "test_webhook_secret",  # pragma: allowlist secret
         "METRICS_VERIFY_GITHUB_IPS": "false",
         "METRICS_VERIFY_CLOUDFLARE_IPS": "false",
+        "METRICS_MCP_ENABLED": "true",
     })
 
 
