@@ -8,9 +8,27 @@ Tests MCP server mounting and configuration including:
 from __future__ import annotations
 
 import os
+from collections.abc import Generator
+
+import pytest
 
 from github_metrics.app import app
 from github_metrics.config import _reset_config_for_testing, get_config
+
+
+@pytest.fixture
+def mcp_disabled_env() -> Generator[None]:
+    """Fixture to temporarily disable MCP via environment."""
+    original_value = os.environ.get("METRICS_MCP_ENABLED")
+    os.environ["METRICS_MCP_ENABLED"] = "false"
+    _reset_config_for_testing()
+    yield
+    # Restore original value
+    if original_value is not None:
+        os.environ["METRICS_MCP_ENABLED"] = original_value
+    else:
+        os.environ.pop("METRICS_MCP_ENABLED", None)
+    _reset_config_for_testing()
 
 
 class TestMCPConfig:
@@ -22,16 +40,16 @@ class TestMCPConfig:
         config = get_config()
         assert config.mcp.enabled is True
 
-    def test_mcp_config_disabled_via_env(self) -> None:
-        """Test MCP can be disabled via environment."""
-        os.environ["METRICS_MCP_ENABLED"] = "false"
-        try:
-            _reset_config_for_testing()
-            config = get_config()
-            assert config.mcp.enabled is False
-        finally:
-            os.environ["METRICS_MCP_ENABLED"] = "true"
-            _reset_config_for_testing()
+    def test_mcp_config_disabled_via_env(self, mcp_disabled_env: Generator[None]) -> None:
+        """Test MCP can be disabled via environment.
+
+        Args:
+            mcp_disabled_env: Fixture that sets METRICS_MCP_ENABLED=false for this test
+        """
+        # Fixture is used for its side effect (setting env var)
+        _ = mcp_disabled_env
+        config = get_config()
+        assert config.mcp.enabled is False
 
     def test_mcp_enabled_with_true_string(self) -> None:
         """Test MCP enabled with 'true' string."""
@@ -107,11 +125,11 @@ class TestMCPEndpoint:
 
     def test_excluded_endpoints_have_mcp_exclude_tag(self) -> None:
         """Test that endpoints meant to be excluded have mcp_exclude tag."""
-        # Find routes that should be excluded
         excluded_paths = ["/metrics", "/dashboard", "/favicon.ico"]
 
         for route in app.routes:
             if hasattr(route, "path") and route.path in excluded_paths:
-                # Check if route has tags attribute and mcp_exclude tag
-                if hasattr(route, "tags"):
-                    assert "mcp_exclude" in route.tags, f"Route {route.path} should have mcp_exclude tag"
+                # Route MUST have tags attribute
+                assert hasattr(route, "tags"), f"Route {route.path} must have tags attribute"
+                # Route MUST have mcp_exclude tag
+                assert "mcp_exclude" in route.tags, f"Route {route.path} should have mcp_exclude tag"

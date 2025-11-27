@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import ipaddress
+import logging
 import math
 import time
 from collections.abc import AsyncGenerator
@@ -39,6 +40,10 @@ from github_metrics.utils.security import (
 )
 from github_metrics.web.dashboard import MetricsDashboardController
 
+# Suppress noisy MCP library errors (known bug: https://github.com/modelcontextprotocol/python-sdk/issues/1219)
+# The ClosedResourceError in message_router is logged but doesn't affect functionality
+logging.getLogger("mcp.server.streamable_http").setLevel(logging.CRITICAL)
+
 # Type alias for IP networks (avoiding private type)
 IPNetwork = ipaddress.IPv4Network | ipaddress.IPv6Network
 
@@ -52,9 +57,10 @@ dashboard_controller: MetricsDashboardController | None = None
 http_client: httpx.AsyncClient | None = None
 allowed_ips: tuple[IPNetwork, ...] = ()
 
-# MCP Globals
-http_transport: Any | None = None
-mcp_instance: Any | None = None
+# MCP Globals - typed as concrete classes where possible
+# Note: Using library types directly; http_transport requires manual setup for stateless mode
+http_transport: FastApiHttpSessionManager | None = None
+mcp_instance: FastApiMCP | None = None
 
 
 def parse_datetime_string(value: str | None, param_name: str) -> datetime | None:
@@ -144,7 +150,10 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     dashboard_controller = MetricsDashboardController(dashboard_logger)
     LOGGER.info("Dashboard controller initialized")
 
-    # Initialize MCP session manager if enabled and configured
+    # Initialize MCP session manager if enabled
+    # Note: fastapi-mcp 0.4.0 doesn't expose stateless mode via mount_http(),
+    # so we manually configure the session manager with stateless=True
+    # to avoid session ID requirements for MCP clients
     if config.mcp.enabled and http_transport is not None and mcp_instance is not None:
         if http_transport._session_manager is None:
             http_transport._session_manager = StreamableHTTPSessionManager(
@@ -161,12 +170,21 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
             http_transport._manager_task = asyncio.create_task(run_manager())
             http_transport._manager_started = True
-            LOGGER.info("MCP session manager initialized in lifespan")
+            LOGGER.info("MCP session manager initialized with stateless mode")
 
     yield
 
     # Shutdown
     LOGGER.info("Shutting down GitHub Metrics service...")
+
+    # Shutdown MCP session manager first (before other resources)
+    if http_transport is not None and http_transport._manager_task is not None:
+        http_transport._manager_task.cancel()
+        try:
+            await http_transport._manager_task
+        except asyncio.CancelledError:
+            pass
+        LOGGER.debug("MCP session manager shutdown complete")
 
     if dashboard_controller is not None:
         await dashboard_controller.shutdown()
@@ -1914,30 +1932,45 @@ async def get_metrics_trends(
 
 
 # MCP Integration - Setup AFTER all routes are registered
+# Note: We use manual HTTP transport setup because fastapi-mcp 0.4.0's mount_http()
+# doesn't support stateless mode configuration, which is required for our use case
 _mcp_config = get_config()
 if _mcp_config.mcp.enabled:
     # Create MCP instance with the main app
     mcp_instance = FastApiMCP(app, exclude_tags=["mcp_exclude"])
 
-    # Create stateless HTTP transport to avoid session management issues
+    # Create HTTP transport manually to enable stateless mode
     http_transport = FastApiHttpSessionManager(
         mcp_server=mcp_instance.server,
         event_store=None,  # No event store needed for stateless mode
         json_response=True,
     )
-    # Manually patch to use stateless mode
-    http_transport._session_manager = None  # Force recreation with stateless=True
+    # Clear session manager so lifespan can create it with stateless=True
+    http_transport._session_manager = None
 
-    # Register the HTTP endpoint manually
-    @app.api_route("/mcp", methods=["GET", "POST", "DELETE"], include_in_schema=False, operation_id="mcp_http")
+    # Register the HTTP endpoint manually (OPTIONS needed for CORS preflight)
+    @app.api_route(
+        "/mcp", methods=["GET", "POST", "DELETE", "OPTIONS"], include_in_schema=False, operation_id="mcp_http"
+    )
     async def handle_mcp_streamable_http(request: Request) -> Response:
-        # Session manager is initialized in lifespan
+        """Handle MCP HTTP requests via stateless transport."""
+        # Handle CORS preflight requests
+        if request.method == "OPTIONS":
+            return Response(
+                status_code=204,
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type, Accept, Authorization",
+                },
+            )
+
         if http_transport is None or http_transport._session_manager is None:
             LOGGER.error("MCP session manager not initialized")
             raise HTTPException(
-                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="MCP server not initialized"
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="MCP server not initialized",
             )
-
         return await http_transport.handle_fastapi_request(request)
 
-    LOGGER.info("MCP server mounted at /mcp")
+    LOGGER.info("MCP server mounted at /mcp (stateless mode)")
