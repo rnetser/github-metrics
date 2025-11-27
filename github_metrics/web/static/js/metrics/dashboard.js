@@ -24,6 +24,8 @@ class MetricsDashboard {
         this.repositoryFilter = '';  // Repository filter lowercase for local comparisons (empty = show all)
         this.repositoryFilterRaw = '';  // Repository filter original case for API calls
         this.userFilter = '';  // User filter (empty = show all)
+        this.repositoryComboBox = null;  // ComboBox instance for repository filter
+        this.userComboBox = null;  // ComboBox instance for user filter
 
         // Pagination state for each section
         this.pagination = {
@@ -33,6 +35,16 @@ class MetricsDashboard {
             prReviewers: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
             prApprovers: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
             userPrs: { page: 1, pageSize: 10, total: 0, totalPages: 0 }
+        };
+
+        // Sort state for each table
+        this.tableSortState = {
+            topRepositories: { column: null, direction: 'asc' },
+            recentEvents: { column: null, direction: 'asc' },
+            prCreators: { column: null, direction: 'asc' },
+            prReviewers: { column: null, direction: 'asc' },
+            prApprovers: { column: null, direction: 'asc' },
+            userPrs: { column: null, direction: 'asc' }
         };
 
         // Load saved page sizes from localStorage
@@ -71,7 +83,10 @@ class MetricsDashboard {
         // 4. Set up event listeners
         this.setupEventListeners();
 
-        // 5. Populate date inputs with default 24h range logic so they are not empty
+        // 5. Initialize ComboBox components
+        this.initializeComboBoxes();
+
+        // 6. Populate date inputs with default 24h range logic so they are not empty
         const { startTime, endTime } = this.getTimeRangeDates(this.timeRange);
         const startInput = document.getElementById('startTime');
         const endInput = document.getElementById('endTime');
@@ -80,14 +95,14 @@ class MetricsDashboard {
             endInput.value = this.formatDateForInput(endTime);
         }
 
-        // 6. Show loading state
+        // 7. Show loading state
         this.showLoading(true);
 
         try {
-            // 7. Load initial data via REST API
+            // 8. Load initial data via REST API
             await this.loadInitialData();
 
-            // 8. Initialize charts (calls functions from charts.js)
+            // 9. Initialize charts (calls functions from charts.js)
             this.initializeCharts();
 
             console.log('[Dashboard] Dashboard initialization complete');
@@ -154,7 +169,8 @@ class MetricsDashboard {
                 repositories: reposData,  // Store full response with pagination
                 trends: trendsData.trends || [],
                 contributors: contributorsData,  // Store full response with pagination
-                eventTypeDistribution: summaryData.event_type_distribution || {}  // Store top-level event_type_distribution
+                eventTypeDistribution: summaryData.event_type_distribution || {},  // Store top-level event_type_distribution
+                userPrs: userPrsData  // Store user PRs data for sorting
             };
 
             console.log('[Dashboard] Initial data loaded:', this.currentData);
@@ -167,7 +183,8 @@ class MetricsDashboard {
             console.log('[Dashboard] Updating User PRs table with data:', userPrsData);
             this.updateUserPRsTable(userPrsData);
 
-            // Populate user filter dropdown
+            // Populate filter dropdowns
+            this.populateRepositoryFilter();
             this.populateUserFilter();
 
         } catch (error) {
@@ -593,7 +610,7 @@ class MetricsDashboard {
             const date = new Date(t.bucket);
             // Simple heuristic: if buckets are < 24h apart, show time, else date
             // For now just use local time string
-            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) +
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) +
                    (this.timeRange !== '1h' && this.timeRange !== '24h' ? ` ${date.getMonth() + 1}/${date.getDate()}` : '');
         });
 
@@ -695,7 +712,7 @@ class MetricsDashboard {
 
         // Generate table rows
         const rows = events.map(event => {
-            const time = new Date(event.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const time = new Date(event.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
             const status = event.status || 'unknown';
             const statusClass = status === 'success' ? 'status-success' : status === 'error' ? 'status-error' : 'status-partial';
 
@@ -912,25 +929,12 @@ class MetricsDashboard {
             refreshButton.addEventListener('click', () => this.manualRefresh());
         }
 
-        // Repository filter
-        const repositoryFilterInput = document.getElementById('repositoryFilter');
-        if (repositoryFilterInput) {
-            repositoryFilterInput.addEventListener('input', (e) => this.filterByRepository(e.target.value));
-        }
-
-        // User filter
-        const userFilterSelect = document.getElementById('userFilter');
-        if (userFilterSelect) {
-            userFilterSelect.addEventListener('change', (e) => this.filterByUser(e.target.value));
-        }
-
-        // Clickable usernames
+        // Clickable usernames - set ComboBox value and trigger filter
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('clickable-username')) {
                 const username = e.target.dataset.user;
-                const userFilterSelect = document.getElementById('userFilter');
-                if (userFilterSelect) {
-                    userFilterSelect.value = username;
+                if (this.userComboBox) {
+                    this.userComboBox.setValue(username);
                     this.filterByUser(username);
                 }
             }
@@ -938,6 +942,9 @@ class MetricsDashboard {
 
         // Pagination listeners
         this.setupPaginationListeners();
+
+        // Sort listeners
+        this.setupSortListeners();
 
         // Collapse buttons
         this.setupCollapseButtons();
@@ -992,6 +999,39 @@ class MetricsDashboard {
         document.getElementById('downloadApiChart')?.addEventListener('click', () => this.downloadChart('apiUsageChart'));
 
         console.log('[Dashboard] Event listeners set up');
+    }
+
+    /**
+     * Initialize ComboBox components for repository and user filters.
+     */
+    initializeComboBoxes() {
+        const repoContainer = document.getElementById('repository-filter-group');
+        if (repoContainer && window.ComboBox) {
+            this.repositoryComboBox = new window.ComboBox({
+                container: repoContainer,
+                inputId: 'repositoryFilter',
+                placeholder: 'Type to search or select...',
+                options: [{ value: '', label: 'All Repositories' }],
+                allowFreeText: true,
+                onSelect: (value) => this.filterByRepository(value),
+                onInput: (value) => this.filterByRepository(value)
+            });
+            console.log('[Dashboard] Repository ComboBox initialized');
+        }
+
+        const userContainer = document.getElementById('user-filter-group');
+        if (userContainer && window.ComboBox) {
+            this.userComboBox = new window.ComboBox({
+                container: userContainer,
+                inputId: 'userFilter',
+                placeholder: 'Type to search or select...',
+                options: [{ value: '', label: 'All Users' }],
+                allowFreeText: true,
+                onSelect: (value) => this.filterByUser(value),
+                onInput: (value) => this.filterByUser(value)
+            });
+            console.log('[Dashboard] User ComboBox initialized');
+        }
     }
 
     /**
@@ -1249,12 +1289,39 @@ class MetricsDashboard {
     }
 
     /**
-     * Populate user filter dropdown from contributors data.
+     * Populate repository filter combo-box from repositories data.
+     */
+    populateRepositoryFilter() {
+        if (!this.repositoryComboBox) {
+            console.warn('[Dashboard] Repository ComboBox not initialized');
+            return;
+        }
+
+        const repositories = new Set();
+        if (this.currentData.repositories) {
+            const reposArray = this.normalizeRepositories(this.currentData.repositories);
+            reposArray.forEach(repo => {
+                if (repo.repository) {
+                    repositories.add(repo.repository);
+                }
+            });
+        }
+
+        const options = [{ value: '', label: 'All Repositories' }];
+        Array.from(repositories).sort().forEach(repo => {
+            options.push({ value: repo, label: repo });
+        });
+
+        this.repositoryComboBox.setOptions(options);
+        console.log(`[Dashboard] Repository filter populated with ${repositories.size} repositories`);
+    }
+
+    /**
+     * Populate user filter combo-box from contributors data.
      */
     populateUserFilter() {
-        const userFilterSelect = document.getElementById('userFilter');
-        if (!userFilterSelect) {
-            console.warn('[Dashboard] User filter dropdown not found');
+        if (!this.userComboBox) {
+            console.warn('[Dashboard] User ComboBox not initialized');
             return;
         }
 
@@ -1278,17 +1345,12 @@ class MetricsDashboard {
                 });
         }
 
-        // Clear existing options except "All Users"
-        userFilterSelect.innerHTML = '<option value="">All Users</option>';
-
-        // Add user options sorted alphabetically
+        const options = [{ value: '', label: 'All Users' }];
         Array.from(users).sort().forEach(user => {
-            const option = document.createElement('option');
-            option.value = user;
-            option.textContent = user;
-            userFilterSelect.appendChild(option);
+            options.push({ value: user, label: user });
         });
 
+        this.userComboBox.setOptions(options);
         console.log(`[Dashboard] User filter populated with ${users.size} users`);
     }
 
@@ -1398,13 +1460,13 @@ class MetricsDashboard {
                 // 12 buckets of 5 minutes each
                 bucketCount = 12;
                 bucketSize = 5 * 60 * 1000; // 5 minutes
-                labelFormatter = (date) => date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                labelFormatter = (date) => date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
                 break;
             case '24h':
                 // 24 hourly buckets
                 bucketCount = 24;
                 bucketSize = 60 * 60 * 1000; // 1 hour
-                labelFormatter = (date) => date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                labelFormatter = (date) => date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
                 break;
             case '7d':
                 // 7 daily buckets
@@ -1429,11 +1491,11 @@ class MetricsDashboard {
                 if (rangeDuration <= 2 * 60 * 60 * 1000) { // <= 2 hours
                     bucketCount = 12;
                     bucketSize = Math.ceil(rangeDuration / 12);
-                    labelFormatter = (date) => date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                    labelFormatter = (date) => date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
                 } else if (rangeDuration <= 48 * 60 * 60 * 1000) { // <= 48 hours
                     bucketCount = Math.ceil(rangeDuration / (60 * 60 * 1000)); // hourly buckets
                     bucketSize = 60 * 60 * 1000;
-                    labelFormatter = (date) => date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                    labelFormatter = (date) => date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
                 } else {
                     bucketCount = Math.min(30, Math.ceil(rangeDuration / (24 * 60 * 60 * 1000))); // daily buckets, max 30
                     bucketSize = 24 * 60 * 60 * 1000;
@@ -1445,7 +1507,7 @@ class MetricsDashboard {
                 // Fallback to 24 hourly buckets
                 bucketCount = 24;
                 bucketSize = 60 * 60 * 1000;
-                labelFormatter = (date) => date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                labelFormatter = (date) => date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
         }
 
         // Create time buckets
@@ -1900,6 +1962,8 @@ class MetricsDashboard {
                     break;
                 case 'userPrs':
                     data = await this.apiClient.fetchUserPRs(startTime, endTime, params);
+                    // Store user PRs data for sorting
+                    this.currentData.userPrs = data;
                     this.updateUserPRsTable(data);
                     break;
             }
@@ -1931,7 +1995,7 @@ class MetricsDashboard {
         }
 
         if (!prs || prs.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No pull requests found</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No pull requests found</td></tr>';
         } else {
             const rows = prs.map(pr => {
                 // Soft fallbacks for missing/invalid date fields
@@ -1943,6 +2007,7 @@ class MetricsDashboard {
                 // Soft fallbacks for missing fields
                 const prNumber = pr.number || 'N/A';
                 const title = pr.title || 'Untitled';
+                const owner = pr.owner || 'Unknown';
                 const repository = pr.repository || 'Unknown';
                 const state = pr.state || 'unknown';
                 const commitsCount = pr.commits_count || 0;
@@ -1951,6 +2016,7 @@ class MetricsDashboard {
                     <tr class="pr-row" data-pr-id="${prNumber}">
                         <td><a href="https://github.com/${this.escapeHtml(repository)}/pull/${prNumber}" target="_blank" rel="noopener noreferrer">#${prNumber}</a></td>
                         <td>${this.escapeHtml(title)}</td>
+                        <td><span class="clickable-username" data-user="${this.escapeHtml(owner)}">${this.escapeHtml(owner)}</span></td>
                         <td>${this.escapeHtml(repository)}</td>
                         <td><span class="${stateClass}">${this.escapeHtml(state)}</span> ${mergedBadge}</td>
                         <td>${created}</td>
@@ -1987,6 +2053,16 @@ class MetricsDashboard {
             }
         });
 
+        // Destroy combo-boxes
+        if (this.repositoryComboBox) {
+            this.repositoryComboBox.destroy();
+            this.repositoryComboBox = null;
+        }
+        if (this.userComboBox) {
+            this.userComboBox.destroy();
+            this.userComboBox = null;
+        }
+
         console.log('[Dashboard] Dashboard destroyed');
     }
 
@@ -2015,6 +2091,233 @@ class MetricsDashboard {
             return date.toLocaleDateString();
         } catch {
             return '-';
+        }
+    }
+
+    /**
+     * Set up sort event listeners for table headers.
+     */
+    setupSortListeners() {
+        document.addEventListener('click', (e) => {
+            const header = e.target.closest('th.sortable');
+            if (header) {
+                const tableId = header.closest('table').id;
+                const column = header.dataset.column;
+                const section = this.getTableSection(tableId);
+
+                if (section && column) {
+                    this.handleTableSort(section, column);
+                }
+            }
+        });
+    }
+
+    /**
+     * Map table ID to section name.
+     * @param {string} tableId - Table element ID
+     * @returns {string|null} Section identifier
+     */
+    getTableSection(tableId) {
+        const tableToSection = {
+            'topRepositoriesTable': 'topRepositories',
+            'recentEventsTable': 'recentEvents',
+            'prCreatorsTable': 'prCreators',
+            'prReviewersTable': 'prReviewers',
+            'prApproversTable': 'prApprovers',
+            'userPrsTable': 'userPrs'
+        };
+        return tableToSection[tableId] || null;
+    }
+
+    /**
+     * Handle table header click for sorting.
+     * @param {string} section - Section identifier
+     * @param {string} column - Column name to sort by
+     */
+    handleTableSort(section, column) {
+        const state = this.tableSortState[section];
+
+        // Toggle direction if same column, otherwise reset to ascending
+        if (state.column === column) {
+            state.direction = state.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            state.column = column;
+            state.direction = 'asc';
+        }
+
+        console.log(`[Dashboard] Sorting ${section} by ${column} ${state.direction}`);
+
+        // Re-render the table with sorted data
+        this.sortAndRenderTable(section);
+    }
+
+    /**
+     * Sort table data and re-render.
+     * @param {string} section - Section identifier
+     */
+    sortAndRenderTable(section) {
+        const state = this.tableSortState[section];
+
+        if (!state.column) {
+            return; // No column selected
+        }
+
+        // Get the data for this section
+        let data = this.getTableData(section);
+
+        if (!data || !Array.isArray(data) || data.length === 0) {
+            return;
+        }
+
+        // Sort the data
+        const sortedData = this.sortTableData(data, state.column, state.direction);
+
+        // Update the appropriate table
+        switch (section) {
+            case 'topRepositories':
+                this.updateRepositoryTable(sortedData);
+                this.updateSortIndicators('topRepositoriesTable', state.column, state.direction);
+                break;
+            case 'recentEvents':
+                this.updateRecentEventsTable(sortedData);
+                this.updateSortIndicators('recentEventsTable', state.column, state.direction);
+                break;
+            case 'prCreators':
+                this.updateContributorsTable('pr-creators-table-body', sortedData, (creator) => `
+                    <tr>
+                        <td><span class="clickable-username" data-user="${this.escapeHtml(creator.user)}">${this.escapeHtml(creator.user)}</span></td>
+                        <td>${creator.total_prs}</td>
+                        <td>${creator.merged_prs}</td>
+                        <td>${creator.closed_prs}</td>
+                        <td>${creator.avg_commits_per_pr || 0}</td>
+                    </tr>
+                `);
+                this.updateSortIndicators('prCreatorsTable', state.column, state.direction);
+                break;
+            case 'prReviewers':
+                this.updateContributorsTable('pr-reviewers-table-body', sortedData, (reviewer) => `
+                    <tr>
+                        <td><span class="clickable-username" data-user="${this.escapeHtml(reviewer.user)}">${this.escapeHtml(reviewer.user)}</span></td>
+                        <td>${reviewer.total_reviews}</td>
+                        <td>${reviewer.prs_reviewed}</td>
+                        <td>${reviewer.avg_reviews_per_pr}</td>
+                    </tr>
+                `);
+                this.updateSortIndicators('prReviewersTable', state.column, state.direction);
+                break;
+            case 'prApprovers':
+                this.updateContributorsTable('pr-approvers-table-body', sortedData, (approver) => `
+                    <tr>
+                        <td><span class="clickable-username" data-user="${this.escapeHtml(approver.user)}">${this.escapeHtml(approver.user)}</span></td>
+                        <td>${approver.total_approvals}</td>
+                        <td>${approver.prs_approved}</td>
+                    </tr>
+                `);
+                this.updateSortIndicators('prApproversTable', state.column, state.direction);
+                break;
+            case 'userPrs':
+                this.updateUserPRsTable({ data: sortedData, pagination: this.pagination.userPrs });
+                this.updateSortIndicators('userPrsTable', state.column, state.direction);
+                break;
+        }
+    }
+
+    /**
+     * Get table data for a section.
+     * @param {string} section - Section identifier
+     * @returns {Array} Table data
+     */
+    getTableData(section) {
+        switch (section) {
+            case 'topRepositories':
+                return this.currentData.topRepositories || [];
+            case 'recentEvents':
+                return this.currentData.webhooks?.data || this.currentData.webhooks || [];
+            case 'prCreators':
+                return this.currentData.contributors?.pr_creators?.data || this.currentData.contributors?.pr_creators || [];
+            case 'prReviewers':
+                return this.currentData.contributors?.pr_reviewers?.data || this.currentData.contributors?.pr_reviewers || [];
+            case 'prApprovers':
+                return this.currentData.contributors?.pr_approvers?.data || this.currentData.contributors?.pr_approvers || [];
+            case 'userPrs':
+                return this.currentData.userPrs?.data || this.currentData.userPrs || [];
+            default:
+                return [];
+        }
+    }
+
+    /**
+     * Sort table data by column and direction.
+     * @param {Array} data - Array of data objects
+     * @param {string} column - Column name
+     * @param {string} direction - 'asc' or 'desc'
+     * @returns {Array} Sorted data
+     */
+    sortTableData(data, column, direction) {
+        const sorted = [...data].sort((a, b) => {
+            let aVal = a[column];
+            let bVal = b[column];
+
+            // Handle null/undefined - sort to end
+            if (aVal == null && bVal == null) return 0;
+            if (aVal == null) return 1;
+            if (bVal == null) return -1;
+
+            // Check for ISO date strings FIRST (before number check)
+            // ISO dates look like: "2025-11-27T10:30:00" or "2025-11-27T10:30:00.000Z"
+            const isoDateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+            if (typeof aVal === 'string' && typeof bVal === 'string' &&
+                isoDateRegex.test(aVal) && isoDateRegex.test(bVal)) {
+                const aDate = new Date(aVal);
+                const bDate = new Date(bVal);
+                if (!isNaN(aDate.getTime()) && !isNaN(bDate.getTime())) {
+                    return direction === 'asc' ? aDate - bDate : bDate - aDate;
+                }
+            }
+
+            // Try to parse as number (only if both are purely numeric)
+            const aNum = parseFloat(aVal);
+            const bNum = parseFloat(bVal);
+            const aIsNum = !isNaN(aNum) && isFinite(aVal) && String(aVal).trim() === String(aNum);
+            const bIsNum = !isNaN(bNum) && isFinite(bVal) && String(bVal).trim() === String(bNum);
+
+            if (aIsNum && bIsNum) {
+                // Numeric comparison
+                return direction === 'asc' ? aNum - bNum : bNum - aNum;
+            }
+
+            // String comparison (case-insensitive)
+            const aStr = String(aVal).toLowerCase();
+            const bStr = String(bVal).toLowerCase();
+
+            if (direction === 'asc') {
+                return aStr.localeCompare(bStr);
+            }
+            return bStr.localeCompare(aStr);
+        });
+
+        return sorted;
+    }
+
+    /**
+     * Update sort indicators on table headers.
+     * @param {string} tableId - Table element ID
+     * @param {string} column - Currently sorted column
+     * @param {string} direction - Sort direction ('asc' or 'desc')
+     */
+    updateSortIndicators(tableId, column, direction) {
+        const table = document.getElementById(tableId);
+        if (!table) return;
+
+        // Remove existing sort classes
+        table.querySelectorAll('th.sortable').forEach(th => {
+            th.classList.remove('sort-asc', 'sort-desc');
+        });
+
+        // Add sort class to current column
+        const currentHeader = table.querySelector(`th.sortable[data-column="${column}"]`);
+        if (currentHeader) {
+            currentHeader.classList.add(`sort-${direction}`);
         }
     }
 }

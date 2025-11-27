@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from fastapi import FastAPI, HTTPException, Query, Request, Response, WebSocket
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi import status as http_status
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -312,29 +312,6 @@ async def get_dashboard() -> HTMLResponse:
             detail="Dashboard controller not initialized",
         )
     return dashboard_controller.get_dashboard_page()
-
-
-@app.websocket("/metrics/ws")
-async def websocket_metrics_stream(
-    websocket: WebSocket,
-    repository: str | None = None,
-    event_type: str | None = None,
-    status: str | None = None,
-) -> None:
-    """Handle WebSocket connection for real-time metrics streaming."""
-    if dashboard_controller is None:
-        await websocket.close(
-            code=http_status.WS_1008_POLICY_VIOLATION,
-            reason="Dashboard controller not initialized",
-        )
-        return
-
-    await dashboard_controller.handle_websocket(
-        websocket=websocket,
-        repository=repository,
-        event_type=event_type,
-        status=status,
-    )
 
 
 # API endpoints
@@ -1576,6 +1553,7 @@ async def get_user_pull_requests(
         {
           "number": 123,
           "title": "Add feature X",
+          "owner": "username",
           "repository": "org/repo1",
           "state": "closed",
           "merged": true,
@@ -1664,6 +1642,7 @@ async def get_user_pull_requests(
         SELECT DISTINCT ON (repository, (payload->'pull_request'->>'number')::int)
             (payload->'pull_request'->>'number')::int as pr_number,
             payload->'pull_request'->>'title' as title,
+            payload->'pull_request'->'user'->>'login' as owner,
             repository,
             payload->'pull_request'->>'state' as state,
             (payload->'pull_request'->>'merged')::boolean as merged,
@@ -1694,6 +1673,7 @@ async def get_user_pull_requests(
             {
                 "number": row["pr_number"],
                 "title": row["title"],
+                "owner": row["owner"],
                 "repository": row["repository"],
                 "state": row["state"],
                 "merged": row["merged"] or False,

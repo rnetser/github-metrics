@@ -77,20 +77,33 @@ async def setup_webhooks(
         logger.exception("Failed to authenticate with GitHub")
         return {"error": (False, "Failed to authenticate with GitHub")}
 
-    # Process each repository
-    for repo_name in config.github.repositories:
-        success, message = await _create_webhook_for_repository(
+    # Create tasks for all repositories
+    tasks = [
+        _create_webhook_for_repository(
             repository_name=repo_name,
             github_api=github_api,
             webhook_url=config.github.webhook_url,
             webhook_secret=config.webhook.secret or None,
             logger=logger,
         )
-        results[repo_name] = (success, message)
-        if success:
-            logger.info(message)
-        else:
-            logger.error(message)
+        for repo_name in config.github.repositories
+    ]
+
+    # Run all tasks in parallel
+    task_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Process results
+    for repo_name, result in zip(config.github.repositories, task_results, strict=True):
+        if isinstance(result, Exception):
+            results[repo_name] = (False, f"Exception: {result}")
+            logger.error(f"{repo_name}: {result}")
+        elif isinstance(result, tuple):
+            success, message = result
+            results[repo_name] = (success, message)
+            if success:
+                logger.info(message)
+            else:
+                logger.error(message)
 
     return results
 

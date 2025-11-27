@@ -263,6 +263,10 @@ h3 {
   opacity: 1;
 }
 
+.panel-content:has(.combo-box.open) {
+  overflow: visible;
+}
+
 .control-panel.collapsed .panel-content {
   max-height: 0;
   padding: 0 20px;
@@ -291,14 +295,17 @@ h3 {
 
 .filters {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 15px;
   margin-bottom: 20px;
+  overflow: visible;
 }
 
 .filter-group {
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow: visible;
 }
 
 .filter-group label {
@@ -325,6 +332,94 @@ h3 {
 .filter-group select:focus {
   outline: none;
   border-color: var(--primary-color);
+}
+
+/* DateTime picker styling fixes */
+.filter-group input[type="datetime-local"] {
+  padding-right: 30px;  /* Space for calendar icon */
+}
+
+/* Calendar picker icon styling */
+.filter-group input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  margin-left: 5px;
+}
+
+/* Dark theme - invert the calendar icon color */
+[data-theme="dark"] .filter-group input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);  /* Full invert for better visibility */
+}
+
+/* ComboBox Component */
+.combo-box {
+  position: relative;
+}
+
+.combo-box-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  background-color: var(--input-bg);
+  color: var(--text-color);
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.combo-box-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.combo-box-dropdown {
+  display: none;
+  position: fixed;
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  background-color: var(--container-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+}
+
+.combo-box.open .combo-box-dropdown {
+  display: block;
+}
+
+.combo-box-option {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-color);
+  transition: background-color 0.15s;
+}
+
+.combo-box-option:hover,
+.combo-box-option.highlighted {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.combo-box-option.selected {
+  background-color: rgba(52, 152, 219, 0.2);
+  color: var(--text-color);
+}
+
+.combo-box-option.selected:hover,
+.combo-box-option.selected.highlighted {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.combo-box-no-results {
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: center;
+  font-style: italic;
 }
 
 .controls-row {
@@ -511,6 +606,36 @@ thead th {
   background: var(--input-bg);
   position: sticky;
   top: 0;
+}
+
+/* Sortable table headers */
+thead th.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  padding-right: 24px;
+}
+
+thead th.sortable:hover {
+  background-color: var(--border-color);
+}
+
+thead th.sortable::after {
+  content: '⇅';
+  position: absolute;
+  right: 6px;
+  opacity: 0.3;
+  font-size: 0.75em;
+}
+
+thead th.sortable.sort-asc::after {
+  content: '▲';
+  opacity: 1;
+}
+
+thead th.sortable.sort-desc::after {
+  content: '▼';
+  opacity: 1;
 }
 
 tbody td {

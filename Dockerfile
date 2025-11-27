@@ -17,7 +17,8 @@ ENV PATH="$HOME_DIR/.local/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     UV_PYTHON=python3.13 \
     UV_COMPILE_BYTECODE=1 \
-    UV_NO_SYNC=1
+    UV_NO_SYNC=1 \
+    UV_CACHE_DIR="$HOME_DIR/.cache/uv"
 
 WORKDIR $HOME_DIR
 
@@ -34,20 +35,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install uv with pinned version
 COPY --from=uv /uv /uvx /usr/local/bin/
 
-# Copy project files
-COPY entrypoint.py pyproject.toml uv.lock alembic.ini README.md $HOME_DIR/
-COPY github_metrics $HOME_DIR/github_metrics/
-
-# Install dependencies
-RUN uv sync --frozen
-
-# Create non-root user and set ownership
+# Create non-root user EARLY (before copying files or installing dependencies)
+# This eliminates the need for slow chown -R after uv sync
 RUN groupadd --gid 1000 appuser && \
     useradd --uid 1000 --gid 1000 --no-create-home --shell /bin/bash appuser && \
-    chown -R appuser:appuser $HOME_DIR
+    chown appuser:appuser $HOME_DIR
 
-# Switch to non-root user
+# Copy project files WITH ownership already set (avoids chown -R overhead)
+COPY --chown=appuser:appuser entrypoint.py pyproject.toml uv.lock alembic.ini README.md $HOME_DIR/
+COPY --chown=appuser:appuser github_metrics $HOME_DIR/github_metrics/
+
+# Switch to non-root user BEFORE uv sync
+# This ensures .venv is created with correct ownership from the start
 USER appuser
+
+# Create cache directory and install dependencies
+# No chown needed - files already owned by appuser
+RUN mkdir -p $UV_CACHE_DIR && uv sync --frozen
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

@@ -1,0 +1,487 @@
+/**
+ * ComboBox Component - Unified dropdown + free text input with fuzzy search
+ *
+ * Features:
+ * - Opens dropdown on focus
+ * - Free text input with fuzzy search filtering
+ * - Keyboard navigation (Arrow Up/Down, Enter, Escape)
+ * - Click outside to close
+ * - Light/dark theme support via CSS variables
+ * - ARIA accessibility attributes
+ * - Pure vanilla JavaScript - NO external libraries
+ */
+
+class ComboBox {
+    /**
+     * Create a ComboBox instance
+     * @param {Object} config - Configuration options
+     * @param {HTMLElement} config.container - Container element for the combo-box
+     * @param {string} config.inputId - ID of the input element to transform
+     * @param {string} config.placeholder - Placeholder text for the input
+     * @param {Array<{value: string, label: string}>} config.options - Array of options
+     * @param {boolean} config.allowFreeText - Allow free text input (default: true)
+     * @param {Function} config.onSelect - Callback when option is selected
+     * @param {Function} config.onInput - Callback when input value changes
+     */
+    constructor(config) {
+        this.container = config.container;
+        this.inputId = config.inputId;
+        this.placeholder = config.placeholder || '';
+        this.options = config.options || [];
+        this.allowFreeText = config.allowFreeText !== false;
+        this.onSelect = config.onSelect || (() => {});
+        this.onInput = config.onInput || (() => {});
+
+        this.input = null;
+        this.dropdown = null;
+        this.highlightedIndex = -1;
+        this.filteredOptions = [];
+        this.isOpen = false;
+        this.blurTimeout = null;
+
+        // Bound event handlers for cleanup
+        this.scrollHandler = null;
+        this.resizeHandler = null;
+
+        this._initialize();
+    }
+
+    /**
+     * Initialize the combo-box
+     * @private
+     */
+    _initialize() {
+        // Find the input element
+        this.input = document.getElementById(this.inputId);
+        if (!this.input) {
+            console.error(`[ComboBox] Input element with ID "${this.inputId}" not found`);
+            return;
+        }
+
+        // Set placeholder
+        this.input.placeholder = this.placeholder;
+
+        // Add combo-box wrapper class to container
+        this.container.classList.add('combo-box');
+
+        // Add combo-box class to input
+        this.input.classList.add('combo-box-input');
+
+        // Set ARIA attributes
+        this.input.setAttribute('role', 'combobox');
+        this.input.setAttribute('aria-autocomplete', 'list');
+        this.input.setAttribute('aria-expanded', 'false');
+        this.input.setAttribute('aria-haspopup', 'listbox');
+
+        // Create dropdown element
+        this._createDropdown();
+
+        // Set up event listeners
+        this._setupEventListeners();
+
+        console.log(`[ComboBox] Initialized for input #${this.inputId}`);
+    }
+
+    /**
+     * Create dropdown element
+     * @private
+     */
+    _createDropdown() {
+        this.dropdown = document.createElement('div');
+        this.dropdown.className = 'combo-box-dropdown';
+        this.dropdown.setAttribute('role', 'listbox');
+        this.dropdown.id = `${this.inputId}-dropdown`;
+
+        // Set ARIA relationship
+        this.input.setAttribute('aria-controls', this.dropdown.id);
+
+        // Insert dropdown after input
+        this.input.parentNode.appendChild(this.dropdown);
+    }
+
+    /**
+     * Set up event listeners
+     * @private
+     */
+    _setupEventListeners() {
+        // Focus: Open dropdown
+        this.input.addEventListener('focus', () => this._handleFocus());
+
+        // Input: Filter options
+        this.input.addEventListener('input', (e) => this._handleInput(e));
+
+        // Blur: Close dropdown (with delay for click handling)
+        this.input.addEventListener('blur', () => this._handleBlur());
+
+        // Keyboard navigation
+        this.input.addEventListener('keydown', (e) => this._handleKeydown(e));
+
+        // Click outside to close
+        document.addEventListener('click', (e) => this._handleClickOutside(e));
+    }
+
+    /**
+     * Handle input focus
+     * @private
+     */
+    _handleFocus() {
+        this.open();
+    }
+
+    /**
+     * Handle input change
+     * @private
+     */
+    _handleInput(e) {
+        const value = e.target.value;
+        this._filterOptions(value);
+        this._renderDropdown();
+
+        // Trigger onInput callback
+        if (this.allowFreeText) {
+            this.onInput(value);
+        }
+
+        // Open dropdown if closed
+        if (!this.isOpen) {
+            this.open();
+        }
+    }
+
+    /**
+     * Handle input blur
+     * @private
+     */
+    _handleBlur() {
+        // Delay closing to allow click events on dropdown options
+        this.blurTimeout = setTimeout(() => {
+            this.close();
+        }, 150);
+    }
+
+    /**
+     * Handle keyboard navigation
+     * @private
+     */
+    _handleKeydown(e) {
+        if (!this.isOpen) {
+            // Open on Arrow Down
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                this.open();
+            }
+            return;
+        }
+
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                this._highlightNext();
+                break;
+
+            case 'ArrowUp':
+                e.preventDefault();
+                this._highlightPrevious();
+                break;
+
+            case 'Enter':
+                e.preventDefault();
+                this._selectHighlighted();
+                break;
+
+            case 'Escape':
+                e.preventDefault();
+                this.close();
+                break;
+        }
+    }
+
+    /**
+     * Handle click outside
+     * @private
+     */
+    _handleClickOutside(e) {
+        if (!this.container.contains(e.target)) {
+            this.close();
+        }
+    }
+
+    /**
+     * Filter options based on search query
+     * @private
+     */
+    _filterOptions(query) {
+        if (!query || query.trim() === '') {
+            this.filteredOptions = [...this.options];
+            return;
+        }
+
+        const searchTerm = query.toLowerCase();
+
+        // Filter with case-insensitive includes
+        const matches = this.options.filter(option =>
+            option.label.toLowerCase().includes(searchTerm)
+        );
+
+        // Sort: items starting with query first, then others alphabetically
+        this.filteredOptions = matches.sort((a, b) => {
+            const aLabel = a.label.toLowerCase();
+            const bLabel = b.label.toLowerCase();
+            const aStarts = aLabel.startsWith(searchTerm);
+            const bStarts = bLabel.startsWith(searchTerm);
+
+            if (aStarts && !bStarts) return -1;
+            if (!aStarts && bStarts) return 1;
+            return aLabel.localeCompare(bLabel);
+        });
+    }
+
+    /**
+     * Render dropdown with filtered options
+     * @private
+     */
+    _renderDropdown() {
+        this.dropdown.innerHTML = '';
+
+        if (this.filteredOptions.length === 0) {
+            const noResults = document.createElement('div');
+            noResults.className = 'combo-box-no-results';
+            noResults.textContent = 'No matches found';
+            this.dropdown.appendChild(noResults);
+            return;
+        }
+
+        this.filteredOptions.forEach((option, index) => {
+            const optionElement = document.createElement('div');
+            optionElement.className = 'combo-box-option';
+            optionElement.textContent = option.label;
+            optionElement.setAttribute('role', 'option');
+            optionElement.setAttribute('data-value', option.value);
+            optionElement.setAttribute('data-index', index);
+
+            // Highlight if selected
+            if (option.value === this.input.value || option.label === this.input.value) {
+                optionElement.classList.add('selected');
+            }
+
+            // Click handler
+            optionElement.addEventListener('mousedown', (e) => {
+                e.preventDefault(); // Prevent blur
+                this._selectOption(option);
+            });
+
+            this.dropdown.appendChild(optionElement);
+        });
+    }
+
+    /**
+     * Highlight next option
+     * @private
+     */
+    _highlightNext() {
+        if (this.filteredOptions.length === 0) return;
+
+        this.highlightedIndex = (this.highlightedIndex + 1) % this.filteredOptions.length;
+        this._updateHighlight();
+    }
+
+    /**
+     * Highlight previous option
+     * @private
+     */
+    _highlightPrevious() {
+        if (this.filteredOptions.length === 0) return;
+
+        this.highlightedIndex = this.highlightedIndex <= 0
+            ? this.filteredOptions.length - 1
+            : this.highlightedIndex - 1;
+        this._updateHighlight();
+    }
+
+    /**
+     * Update visual highlight
+     * @private
+     */
+    _updateHighlight() {
+        const options = this.dropdown.querySelectorAll('.combo-box-option');
+        options.forEach((opt, idx) => {
+            if (idx === this.highlightedIndex) {
+                opt.classList.add('highlighted');
+                opt.scrollIntoView({ block: 'nearest' });
+            } else {
+                opt.classList.remove('highlighted');
+            }
+        });
+    }
+
+    /**
+     * Select highlighted option
+     * @private
+     */
+    _selectHighlighted() {
+        if (this.highlightedIndex >= 0 && this.highlightedIndex < this.filteredOptions.length) {
+            this._selectOption(this.filteredOptions[this.highlightedIndex]);
+        } else if (this.allowFreeText) {
+            // Use free text value
+            this.onSelect(this.input.value);
+            this.close();
+        }
+    }
+
+    /**
+     * Select an option
+     * @private
+     */
+    _selectOption(option) {
+        this.input.value = option.label;
+        this.onSelect(option.value);
+        this.close();
+    }
+
+    /**
+     * Position dropdown using fixed positioning
+     * @private
+     */
+    _positionDropdown() {
+        if (!this.dropdown || !this.input) return;
+
+        const rect = this.input.getBoundingClientRect();
+        this.dropdown.style.position = 'fixed';
+        this.dropdown.style.top = `${rect.bottom + 4}px`;
+        this.dropdown.style.left = `${rect.left}px`;
+        this.dropdown.style.width = `${rect.width}px`;
+    }
+
+    /**
+     * Open dropdown
+     */
+    open() {
+        if (this.isOpen) return;
+
+        this.isOpen = true;
+        this.container.classList.add('open');
+        this.input.setAttribute('aria-expanded', 'true');
+
+        // Filter and render
+        this._filterOptions(this.input.value);
+        this._renderDropdown();
+
+        // Position dropdown
+        this._positionDropdown();
+
+        // Add scroll/resize listeners to keep dropdown positioned
+        this.scrollHandler = () => this._positionDropdown();
+        this.resizeHandler = () => this._positionDropdown();
+        window.addEventListener('scroll', this.scrollHandler, true);
+        window.addEventListener('resize', this.resizeHandler);
+
+        // Reset highlight
+        this.highlightedIndex = -1;
+    }
+
+    /**
+     * Close dropdown
+     */
+    close() {
+        if (!this.isOpen) return;
+
+        this.isOpen = false;
+        this.container.classList.remove('open');
+        this.input.setAttribute('aria-expanded', 'false');
+        this.highlightedIndex = -1;
+
+        // Remove scroll/resize listeners
+        if (this.scrollHandler) {
+            window.removeEventListener('scroll', this.scrollHandler, true);
+            this.scrollHandler = null;
+        }
+        if (this.resizeHandler) {
+            window.removeEventListener('resize', this.resizeHandler);
+            this.resizeHandler = null;
+        }
+
+        // Clear blur timeout if exists
+        if (this.blurTimeout) {
+            clearTimeout(this.blurTimeout);
+            this.blurTimeout = null;
+        }
+    }
+
+    /**
+     * Set options
+     * @param {Array<{value: string, label: string}>} options - New options array
+     */
+    setOptions(options) {
+        this.options = options || [];
+        this.filteredOptions = [...this.options];
+
+        if (this.isOpen) {
+            this._renderDropdown();
+        }
+    }
+
+    /**
+     * Get current value
+     * @returns {string} Current input value
+     */
+    getValue() {
+        return this.input.value;
+    }
+
+    /**
+     * Set value
+     * @param {string} value - Value to set
+     */
+    setValue(value) {
+        const option = this.options.find(opt => opt.value === value);
+        if (option) {
+            this.input.value = option.label;
+        } else {
+            this.input.value = value;
+        }
+    }
+
+    /**
+     * Clear value
+     */
+    clear() {
+        this.input.value = '';
+        this.close();
+    }
+
+    /**
+     * Destroy combo-box and clean up
+     */
+    destroy() {
+        // Close to clean up event listeners
+        this.close();
+
+        // Remove dropdown
+        if (this.dropdown && this.dropdown.parentNode) {
+            this.dropdown.parentNode.removeChild(this.dropdown);
+        }
+
+        // Remove classes
+        this.container.classList.remove('combo-box', 'open');
+        this.input.classList.remove('combo-box-input');
+
+        // Remove ARIA attributes
+        this.input.removeAttribute('role');
+        this.input.removeAttribute('aria-autocomplete');
+        this.input.removeAttribute('aria-expanded');
+        this.input.removeAttribute('aria-haspopup');
+        this.input.removeAttribute('aria-controls');
+
+        // Clear timeout
+        if (this.blurTimeout) {
+            clearTimeout(this.blurTimeout);
+        }
+
+        console.log(`[ComboBox] Destroyed for input #${this.inputId}`);
+    }
+}
+
+// Export to global window object for use in other modules
+window.ComboBox = ComboBox;
+
+export default ComboBox;
