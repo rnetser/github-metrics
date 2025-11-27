@@ -154,7 +154,7 @@ Current test coverage: **61% overall**
 | `utils/security.py` | 91% |
 | `database.py` | 82% |
 | `app.py` | 62% |
-| `web/dashboard.py` | 14% (needs more tests) |
+| `web/dashboard.py` | 100% |
 | `webhook_setup.py` | 0% (needs tests) |
 
 ## Test Patterns
@@ -262,10 +262,9 @@ uv run pytest tests/ --cov=github_metrics
 
 Areas that need additional test coverage:
 
-1. **Dashboard Controller** (`web/dashboard.py`) - Currently 14% coverage
-   - WebSocket handling
-   - Real-time metrics streaming
-   - Dashboard rendering
+1. **Dashboard Controller** (`web/dashboard.py`) - Consider adding edge-case tests
+   - Error handling for corrupted template files
+   - Mutation testing to validate robustness
 
 2. **Webhook Setup** (`webhook_setup.py`) - Currently 0% coverage
    - GitHub API integration

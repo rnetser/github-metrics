@@ -25,6 +25,9 @@ from simple_logger.logger import get_logger
 
 from github_metrics.config import MetricsConfig, get_config
 
+# Maximum number of concurrent webhook setup operations
+MAX_CONCURRENT_WEBHOOKS = 10
+
 
 async def setup_webhooks(
     config: MetricsConfig | None = None,
@@ -77,20 +80,41 @@ async def setup_webhooks(
         logger.exception("Failed to authenticate with GitHub")
         return {"error": (False, "Failed to authenticate with GitHub")}
 
-    # Process each repository
-    for repo_name in config.github.repositories:
-        success, message = await _create_webhook_for_repository(
-            repository_name=repo_name,
-            github_api=github_api,
-            webhook_url=config.github.webhook_url,
-            webhook_secret=config.webhook.secret or None,
-            logger=logger,
-        )
-        results[repo_name] = (success, message)
-        if success:
-            logger.info(message)
+    # Create bounded semaphore to limit concurrent GitHub API calls
+    semaphore = asyncio.Semaphore(MAX_CONCURRENT_WEBHOOKS)
+
+    async def _bounded_create(repo_name: str) -> tuple[bool, str]:
+        async with semaphore:
+            return await _create_webhook_for_repository(
+                repository_name=repo_name,
+                github_api=github_api,
+                webhook_url=config.github.webhook_url,
+                webhook_secret=config.webhook.secret or None,
+                logger=logger,
+            )
+
+    # Create tasks for all repositories with bounded concurrency
+    tasks = [_bounded_create(repo_name) for repo_name in config.github.repositories]
+
+    # Run all tasks in parallel (max 10 concurrent)
+    task_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Process results
+    for repo_name, result in zip(config.github.repositories, task_results, strict=True):
+        if isinstance(result, Exception):
+            results[repo_name] = (False, f"Exception: {result}")
+            logger.error("%s: %s", repo_name, result)
+        elif isinstance(result, tuple):
+            success, message = result
+            results[repo_name] = (success, message)
+            if success:
+                logger.info("%s", message)
+            else:
+                logger.error("%s", message)
         else:
-            logger.error(message)
+            # Unexpected return type - should not happen but handle gracefully
+            results[repo_name] = (False, f"Unexpected result type: {type(result).__name__}")
+            logger.error("%s: Unexpected result type: %s", repo_name, type(result).__name__)
 
     return results
 
@@ -142,7 +166,7 @@ async def _create_webhook_for_repository(
             return True, f"{repository_name}: Webhook already exists"
 
     # Create new webhook
-    logger.info(f"Creating webhook for {repository_name}: {webhook_url}")
+    logger.info("Creating webhook for %s: %s", repository_name, webhook_url)
     try:
         await asyncio.to_thread(
             repo.create_hook,

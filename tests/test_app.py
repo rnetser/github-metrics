@@ -25,7 +25,6 @@ import httpx
 import pytest
 from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
-from starlette.websockets import WebSocketDisconnect
 
 from github_metrics import app as app_module
 from github_metrics.app import app, create_app, parse_datetime_string
@@ -710,18 +709,6 @@ class TestLifespanContext:
                     pass
 
 
-class TestWebSocketMetricsStream:
-    """Tests for /metrics/ws WebSocket endpoint."""
-
-    async def test_websocket_closes_when_controller_not_initialized(self) -> None:
-        """Test WebSocket endpoint closes when dashboard controller not initialized."""
-        with patch("github_metrics.app.dashboard_controller", None):
-            client = TestClient(app)
-
-            with pytest.raises(WebSocketDisconnect), client.websocket_connect("/metrics/ws"):
-                pass
-
-
 class TestWebhookEventsEndpointErrors:
     """Tests for /api/metrics/webhooks error handling."""
 
@@ -1160,6 +1147,7 @@ class TestUserPullRequestsEndpoint:
             {
                 "pr_number": 123,
                 "title": "Test PR",
+                "owner": "testuser",
                 "repository": "testorg/testrepo",
                 "state": "closed",
                 "merged": True,

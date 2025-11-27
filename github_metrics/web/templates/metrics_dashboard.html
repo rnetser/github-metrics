@@ -60,15 +60,13 @@
               <label for="endTime">End Time:</label>
               <input type="datetime-local" id="endTime" />
             </div>
-            <div class="filter-group">
+            <div class="filter-group" id="repository-filter-group">
               <label for="repositoryFilter">Repository:</label>
-              <input type="text" id="repositoryFilter" placeholder="org/repo" />
+              <input type="text" id="repositoryFilter" placeholder="Type to search or select..." />
             </div>
-            <div class="filter-group">
+            <div class="filter-group" id="user-filter-group">
               <label for="userFilter">User:</label>
-              <select id="userFilter">
-                <option value="">All Users</option>
-              </select>
+              <input type="text" id="userFilter" placeholder="Type to search or select..." />
             </div>
           </div>
 
@@ -168,9 +166,9 @@
               <table id="topRepositoriesTable">
                 <thead>
                   <tr>
-                    <th scope="col">Repository</th>
-                    <th scope="col">Events</th>
-                    <th scope="col">%</th>
+                    <th scope="col" class="sortable" data-column="repository">Repository</th>
+                    <th scope="col" class="sortable" data-column="total_events">Events</th>
+                    <th scope="col" class="sortable" data-column="percentage">%</th>
                   </tr>
                 </thead>
                 <tbody id="repository-table-body">
@@ -193,10 +191,10 @@
               <table id="recentEventsTable">
                 <thead>
                   <tr>
-                    <th scope="col">Time</th>
-                    <th scope="col">Repository</th>
-                    <th scope="col">Event</th>
-                    <th scope="col">Status</th>
+                    <th scope="col" class="sortable" data-column="created_at">Time</th>
+                    <th scope="col" class="sortable" data-column="repository">Repository</th>
+                    <th scope="col" class="sortable" data-column="event_type">Event</th>
+                    <th scope="col" class="sortable" data-column="status">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -223,11 +221,11 @@
                 <table id="prCreatorsTable">
                   <thead>
                     <tr>
-                      <th scope="col">User</th>
-                      <th scope="col">Total PRs</th>
-                      <th scope="col">Merged</th>
-                      <th scope="col">Closed</th>
-                      <th scope="col">Avg Commits</th>
+                      <th scope="col" class="sortable" data-column="user">User</th>
+                      <th scope="col" class="sortable" data-column="total_prs">Total PRs</th>
+                      <th scope="col" class="sortable" data-column="merged_prs">Merged</th>
+                      <th scope="col" class="sortable" data-column="closed_prs">Closed</th>
+                      <th scope="col" class="sortable" data-column="avg_commits_per_pr">Avg Commits</th>
                     </tr>
                   </thead>
                   <tbody id="pr-creators-table-body">
@@ -246,10 +244,10 @@
                 <table id="prReviewersTable">
                   <thead>
                     <tr>
-                      <th scope="col">User</th>
-                      <th scope="col">Total Reviews</th>
-                      <th scope="col">PRs Reviewed</th>
-                      <th scope="col">Avg/PR</th>
+                      <th scope="col" class="sortable" data-column="user">User</th>
+                      <th scope="col" class="sortable" data-column="total_reviews">Total Reviews</th>
+                      <th scope="col" class="sortable" data-column="prs_reviewed">PRs Reviewed</th>
+                      <th scope="col" class="sortable" data-column="avg_reviews_per_pr">Avg/PR</th>
                     </tr>
                   </thead>
                   <tbody id="pr-reviewers-table-body">
@@ -268,9 +266,9 @@
                 <table id="prApproversTable">
                   <thead>
                     <tr>
-                      <th scope="col">User</th>
-                      <th scope="col">Total Approvals</th>
-                      <th scope="col">PRs Approved</th>
+                      <th scope="col" class="sortable" data-column="user">User</th>
+                      <th scope="col" class="sortable" data-column="total_approvals">Total Approvals</th>
+                      <th scope="col" class="sortable" data-column="prs_approved">PRs Approved</th>
                     </tr>
                   </thead>
                   <tbody id="pr-approvers-table-body">
@@ -287,7 +285,7 @@
 
         <div class="chart-container full-width" data-section="user-prs">
           <div class="chart-header">
-            <h2>User Pull Requests</h2>
+            <h2>Pull Requests</h2>
             <button class="btn-icon collapse-btn" data-section="user-prs" title="Collapse">▼</button>
           </div>
           <div class="chart-content">
@@ -295,18 +293,19 @@
               <table id="userPrsTable">
                 <thead>
                   <tr>
-                    <th scope="col">PR</th>
-                    <th scope="col">Title</th>
-                    <th scope="col">Repository</th>
-                    <th scope="col">State</th>
-                    <th scope="col">Created</th>
-                    <th scope="col">Updated</th>
-                    <th scope="col">Commits</th>
+                    <th scope="col" class="sortable" data-column="number">PR</th>
+                    <th scope="col" class="sortable" data-column="title">Title</th>
+                    <th scope="col" class="sortable" data-column="owner">Owner</th>
+                    <th scope="col" class="sortable" data-column="repository">Repository</th>
+                    <th scope="col" class="sortable" data-column="state">State</th>
+                    <th scope="col" class="sortable" data-column="created_at">Created</th>
+                    <th scope="col" class="sortable" data-column="updated_at">Updated</th>
+                    <th scope="col" class="sortable" data-column="commits_count">Commits</th>
                   </tr>
                 </thead>
                 <tbody id="user-prs-table-body">
                   <tr class="loading-row">
-                    <td colspan="7">Loading...</td>
+                    <td colspan="8">Loading...</td>
                   </tr>
                 </tbody>
               </table>
@@ -393,6 +392,7 @@
     <!-- Load JavaScript modules in correct order -->
     <script type="module" src="/static/js/metrics/utils.js?v=2"></script>
     <script type="module" src="/static/js/metrics/api-client.js?v=2"></script>
+    <script type="module" src="/static/js/metrics/combo-box.js?v=2"></script>
     <script type="module" src="/static/js/metrics/charts.js?v=2"></script>
     <script type="module" src="/static/js/metrics/dashboard.js?v=2"></script>
   </body>
