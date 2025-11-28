@@ -28,7 +28,9 @@ LOCAL_HOST="${METRICS_DB_HOST:-localhost}"
 LOCAL_PORT="${METRICS_DB_PORT:-15432}"
 LOCAL_DB="${METRICS_DB_NAME:-github_metrics_dev}"
 LOCAL_USER="${METRICS_DB_USER:-postgres}"
-LOCAL_PASSWORD="${METRICS_DB_PASSWORD:-dev}"
+# Note: LOCAL_PASSWORD is defined for future use with password-based auth
+# Currently psql auth uses peer/trust via Docker
+LOCAL_PASSWORD="${METRICS_DB_PASSWORD:-devpassword123}"
 
 # Detect container runtime by checking which one has the container
 echo "Connecting to $SSH_HOST to find container..."

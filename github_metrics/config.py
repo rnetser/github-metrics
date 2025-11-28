@@ -16,6 +16,7 @@ Optional environment variables (with defaults):
 - METRICS_SERVER_HOST: Server bind host (default: 0.0.0.0)
 - METRICS_SERVER_PORT: Server bind port (default: 8080)
 - METRICS_SERVER_WORKERS: Uvicorn workers (default: 4)
+- METRICS_SERVER_RELOAD: Enable auto-reload for development (default: false)
 
 Webhook security configuration:
 - METRICS_WEBHOOK_SECRET: Secret for validating webhook payloads

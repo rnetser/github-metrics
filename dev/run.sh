@@ -72,9 +72,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Run migrations
-echo "Running database migrations..."
-uv run alembic upgrade head
+# Note: Migrations are run automatically by entrypoint.py
+# No need to run them here to avoid duplicate execution
 
 # Start server
 echo "Starting development server on http://localhost:${METRICS_SERVER_PORT}"

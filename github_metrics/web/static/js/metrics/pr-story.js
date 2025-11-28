@@ -48,6 +48,7 @@ class PRStoryModal {
         this.storyData = null;
         this.expandedGroups = new Set(); // Track which event groups are expanded
         this.selectedEventTypes = new Set(); // Track selected event types for filtering
+        this._initializedFilters = false; // Track if filters have been initialized
 
         // Draggable state
         this.isDragging = false;
@@ -558,9 +559,11 @@ class PRStoryModal {
         const modal = document.getElementById('prStoryModal');
         if (!modal) return;
 
-        // Close modal buttons
-        modal.querySelectorAll('.close-modal').forEach(btn => {
-            btn.addEventListener('click', () => this.close());
+        // Use event delegation for close button (handles re-rendered headers)
+        modal.addEventListener('click', (e) => {
+            if (e.target.closest('.close-modal')) {
+                this.close();
+            }
         });
 
         // Click outside modal to close
@@ -664,7 +667,6 @@ class PRStoryModal {
 
         const modalContent = modal.querySelector('.modal-content.pr-story-modal');
         const header = modal.querySelector('.modal-header');
-        const closeButton = modal.querySelector('.close-modal');
 
         if (!modalContent || !header) return;
 
@@ -676,7 +678,7 @@ class PRStoryModal {
         // Mouse down on header to start drag
         header.addEventListener('mousedown', (e) => {
             // Don't start drag if clicking the close button
-            if (e.target === closeButton || closeButton.contains(e.target)) {
+            if (e.target.closest('.close-modal')) {
                 return;
             }
             this.handleDragStart(e, modalContent);
@@ -742,7 +744,6 @@ class PRStoryModal {
         // Get modal dimensions
         const rect = modalContent.getBoundingClientRect();
         const modalWidth = rect.width;
-        const modalHeight = rect.height;
 
         // Get viewport dimensions
         const viewportWidth = window.innerWidth;
@@ -784,6 +785,7 @@ class PRStoryModal {
         this.currentPRNumber = prNumber;
         this.expandedGroups.clear();
         this.selectedEventTypes.clear(); // Reset filter
+        this._initializedFilters = false; // Reset for new PR
 
         // Show modal
         const modal = document.getElementById('prStoryModal');
@@ -865,13 +867,13 @@ class PRStoryModal {
             console.log('[PRStory] Data loaded:', data);
 
             this.storyData = data;
+            this.showLoading(false);
             this.render();
 
         } catch (error) {
             console.error('[PRStory] Error loading data:', error);
-            this.showError(error.message || 'Failed to load PR story');
-        } finally {
             this.showLoading(false);
+            this.showError(error.message || 'Failed to load PR story');
         }
     }
 
@@ -970,6 +972,14 @@ class PRStoryModal {
         const filterEl = document.getElementById('prStoryFilter');
         if (!filterEl) return;
 
+        // Initialize selectedEventTypes with all event types on first render
+        if (!this._initializedFilters && events.length > 0) {
+            events.forEach(event => {
+                this.selectedEventTypes.add(event.event_type);
+            });
+            this._initializedFilters = true;
+        }
+
         // Extract unique event types from events
         const eventTypes = new Set();
         events.forEach(event => {
@@ -1006,7 +1016,7 @@ class PRStoryModal {
             <div class="pr-story-filter-dropdown">
                 <button class="pr-story-filter-toggle" id="prStoryFilterToggle">
                     <span>🔍</span>
-                    <span>${toggleText}</span>
+                    <span class="pr-story-filter-label">${toggleText}</span>
                     <span class="pr-story-filter-toggle-arrow">▼</span>
                 </button>
                 <div class="pr-story-filter-menu" id="prStoryFilterMenu">
@@ -1056,15 +1066,8 @@ class PRStoryModal {
      * @returns {Array} Filtered events
      */
     filterEventsByType(events) {
-        // If no filters selected, show all events
-        if (this.selectedEventTypes.size === 0) {
-            return events;
-        }
-
-        // Filter events by selected types
-        return events.filter(event => {
-            return this.selectedEventTypes.has(event.event_type);
-        });
+        // Filter events by selected types (empty set = show nothing)
+        return events.filter(event => this.selectedEventTypes.has(event.event_type));
     }
 
     /**
@@ -1074,7 +1077,7 @@ class PRStoryModal {
         if (!this.storyData || !this.storyData.events) return;
 
         // Update toggle button text
-        const toggleBtn = document.querySelector('.pr-story-filter-toggle span:first-child');
+        const toggleBtn = document.querySelector('.pr-story-filter-toggle .pr-story-filter-label');
         if (toggleBtn) {
             const totalCount = document.querySelectorAll('#prStoryFilter input[type="checkbox"]').length;
             const selectedCount = this.selectedEventTypes.size;
@@ -1128,8 +1131,8 @@ class PRStoryModal {
             // Comment with body and optional link
             const bodyText = this.escapeHtml(event.body);
             const truncatedIndicator = event.truncated ? '...' : '';
-            const linkHtml = event.url ? ` <a href="${this.escapeHtml(event.url)}" target="_blank" class="comment-link" title="View on GitHub">🔗</a>` : '';
-            descriptionHtml = `<div class="timeline-event-description">${event.description}</div>
+            const linkHtml = event.url ? ` <a href="${this.escapeHtml(event.url)}" target="_blank" rel="noopener noreferrer" class="comment-link" title="View on GitHub">🔗</a>` : '';
+            descriptionHtml = `<div class="timeline-event-description">${this.escapeHtml(event.description)}</div>
                 <div class="timeline-event-comment-body">${bodyText}${truncatedIndicator}${linkHtml}</div>`;
         } else if (event.description) {
             descriptionHtml = `<div class="timeline-event-description">${this.escapeHtml(event.description)}</div>`;
@@ -1361,9 +1364,12 @@ function openPRStory(repository, prNumber) {
 
 // Initialize on DOMContentLoaded
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('[PRStory] Initializing PR Story modal');
-    window.prStoryModal = new PRStoryModal();
-    window.prStoryModal.initialize();
+    // Only create if not already initialized (e.g., by openPRStory being called earlier)
+    if (!window.prStoryModal) {
+        console.log('[PRStory] Initializing PR Story modal');
+        window.prStoryModal = new PRStoryModal();
+        window.prStoryModal.initialize();
+    }
 });
 
 // Export to window for non-module usage

@@ -2031,7 +2031,7 @@ async def get_pr_story_endpoint(
     except HTTPException:
         raise
     except Exception as ex:
-        LOGGER.exception(f"Failed to fetch PR story for {repository} #{pr_number}")
+        LOGGER.exception("Failed to fetch PR story for %s #%s", repository, pr_number)
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch PR story",

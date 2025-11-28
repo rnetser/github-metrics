@@ -43,7 +43,7 @@ All variables have sensible defaults for development. Override by creating `.env
 |----------|---------|-------------|
 | `METRICS_DB_NAME` | `github_metrics_dev` | Database name |
 | `METRICS_DB_USER` | `postgres` | Database user |
-| `METRICS_DB_PASSWORD` | `dev` | Database password |
+| `METRICS_DB_PASSWORD` | `devpassword123` | Database password |
 | `METRICS_DB_HOST` | `localhost` | Database host |
 | `METRICS_DB_PORT` | `15432` | Database port (non-default to avoid conflicts) |
 | `METRICS_SERVER_HOST` | `0.0.0.0` | Server bind host |
@@ -53,7 +53,7 @@ All variables have sensible defaults for development. Override by creating `.env
 
 ## Accessing the Dashboard
 
-Once running, open http://localhost:8765/dashboard in your browser.
+Once running, open [http://localhost:8765/dashboard](http://localhost:8765/dashboard) in your browser.
 
 ## API Endpoints
 
@@ -63,6 +63,59 @@ Once running, open http://localhost:8765/dashboard in your browser.
 - `GET /api/metrics/contributors` - PR contributors
 - `GET /api/metrics/user-prs` - User pull requests
 - `GET /api/metrics/pr-story/{repo}/{pr}` - PR timeline/story
+
+## Database Migrations
+
+This project uses Alembic for database migrations.
+
+### When to Create a Migration
+
+Create a new migration when you need to:
+- Add/remove/rename a table
+- Add/remove/rename a column
+- Change column types or constraints
+- Add/remove indexes
+
+**Do NOT modify existing migration files** - always create a new one.
+
+### Creating a New Migration
+
+```bash
+# 1. Generate a new migration file
+uv run alembic revision -m "add user preferences table"
+
+# 2. Edit the generated file in github_metrics/migrations/versions/
+#    - Implement upgrade() with your schema changes
+#    - Implement downgrade() to reverse those changes
+
+# 3. Test locally
+uv run alembic upgrade head
+
+# 4. Commit the migration file with your code changes
+```
+
+### Migration Commands
+
+```bash
+# Check current database version
+uv run alembic current
+
+# Apply all pending migrations
+uv run alembic upgrade head
+
+# Rollback one migration
+uv run alembic downgrade -1
+
+# View migration history
+uv run alembic history
+```
+
+### How It Works
+
+1. Each migration has a unique revision ID (e.g., `a1b2c3d4e5f6`)
+2. Database tracks current version in `alembic_version` table
+3. On deploy, `alembic upgrade head` runs only NEW migrations
+4. Migrations are applied in order based on `down_revision` chain
 
 ## Troubleshooting
 

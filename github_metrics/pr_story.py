@@ -40,7 +40,7 @@ LOGGER = get_logger(name="github_metrics.pr_story")
 GROUPING_WINDOW_SECONDS = 60
 
 
-def _parse_payload(payload: Any) -> dict[str, Any]:
+def _parse_payload(payload: dict[str, Any] | str) -> dict[str, Any]:
     """Parse payload from database, handling both dict and string formats.
 
     asyncpg may return JSONB as string depending on configuration.
@@ -58,7 +58,7 @@ def _parse_payload(payload: Any) -> dict[str, Any]:
         try:
             return json.loads(payload)
         except json.JSONDecodeError:
-            LOGGER.warning(f"Failed to parse JSON payload: {payload[:100] if payload else ''}")
+            LOGGER.warning("Failed to parse JSON payload: %s", payload[:100] if payload else "")
             return {}
     return {}
 
@@ -526,7 +526,7 @@ async def get_pr_story(
             print(f"Timeline events: {len(story['events'])}")
             print(f"Check runs: {story['summary']['total_check_runs']}")
     """
-    LOGGER.debug(f"Fetching PR story for {repository} #{pr_number}")
+    LOGGER.debug("Fetching PR story for %s #%s", repository, pr_number)
 
     # Query all PR-related webhook events
     pr_events_query = """
@@ -544,7 +544,7 @@ async def get_pr_story(
     pr_events = await db_manager.fetch(pr_events_query, repository, pr_number)
 
     if not pr_events:
-        LOGGER.debug(f"No webhook events found for {repository} #{pr_number}")
+        LOGGER.debug("No webhook events found for %s #%s", repository, pr_number)
         return None
 
     # Extract PR metadata from pull_request events
@@ -621,7 +621,8 @@ async def get_pr_story(
                 created_at
             FROM webhooks
             WHERE event_type = 'check_run'
-              AND payload->'check_run'->>'head_sha' = ANY($1)
+              AND repository = $1
+              AND payload->'check_run'->>'head_sha' = ANY($2)
             ORDER BY created_at ASC
         """
 
@@ -632,15 +633,16 @@ async def get_pr_story(
                 created_at
             FROM webhooks
             WHERE event_type = 'status'
-              AND payload->>'sha' = ANY($1)
+              AND repository = $1
+              AND payload->>'sha' = ANY($2)
             ORDER BY created_at ASC
         """
 
         # Execute both queries in parallel for better performance
         head_sha_list = list(all_head_shas)
         check_run_events, status_events = await asyncio.gather(
-            db_manager.fetch(check_run_query, head_sha_list),
-            db_manager.fetch(status_query, head_sha_list),
+            db_manager.fetch(check_run_query, repository, head_sha_list),
+            db_manager.fetch(status_query, repository, head_sha_list),
         )
 
         # Deduplicate: keep only the latest event for each (name, head_sha) pair
