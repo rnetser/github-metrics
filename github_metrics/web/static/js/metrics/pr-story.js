@@ -991,7 +991,7 @@ class PRStoryModal {
             return `
                 <label class="pr-story-filter-option">
                     <input type="checkbox"
-                           data-event-type="${eventType}"
+                           data-event-type="${this.escapeHtml(eventType)}"
                            ${isChecked ? 'checked' : ''}>
                     <span class="pr-story-filter-option-icon">${config.icon}</span>
                     <span class="pr-story-filter-option-label">${this.escapeHtml(config.label)}</span>
@@ -1179,7 +1179,7 @@ class PRStoryModal {
 
         const groupId = `event-group-${index}`;
         const isExpanded = this.expandedGroups.has(groupId);
-        const commitInfo = event.commit ? ` @ ${event.commit}` : '';
+        const commitInfo = event.commit ? ` @ ${this.escapeHtml(String(event.commit))}` : '';
         const absoluteTime = this.formatAbsoluteTime(event.timestamp);
         const relativeTime = this.formatRelativeTime(event.timestamp);
         const pendingInfo = pendingCount > 0 ? `, ${pendingCount} ⏳` : '';
@@ -1217,7 +1217,7 @@ class PRStoryModal {
      */
     renderChildEvent(child) {
         const conclusionClass = child.conclusion === 'success' ? 'success' : child.conclusion === 'failure' ? 'failure' : 'neutral';
-        const conclusionLabel = child.conclusion || 'pending';
+        const conclusionLabel = this.escapeHtml(child.conclusion || 'pending');
 
         return `
             <div class="timeline-event-child">
