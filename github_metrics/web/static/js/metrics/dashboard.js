@@ -375,7 +375,8 @@ class MetricsDashboard {
                 pr_reviewers: data.contributors.pr_reviewers?.data || data.contributors.pr_reviewers || [],
                 pr_approvers: data.contributors.pr_approvers?.data || data.contributors.pr_approvers || []
             } : null,
-            eventTypeDistribution: data.eventTypeDistribution
+            userPrs: data.userPrs,
+            eventTypeDistribution: data.eventTypeDistribution,
         };
 
         const summary = workingData.summary;
@@ -445,6 +446,27 @@ class MetricsDashboard {
             console.log(`[Dashboard] Filtered by user: ${filteredContributors.pr_creators.length} creators, ${filteredContributors.pr_reviewers.length} reviewers, ${filteredContributors.pr_approvers.length} approvers`);
         }
 
+        // Apply user filter to User PRs (filter by owner field)
+        let filteredUserPrs = workingData.userPrs;
+        if (this.userFilter && filteredUserPrs) {
+            const userPrsData = filteredUserPrs.data || filteredUserPrs;
+            const filteredPRsData = Array.isArray(userPrsData)
+                ? userPrsData.filter(pr => {
+                    const owner = (pr.owner || '').toLowerCase();
+                    return owner === this.userFilter.toLowerCase();
+                })
+                : [];
+
+            filteredUserPrs = filteredUserPrs.data
+                ? { ...filteredUserPrs, data: filteredPRsData }
+                : filteredPRsData;
+
+            console.log(`[Dashboard] Filtered User PRs by owner: ${filteredPRsData.length} PRs`);
+        }
+
+        // Store filtered view for sorting operations
+        this.currentData.userPrsView = filteredUserPrs;
+
         // ALWAYS update KPI tooltip (whether filtered or not)
         this.updateKPITooltip(filteredSummary);
 
@@ -493,6 +515,11 @@ class MetricsDashboard {
                         : filteredContributors.pr_approvers
                 };
                 this.updateContributorsTables(contributorsForTable);
+            }
+
+            // Update User PRs Table with filtered data
+            if (filteredUserPrs) {
+                this.updateUserPRsTable(filteredUserPrs);
             }
 
             console.log('[Dashboard] Charts updated');
@@ -1121,6 +1148,11 @@ class MetricsDashboard {
         this.userFilter = newFilter;
         console.log(`[Dashboard] Filtering by user: "${this.userFilter || '(showing all users)'}"`);
 
+        // Clear filtered view when filter is cleared
+        if (!this.userFilter && this.currentData) {
+            this.currentData.userPrsView = null;
+        }
+
         // Re-render charts and tables
         if (this.currentData) {
             this.updateCharts(this.currentData);
@@ -1536,6 +1568,9 @@ class MetricsDashboard {
                     data = await this.apiClient.fetchUserPRs(startTime, endTime, params);
                     // Store user PRs data for sorting
                     this.currentData.userPrs = data;
+                    // Clear filtered view - server already applied user filter via params.user
+                    // This ensures getTableData uses fresh paginated data instead of stale view
+                    this.currentData.userPrsView = null;
                     this.updateUserPRsTable(data);
                     break;
             }
@@ -1548,14 +1583,15 @@ class MetricsDashboard {
 
     /**
      * Update User PRs table with new data.
-     * @param {Object} prsData - User PRs data with pagination
+     * @param {Object|Array} prsData - User PRs data (can be array or {data: [...], pagination: {...}})
      */
     updateUserPRsTable(prsData) {
         const tableBody = document.getElementById('user-prs-table-body');
         if (!tableBody) return;
 
-        const prs = prsData.data || [];
-        const pagination = prsData.pagination;
+        // Handle both array format and paginated response format
+        const prs = Array.isArray(prsData) ? prsData : (prsData.data || []);
+        const pagination = Array.isArray(prsData) ? null : prsData.pagination;
 
         if (pagination) {
             this.pagination.userPrs = {
@@ -1815,7 +1851,8 @@ class MetricsDashboard {
             case 'prApprovers':
                 return this.currentData.contributors?.pr_approvers?.data || this.currentData.contributors?.pr_approvers || [];
             case 'userPrs':
-                return this.currentData.userPrs?.data || this.currentData.userPrs || [];
+                return this.currentData.userPrsView?.data || this.currentData.userPrsView ||
+                       this.currentData.userPrs?.data || this.currentData.userPrs || [];
             default:
                 return [];
         }

@@ -786,6 +786,10 @@ class PRStoryModal {
             return;
         }
 
+        // Reset modal position to center (fixes issue #13)
+        const modalContent = modal.querySelector('.modal-content.pr-story-modal');
+        this.resetModalPosition(modalContent);
+
         modal.classList.add('show');
         document.body.style.overflow = 'hidden';
 
@@ -808,11 +812,7 @@ class PRStoryModal {
 
             // Reset modal position to center
             const modalContent = modal.querySelector('.modal-content.pr-story-modal');
-            if (modalContent) {
-                modalContent.style.transform = 'translate(-50%, -50%)';
-                modalContent.style.left = '50%';
-                modalContent.style.top = '50%';
-            }
+            this.resetModalPosition(modalContent);
         }
         document.body.style.overflow = '';
 
@@ -1344,6 +1344,18 @@ class PRStoryModal {
         } catch {
             return timestamp;
         }
+    }
+
+    /**
+     * Reset modal position by clearing inline positioning styles.
+     * Allows CSS flexbox centering to take over.
+     * @param {HTMLElement} element - Modal content element
+     */
+    resetModalPosition(element) {
+        if (!element) return;
+        element.style.transform = '';
+        element.style.left = '';
+        element.style.top = '';
     }
 
     /**
