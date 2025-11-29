@@ -1398,7 +1398,7 @@ async def get_metrics_contributors(
         FROM webhooks
         WHERE event_type = 'pull_request_review'
           AND action = 'submitted'
-          AND sender != pr_author
+          AND sender IS DISTINCT FROM pr_author
           """
         + time_filter
         + user_filter_reviewers
@@ -1415,7 +1415,7 @@ async def get_metrics_contributors(
         FROM webhooks
         WHERE event_type = 'pull_request_review'
           AND action = 'submitted'
-          AND sender != pr_author
+          AND sender IS DISTINCT FROM pr_author
           """
         + time_filter
         + user_filter_reviewers
