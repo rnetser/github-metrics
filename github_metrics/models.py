@@ -63,12 +63,15 @@ class Webhook(Base):
     - Event metadata (delivery ID, repository, event type, action)
     - Processing metrics (duration, API calls, token usage)
     - Status tracking (success, error, partial)
+    - Extracted PR fields (author, title, state, merged status, commits count,
+      HTML URL, label name) for query performance
 
     Indexes:
     - delivery_id (unique): Fast lookup by GitHub delivery ID
     - repository: Filter events by repository
     - event_type: Filter by event type (pull_request, issue_comment, etc.)
     - pr_number: Fast PR event lookup
+    - pr_author: Fast PR author lookup (for extracted field queries)
     - created_at: Time-based queries for analytics
 
     Relationships:
@@ -181,6 +184,44 @@ class Webhook(Base):
         default=True,
         server_default=text("TRUE"),
         comment="Whether API metrics are available (False = no tracking, True = metrics tracked)",
+    )
+
+    # Extracted fields for query performance (populated from payload on insert)
+    pr_author: Mapped[str | None] = mapped_column(
+        String(255),
+        index=True,
+        nullable=True,
+        comment="PR author username (extracted from payload for query performance)",
+    )
+    pr_title: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="PR title (extracted from payload for query performance)",
+    )
+    pr_state: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="PR state: open, closed (extracted from payload for query performance)",
+    )
+    pr_merged: Mapped[bool | None] = mapped_column(
+        Boolean,
+        nullable=True,
+        comment="Whether PR was merged (extracted from payload for query performance)",
+    )
+    pr_commits_count: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Number of commits in PR (extracted from payload for query performance)",
+    )
+    pr_html_url: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="PR HTML URL (extracted from payload for query performance)",
+    )
+    label_name: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Label name for label events (extracted from payload for query performance)",
     )
 
     # Relationships
