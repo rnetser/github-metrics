@@ -808,6 +808,12 @@ class MetricsDashboard {
      * Set up event listeners for UI controls.
      */
     setupEventListeners() {
+        // Debounced time range change to prevent rapid consecutive API calls
+        const debouncedTimeRangeChange = window.MetricsUtils?.debounce(
+            (timeRange) => this.changeTimeRange(timeRange),
+            300
+        ) || ((timeRange) => this.changeTimeRange(timeRange));
+
         // Theme toggle button
         const themeToggle = document.getElementById('theme-toggle');
         if (themeToggle) {
@@ -817,7 +823,7 @@ class MetricsDashboard {
         // Time range selector
         const timeRangeSelect = document.getElementById('time-range-select');
         if (timeRangeSelect) {
-            timeRangeSelect.addEventListener('change', (e) => this.changeTimeRange(e.target.value));
+            timeRangeSelect.addEventListener('change', (e) => debouncedTimeRangeChange(e.target.value));
         }
 
         // Custom date inputs
@@ -833,7 +839,7 @@ class MetricsDashboard {
                 }
                 // Only reload if both dates are valid
                 if (startTimeInput.value && endTimeInput.value) {
-                    this.changeTimeRange('custom');
+                    debouncedTimeRangeChange('custom');
                 }
             };
 

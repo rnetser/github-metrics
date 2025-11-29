@@ -98,6 +98,7 @@ class MetricsTracker:
         - Processing metrics (duration, API calls, token usage)
         - Status tracking (success, error, partial)
         - Full payload for debugging and analytics
+        - Extracted PR and label fields for query performance optimization
 
         Uses DatabaseManager.execute() for centralized pool management and
         precondition checking. All database operations go through DatabaseManager
@@ -146,6 +147,21 @@ class MetricsTracker:
             # (datetime, UUID, etc.) to prevent TypeError
             payload_json = json.dumps(payload, default=str)
 
+            # Extract fields from payload for query performance columns
+            pr_data = payload.get("pull_request", {})
+            label_data = payload.get("label", {})
+
+            # Extract PR fields (None if not a PR event)
+            extracted_pr_author = pr_data.get("user", {}).get("login") if pr_data else None
+            extracted_pr_title = pr_data.get("title") if pr_data else None
+            extracted_pr_state = pr_data.get("state") if pr_data else None
+            extracted_pr_merged = pr_data.get("merged") if pr_data else None
+            extracted_pr_commits_count = pr_data.get("commits") if pr_data else None
+            extracted_pr_html_url = pr_data.get("html_url") if pr_data else None
+
+            # Extract label name (None if not a label event)
+            extracted_label_name = label_data.get("name") if label_data else None
+
             # Insert webhook event into database using DatabaseManager.execute()
             # This centralizes pool management and precondition checks
             # Note: processed_at is auto-populated by database via server_default=func.now()
@@ -155,9 +171,13 @@ class MetricsTracker:
                     id, delivery_id, repository, event_type, action,
                     pr_number, sender, payload, duration_ms,
                     status, error_message, api_calls_count, token_spend, token_remaining,
-                    metrics_available
+                    metrics_available,
+                    pr_author, pr_title, pr_state, pr_merged, pr_commits_count, pr_html_url, label_name
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+                    $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
+                )
                 """,
                 uuid4(),
                 delivery_id,
@@ -174,6 +194,13 @@ class MetricsTracker:
                 token_spend,
                 token_remaining,
                 metrics_available,
+                extracted_pr_author,
+                extracted_pr_title,
+                extracted_pr_state,
+                extracted_pr_merged,
+                extracted_pr_commits_count,
+                extracted_pr_html_url,
+                extracted_label_name,
             )
 
             self.logger.info(

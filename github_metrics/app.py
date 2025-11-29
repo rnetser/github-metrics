@@ -1261,9 +1261,9 @@ async def get_metrics_contributors(
         # PR Reviewers: filter on sender (correct as-is)
         user_filter_reviewers = " AND sender = $" + str(user_param_idx)
         # PR Approvers: filter on extracted username from 'approved-<username>' label
-        user_filter_approvers = " AND SUBSTRING(payload->'label'->>'name' FROM 10) = $" + str(user_param_idx)
+        user_filter_approvers = " AND SUBSTRING(label_name FROM 10) = $" + str(user_param_idx)
         # PR LGTM: filter on extracted username from 'lgtm-<username>' label
-        user_filter_lgtm = " AND SUBSTRING(payload->'label'->>'name' FROM 6) = $" + str(user_param_idx)
+        user_filter_lgtm = " AND SUBSTRING(label_name FROM 6) = $" + str(user_param_idx)
 
     # Calculate offset for pagination
     offset = (page - 1) * page_size
@@ -1289,12 +1289,11 @@ async def get_metrics_contributors(
                 repository,
                 pr_number,
                 CASE event_type
-                    WHEN 'pull_request' THEN payload->'pull_request'->'user'->>'login'
-                    WHEN 'pull_request_review' THEN payload->'pull_request'->'user'->>'login'
-                    WHEN 'pull_request_review_comment'
-                        THEN payload->'pull_request'->'user'->>'login'
+                    WHEN 'pull_request' THEN pr_author
+                    WHEN 'pull_request_review' THEN pr_author
+                    WHEN 'pull_request_review_comment' THEN pr_author
                     WHEN 'issue_comment' THEN COALESCE(
-                        payload->'pull_request'->'user'->>'login',
+                        pr_author,
                         payload->'issue'->'user'->>'login'
                     )
                 END as pr_creator
@@ -1326,12 +1325,11 @@ async def get_metrics_contributors(
                 repository,
                 pr_number,
                 CASE event_type
-                    WHEN 'pull_request' THEN payload->'pull_request'->'user'->>'login'
-                    WHEN 'pull_request_review' THEN payload->'pull_request'->'user'->>'login'
-                    WHEN 'pull_request_review_comment'
-                        THEN payload->'pull_request'->'user'->>'login'
+                    WHEN 'pull_request' THEN pr_author
+                    WHEN 'pull_request_review' THEN pr_author
+                    WHEN 'pull_request_review_comment' THEN pr_author
                     WHEN 'issue_comment' THEN COALESCE(
-                        payload->'pull_request'->'user'->>'login',
+                        pr_author,
                         payload->'issue'->'user'->>'login'
                     )
                 END as pr_creator
@@ -1353,12 +1351,9 @@ async def get_metrics_contributors(
             SELECT
                 pc.pr_creator,
                 w.pr_number,
-                COALESCE((w.payload->'pull_request'->>'commits')::int, 0) as commits,
-                (w.payload->'pull_request'->>'merged' = 'true') as is_merged,
-                (
-                    w.payload->'pull_request'->>'state' = 'closed'
-                    AND w.payload->'pull_request'->>'merged' = 'false'
-                ) as is_closed
+                COALESCE(w.pr_commits_count, 0) as commits,
+                COALESCE(w.pr_merged, false) as is_merged,
+                (w.pr_state = 'closed' AND COALESCE(w.pr_merged, false) = false) as is_closed
             FROM webhooks w
             INNER JOIN pr_creators pc ON w.repository = pc.repository AND w.pr_number = pc.pr_number
             WHERE w.pr_number IS NOT NULL
@@ -1402,7 +1397,7 @@ async def get_metrics_contributors(
         FROM webhooks
         WHERE event_type = 'pull_request_review'
           AND action = 'submitted'
-          AND sender != payload->'pull_request'->'user'->>'login'
+          AND sender != pr_author
           """
         + time_filter
         + user_filter_reviewers
@@ -1419,7 +1414,7 @@ async def get_metrics_contributors(
         FROM webhooks
         WHERE event_type = 'pull_request_review'
           AND action = 'submitted'
-          AND sender != payload->'pull_request'->'user'->>'login'
+          AND sender != pr_author
           """
         + time_filter
         + user_filter_reviewers
@@ -1436,11 +1431,11 @@ async def get_metrics_contributors(
     # Count query for PR Approvers
     pr_approvers_count_query = (
         """
-        SELECT COUNT(DISTINCT SUBSTRING(payload->'label'->>'name' FROM 10)) as total
+        SELECT COUNT(DISTINCT SUBSTRING(label_name FROM 10)) as total
         FROM webhooks
         WHERE event_type = 'pull_request'
           AND action = 'labeled'
-          AND payload->'label'->>'name' LIKE 'approved-%'
+          AND label_name LIKE 'approved-%'
           """
         + time_filter
         + user_filter_approvers
@@ -1453,19 +1448,19 @@ async def get_metrics_contributors(
     pr_approvers_query = (
         """
         SELECT
-            SUBSTRING(payload->'label'->>'name' FROM 10) as user,
+            SUBSTRING(label_name FROM 10) as user,
             COUNT(*) as total_approvals,
             COUNT(DISTINCT pr_number) as prs_approved
         FROM webhooks
         WHERE event_type = 'pull_request'
           AND action = 'labeled'
-          AND payload->'label'->>'name' LIKE 'approved-%'
+          AND label_name LIKE 'approved-%'
           """
         + time_filter
         + user_filter_approvers
         + repository_filter
         + """
-        GROUP BY SUBSTRING(payload->'label'->>'name' FROM 10)
+        GROUP BY SUBSTRING(label_name FROM 10)
         ORDER BY total_approvals DESC
         LIMIT $"""
         + str(page_size_param)
@@ -1476,11 +1471,11 @@ async def get_metrics_contributors(
     # Count query for LGTM
     pr_lgtm_count_query = (
         """
-        SELECT COUNT(DISTINCT SUBSTRING(payload->'label'->>'name' FROM 6)) as total
+        SELECT COUNT(DISTINCT SUBSTRING(label_name FROM 6)) as total
         FROM webhooks
         WHERE event_type = 'pull_request'
           AND action = 'labeled'
-          AND payload->'label'->>'name' LIKE 'lgtm-%'
+          AND label_name LIKE 'lgtm-%'
           """
         + time_filter
         + user_filter_lgtm
@@ -1492,19 +1487,19 @@ async def get_metrics_contributors(
     pr_lgtm_query = (
         """
         SELECT
-            SUBSTRING(payload->'label'->>'name' FROM 6) as user,
+            SUBSTRING(label_name FROM 6) as user,
             COUNT(*) as total_lgtm,
             COUNT(DISTINCT pr_number) as prs_lgtm
         FROM webhooks
         WHERE event_type = 'pull_request'
           AND action = 'labeled'
-          AND payload->'label'->>'name' LIKE 'lgtm-%'
+          AND label_name LIKE 'lgtm-%'
           """
         + time_filter
         + user_filter_lgtm
         + repository_filter
         + """
-        GROUP BY SUBSTRING(payload->'label'->>'name' FROM 6)
+        GROUP BY SUBSTRING(label_name FROM 6)
         ORDER BY total_lgtm DESC
         LIMIT $"""
         + str(page_size_param)
@@ -1728,7 +1723,7 @@ async def get_user_pull_requests(
     # Add user filter if provided
     if user and user.strip():
         param_count += 1
-        user_filter = "(payload->'pull_request'->'user'->>'login' = $" + str(param_count)
+        user_filter = "(pr_author = $" + str(param_count)
         user_filter += " OR sender = $" + str(param_count) + ")"
         filters.append(user_filter)
         params.append(user.strip())
@@ -1753,9 +1748,10 @@ async def get_user_pull_requests(
     # Count total matching PRs
     count_query = (
         """
-        SELECT COUNT(DISTINCT (payload->'pull_request'->>'number')::int) as total
+        SELECT COUNT(DISTINCT pr_number) as total
         FROM webhooks
         WHERE event_type = 'pull_request'
+          AND pr_number IS NOT NULL
           AND """
         + where_clause
     )
@@ -1776,24 +1772,25 @@ async def get_user_pull_requests(
     # Query for PR data with pagination
     data_query = (
         """
-        SELECT DISTINCT ON (repository, (payload->'pull_request'->>'number')::int)
-            (payload->'pull_request'->>'number')::int as pr_number,
-            payload->'pull_request'->>'title' as title,
-            payload->'pull_request'->'user'->>'login' as owner,
+        SELECT DISTINCT ON (repository, pr_number)
+            pr_number,
+            pr_title as title,
+            pr_author as owner,
             repository,
-            payload->'pull_request'->>'state' as state,
-            (payload->'pull_request'->>'merged')::boolean as merged,
-            payload->'pull_request'->>'html_url' as url,
+            pr_state as state,
+            COALESCE(pr_merged, false) as merged,
+            pr_html_url as url,
             payload->'pull_request'->>'created_at' as created_at,
             payload->'pull_request'->>'updated_at' as updated_at,
-            (payload->'pull_request'->>'commits')::int as commits_count,
+            COALESCE(pr_commits_count, 0) as commits_count,
             payload->'pull_request'->'head'->>'sha' as head_sha
         FROM webhooks
         WHERE event_type = 'pull_request'
+          AND pr_number IS NOT NULL
           AND """
         + where_clause
         + """
-        ORDER BY repository, (payload->'pull_request'->>'number')::int DESC, webhooks.created_at DESC
+        ORDER BY repository, pr_number DESC, webhooks.created_at DESC
         LIMIT $"""
         + str(limit_param_idx)
         + " OFFSET $"
