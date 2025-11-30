@@ -324,6 +324,7 @@ class MetricsDashboard {
      * Initialize all charts (calls functions from charts.js).
      * Note: Chart sections have been removed from the dashboard for simplification.
      * This method is kept for backward compatibility but does nothing.
+     * @deprecated Charts have been removed. This method is kept for backward compatibility.
      */
     initializeCharts() {
         console.log('[Dashboard] Chart initialization skipped (charts removed from UI)');
@@ -357,8 +358,8 @@ class MetricsDashboard {
      * @param {Object} data - Complete dashboard data
      */
     updateCharts(data) {
-        if (!data || !window.MetricsCharts) {
-            console.warn('[Dashboard] No data or MetricsCharts library not available');
+        if (!data) {
+            console.warn('[Dashboard] No data available');
             return;
         }
 
@@ -531,6 +532,7 @@ class MetricsDashboard {
     /**
      * Process trends data from API for chart.
      * Note: This method is kept for backward compatibility but is no longer used.
+     * @deprecated Charts have been removed. This method is kept for backward compatibility.
      * @param {Array} trends - Trends data from API
      * @returns {Object} Chart data
      */
@@ -1018,21 +1020,8 @@ class MetricsDashboard {
 
         console.log(`[Dashboard] Theme changed to: ${newTheme}`);
 
-        // Recreate charts with new theme colors
-        if (this.currentData && this.currentData.summary) {
-            // Destroy existing charts
-            Object.values(this.charts).forEach(chart => {
-                if (chart && typeof chart.destroy === 'function') {
-                    chart.destroy();
-                }
-            });
-
-            // Clear charts object
-            this.charts = {};
-
-            // Recreate charts with new theme
-            this.initializeCharts();
-        }
+        // Charts have been removed - no need to recreate
+        console.log('[Dashboard] Theme changed, skipping chart recreation (charts removed)');
     }
 
     /**
@@ -1327,6 +1316,7 @@ class MetricsDashboard {
     /**
      * Prepare event trends data for line chart.
      * Note: This method is kept for backward compatibility but is no longer used.
+     * @deprecated Charts have been removed. This method is kept for backward compatibility.
      *
      * @param {Array} events - Array of webhook events
      * @returns {Object} Chart data with labels, success, errors, and total arrays
@@ -1340,6 +1330,7 @@ class MetricsDashboard {
     /**
      * Prepare API usage data for bar chart.
      * Note: This method is kept for backward compatibility but is no longer used.
+     * @deprecated Charts have been removed. This method is kept for backward compatibility.
      *
      * @param {Array} repositories - Array of repository statistics
      * @param {number} topN - Number of top repositories to show (default: 7)

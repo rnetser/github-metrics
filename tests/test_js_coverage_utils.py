@@ -26,16 +26,16 @@ class JSCoverageCollector:
         filtered = [entry for entry in entries if "/static/js/metrics/" in entry.get("url", "")]
         self.coverage_entries.extend(filtered)
 
-    def generate_reports(self) -> None:
+    def generate_reports(self) -> float:
         """Generate coverage reports from collected data."""
         if not self.coverage_entries:
-            return
+            return 0.0
 
         raw_path = self.output_dir / "v8-coverage.json"
         with open(raw_path, "w") as f:
             json.dump(self.coverage_entries, f, indent=2)
 
-        summary = self._generate_summary()
+        summary, overall_pct = self._generate_summary()
         summary_path = self.output_dir / "coverage-summary.txt"
         with open(summary_path, "w") as f:
             f.write(summary)
@@ -44,6 +44,8 @@ class JSCoverageCollector:
         html_path = self.output_dir / "index.html"
         with open(html_path, "w") as f:
             f.write(html)
+
+        return overall_pct
 
     def _get_file_stats(self) -> dict[str, dict[str, Any]]:
         """Analyze coverage entries and return per-file statistics."""
@@ -78,7 +80,7 @@ class JSCoverageCollector:
 
         return file_stats
 
-    def _generate_summary(self) -> str:
+    def _generate_summary(self) -> tuple[str, float]:
         """Generate text summary of coverage."""
         file_stats = self._get_file_stats()
 
@@ -100,14 +102,14 @@ class JSCoverageCollector:
             pct = (covered / total * 100) if total > 0 else 0
             lines.append(f"{filename}: {covered}/{total} functions ({pct:.1f}%)")
 
-        overall_pct = (total_covered / total_functions * 100) if total_functions > 0 else 0
+        overall_pct = (total_covered / total_functions * 100) if total_functions > 0 else 0.0
         lines.extend([
             "",
             "-" * 50,
             f"Total: {total_covered}/{total_functions} functions ({overall_pct:.1f}%)",
         ])
 
-        return "\n".join(lines)
+        return "\n".join(lines), overall_pct
 
     def _generate_html_report(self) -> str:
         """Generate HTML coverage report with inline CSS."""

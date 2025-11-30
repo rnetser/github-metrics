@@ -535,7 +535,6 @@ class TestDashboardStaticAssets:
         await expect(page_with_js_coverage.locator('script[src="/static/js/metrics/utils.js"]')).to_be_attached()
         await expect(page_with_js_coverage.locator('script[src="/static/js/metrics/api-client.js"]')).to_be_attached()
         await expect(page_with_js_coverage.locator('script[src="/static/js/metrics/combo-box.js"]')).to_be_attached()
-        await expect(page_with_js_coverage.locator('script[src="/static/js/metrics/charts.js"]')).to_be_attached()
         await expect(page_with_js_coverage.locator('script[src="/static/js/metrics/pr-story.js"]')).to_be_attached()
         await expect(page_with_js_coverage.locator('script[src="/static/js/metrics/dashboard.js"]')).to_be_attached()
 
@@ -725,28 +724,6 @@ class TestDashboardLoadingStates:
 
         # Dashboard should still be functional
         await expect(page_with_js_coverage.locator(".dashboard-grid")).to_be_visible()
-
-
-@pytest.mark.usefixtures("dev_server")
-@pytest.mark.asyncio(loop_scope="session")
-class TestDashboardCharts:
-    """Tests for Chart.js library availability."""
-
-    async def test_chartjs_library_loaded(self, page_with_js_coverage: Page) -> None:
-        """Verify Chart.js library is loaded."""
-        await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
-
-        # Check Chart.js script is included
-        chartjs_script = page_with_js_coverage.locator('script[src*="chart.js"]')
-        await expect(chartjs_script).to_be_attached()
-
-    async def test_charts_module_loaded(self, page_with_js_coverage: Page) -> None:
-        """Verify charts.js module is loaded."""
-        await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-
-        charts_script = page_with_js_coverage.locator('script[src="/static/js/metrics/charts.js"]')
-        await expect(charts_script).to_be_attached()
 
 
 @pytest.mark.usefixtures("dev_server")

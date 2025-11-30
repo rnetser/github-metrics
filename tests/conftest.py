@@ -34,14 +34,14 @@ from tests.test_js_coverage_utils import JSCoverageCollector
 # IMPORTANT: app.py reads configuration at module import time (get_config() at module level).
 # Environment variables MUST be set BEFORE importing github_metrics.app.
 os.environ.update({
-    "METRICS_DB_NAME": "test_metrics",
-    "METRICS_DB_USER": "test_user",
-    "METRICS_DB_PASSWORD": "test_pass",  # pragma: allowlist secret
+    "METRICS_DB_NAME": "github_metrics_dev",
+    "METRICS_DB_USER": "postgres",
+    "METRICS_DB_PASSWORD": "devpassword123",  # pragma: allowlist secret
     "METRICS_DB_HOST": "localhost",
-    "METRICS_DB_PORT": "5432",
+    "METRICS_DB_PORT": "15432",
     "METRICS_DB_POOL_SIZE": "10",
     "METRICS_SERVER_HOST": "127.0.0.1",
-    "METRICS_SERVER_PORT": "8080",
+    "METRICS_SERVER_PORT": "8765",
     "METRICS_SERVER_WORKERS": "1",
     "METRICS_WEBHOOK_SECRET": "test_webhook_secret",  # pragma: allowlist secret
     "METRICS_VERIFY_GITHUB_IPS": "false",
@@ -413,21 +413,6 @@ def dev_server() -> Generator[str]:
     Raises:
         RuntimeError: If the server fails to start within the timeout period.
     """
-    # Cleanup any existing dev container from previous runs
-    # This prevents "container name already exists" errors
-    container_name = "github-metrics-dev-db"
-    subprocess.run(
-        ["docker", "stop", container_name],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
-    )
-    subprocess.run(
-        ["docker", "rm", container_name],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
-    )
 
     # Start server subprocess
     # CRITICAL: Use DEVNULL for stdout/stderr to prevent buffering deadlock
@@ -435,6 +420,7 @@ def dev_server() -> Generator[str]:
     # Using PIPE causes the process to block when buffers fill up
     project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     script_path = os.path.join(project_dir, "dev", "run.sh")
+
     process = subprocess.Popen(
         [script_path],
         cwd=project_dir,
@@ -484,9 +470,18 @@ def js_coverage_collector() -> Generator[JSCoverageCollector]:
     """
     collector = JSCoverageCollector()
     yield collector
-    collector.generate_reports()
+    overall_pct = collector.generate_reports()
+
     if collector.coverage_entries:
         print(f"\n[JS Coverage] Report generated: {collector.output_dir}/index.html")
+        minimum_coverage_threshold = 55.0
+
+        if float(overall_pct) < minimum_coverage_threshold:
+            pytest.fail(
+                f"JavaScript coverage {overall_pct:.1f}% is below minimum threshold of {minimum_coverage_threshold}%"
+            )
+        else:
+            print(f"JavaScript coverage is: {overall_pct:.1f}%")
 
 
 @pytest.fixture

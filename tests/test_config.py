@@ -149,17 +149,17 @@ class TestMetricsConfig:
 
     def test_config_loads_required_env_vars(self, test_config: MetricsConfig) -> None:
         """Test configuration loads required environment variables."""
-        assert test_config.database.name == "test_metrics"
-        assert test_config.database.user == "test_user"
-        assert test_config.database.password == "test_pass"  # pragma: allowlist secret
+        assert test_config.database.name == "github_metrics_dev"
+        assert test_config.database.user == "postgres"
+        assert test_config.database.password == "devpassword123"  # pragma: allowlist secret
 
     def test_config_loads_default_values(self, test_config: MetricsConfig) -> None:
         """Test configuration uses default values for optional vars."""
         assert test_config.database.host == "localhost"
-        assert test_config.database.port == 5432
+        assert test_config.database.port == 15432
         assert test_config.database.pool_size == 10
         assert test_config.server.host == "127.0.0.1"  # Set in conftest.py for test environment
-        assert test_config.server.port == 8080
+        assert test_config.server.port == 8765
         assert test_config.server.workers == 1
 
     def test_config_missing_required_env_var_raises_error(self) -> None:
@@ -266,4 +266,4 @@ class TestGetConfig:
         """Test get_config returns valid MetricsConfig instance."""
         config = get_config()
         assert isinstance(config, MetricsConfig)
-        assert config.database.name == "test_metrics"
+        assert config.database.name == "github_metrics_dev"

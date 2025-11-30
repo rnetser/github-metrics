@@ -13,4 +13,16 @@ commands = [["uv", "run", "--group", "tests", "pytest", "-n", "auto", "tests"]]
 [env.ui]
 description = "Run Playwright UI tests"
 deps = ["uv"]
-commands = [["uv", "run", "--group", "tests", "pytest", "-m", "ui", "tests"]]
+commands = [
+  [
+    "uv",
+    "run",
+    "--group",
+    "tests",
+    "pytest",
+    "-m",
+    "ui",
+    "tests",
+    "--no-cov",
+  ],
+]
