@@ -49,7 +49,7 @@ uv run --group tests pytest tests/ -m ui --headed
 uv run --group tests pytest tests/ -m ui --headed --slowmo 500
 
 # Run all tests including UI
-uv run --group tests pytest tests/ -m ''
+uv run --group tests pytest tests/ -m "ui or not ui"
 ```
 
 ### With tox

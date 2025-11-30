@@ -4,7 +4,7 @@
  * This module handles:
  * - Initial data loading via REST API
  * - KPI card updates
- * - Chart updates via charts.js
+ * - Table updates with pagination and sorting
  * - Theme management (dark/light mode)
  * - Time range filtering
  * - Manual refresh
@@ -14,7 +14,6 @@
 class MetricsDashboard {
     constructor() {
         this.apiClient = null;  // Will be initialized in initialize()
-        this.charts = {};  // Will hold Chart.js instances
         this.currentData = {
             summary: null,
             webhooks: null,
@@ -61,7 +60,7 @@ class MetricsDashboard {
     }
 
     /**
-     * Initialize dashboard - load theme, data, and charts.
+     * Initialize dashboard - load theme, data, and tables.
      */
     async initialize() {
         console.log('[Dashboard] Initializing metrics dashboard');
@@ -101,9 +100,6 @@ class MetricsDashboard {
         try {
             // 8. Load initial data via REST API
             await this.loadInitialData();
-
-            // 9. Initialize charts (calls functions from charts.js)
-            this.initializeCharts();
 
             console.log('[Dashboard] Dashboard initialization complete');
         } catch (error) {
@@ -177,7 +173,7 @@ class MetricsDashboard {
 
             // Update UI with loaded data
             this.updateKPITooltip(summaryData.summary || summaryData);
-            this.updateCharts(this.currentData);
+            this.updateTables(this.currentData);
 
             // Update User PRs table
             console.log('[Dashboard] Updating User PRs table with data:', userPrsData);
@@ -321,18 +317,6 @@ class MetricsDashboard {
     }
 
     /**
-     * Initialize all charts (calls functions from charts.js).
-     * Note: Chart sections have been removed from the dashboard for simplification.
-     * This method is kept for backward compatibility but does nothing.
-     * @deprecated Charts have been removed. This method is kept for backward compatibility.
-     */
-    initializeCharts() {
-        console.log('[Dashboard] Chart initialization skipped (charts removed from UI)');
-        // Charts have been removed from the dashboard
-        // Keeping this method to avoid breaking existing code references
-    }
-
-    /**
      * Normalize repositories data from paginated response to array.
      * Handles both paginated response objects and plain arrays.
      * Supports both current ({ data: [...] }) and legacy ({ repositories: [...] }) shapes.
@@ -353,11 +337,11 @@ class MetricsDashboard {
     }
 
     /**
-     * Update all charts with new data.
+     * Update all tables with new data.
      *
      * @param {Object} data - Complete dashboard data
      */
-    updateCharts(data) {
+    updateTables(data) {
         if (!data) {
             console.warn('[Dashboard] No data available');
             return;
@@ -471,7 +455,7 @@ class MetricsDashboard {
         // ALWAYS update KPI tooltip (whether filtered or not)
         this.updateKPITooltip(filteredSummary);
 
-        // Use filtered data for chart updates
+        // Use filtered data for table updates
         webhooks = filteredWebhooks;
         repositories = filteredRepositories;
         if (filteredContributors) {
@@ -479,8 +463,6 @@ class MetricsDashboard {
         }
 
         try {
-            // Note: Chart update logic has been removed as charts are no longer in the UI
-
             // Update Repository Table with top repositories from summary (has percentage field)
             if (data.topRepositories && data.topRepositories.length > 0) {
                 // Top repositories from summary endpoint (has percentage field)
@@ -523,23 +505,10 @@ class MetricsDashboard {
                 this.updateUserPRsTable(filteredUserPrs);
             }
 
-            console.log('[Dashboard] Charts updated');
+            console.log('[Dashboard] Tables updated');
         } catch (error) {
-            console.error('[Dashboard] Error updating charts:', error);
+            console.error('[Dashboard] Error updating tables:', error);
         }
-    }
-
-    /**
-     * Process trends data from API for chart.
-     * Note: This method is kept for backward compatibility but is no longer used.
-     * @deprecated Charts have been removed. This method is kept for backward compatibility.
-     * @param {Array} trends - Trends data from API
-     * @returns {Object} Chart data
-     */
-    processTrendsData(trends) {
-        // Method kept for backward compatibility
-        // Charts have been removed from the dashboard
-        return { labels: [], success: [], errors: [], total: [] };
     }
 
     /**
@@ -887,8 +856,6 @@ class MetricsDashboard {
         // Collapse buttons
         this.setupCollapseButtons();
 
-        // Note: Chart settings event listeners have been removed as charts are no longer in the UI
-
         console.log('[Dashboard] Event listeners set up');
     }
 
@@ -1019,9 +986,6 @@ class MetricsDashboard {
         localStorage.setItem('theme', newTheme);
 
         console.log(`[Dashboard] Theme changed to: ${newTheme}`);
-
-        // Charts have been removed - no need to recreate
-        console.log('[Dashboard] Theme changed, skipping chart recreation (charts removed)');
     }
 
     /**
@@ -1074,7 +1038,7 @@ class MetricsDashboard {
         this.showLoading(true);
         try {
             await this.loadInitialData();
-            this.updateCharts(this.currentData);
+            this.updateTables(this.currentData);
             this.showSuccessNotification('Dashboard refreshed successfully');
         } catch (error) {
             console.error('[Dashboard] Error during manual refresh:', error);
@@ -1103,9 +1067,9 @@ class MetricsDashboard {
         this.repositoryFilter = trimmedFilter.toLowerCase();
         console.log(`[Dashboard] Filtering by repository: "${this.repositoryFilter || '(showing all)'}"`);
 
-        // ALWAYS re-render charts and tables (even when filter is cleared)
+        // ALWAYS re-render tables (even when filter is cleared)
         if (this.currentData) {
-            this.updateCharts(this.currentData);
+            this.updateTables(this.currentData);
         }
     }
 
@@ -1148,9 +1112,9 @@ class MetricsDashboard {
             this.currentData.userPrsView = null;
         }
 
-        // Re-render charts and tables
+        // Re-render tables
         if (this.currentData) {
-            this.updateCharts(this.currentData);
+            this.updateTables(this.currentData);
         }
     }
 
@@ -1312,42 +1276,6 @@ class MetricsDashboard {
         console.log(`[Dashboard] Success: ${message}`);
         // Could implement toast notification here
     }
-
-    /**
-     * Prepare event trends data for line chart.
-     * Note: This method is kept for backward compatibility but is no longer used.
-     * @deprecated Charts have been removed. This method is kept for backward compatibility.
-     *
-     * @param {Array} events - Array of webhook events
-     * @returns {Object} Chart data with labels, success, errors, and total arrays
-     */
-    prepareEventTrendsData(events) {
-        // Method kept for backward compatibility
-        // Charts have been removed from the dashboard
-        return { labels: [], success: [], errors: [], total: [] };
-    }
-
-    /**
-     * Prepare API usage data for bar chart.
-     * Note: This method is kept for backward compatibility but is no longer used.
-     * @deprecated Charts have been removed. This method is kept for backward compatibility.
-     *
-     * @param {Array} repositories - Array of repository statistics
-     * @param {number} topN - Number of top repositories to show (default: 7)
-     * @param {string} sortOrder - Sort order ('asc' or 'desc', default: 'desc')
-     * @returns {Object} Chart data with labels and values arrays
-     */
-    prepareAPIUsageData(repositories, topN = 7, sortOrder = 'desc') {
-        // Method kept for backward compatibility
-        // Charts have been removed from the dashboard
-        return { labels: [], values: [] };
-    }
-
-    /**
-     * Note: Modal and chart customization functions have been removed
-     * as charts are no longer part of the dashboard UI.
-     * These methods were kept for backward compatibility in the codebase.
-     */
 
     /**
      * Escape a CSV value by wrapping in quotes if needed and escaping internal quotes.
@@ -1653,13 +1581,6 @@ class MetricsDashboard {
      */
     destroy() {
         console.log('[Dashboard] Destroying dashboard...');
-
-        // Destroy charts
-        Object.values(this.charts).forEach(chart => {
-            if (chart && typeof chart.destroy === 'function') {
-                chart.destroy();
-            }
-        });
 
         // Destroy combo-boxes
         if (this.repositoryComboBox) {

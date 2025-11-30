@@ -575,7 +575,6 @@ class TestPRStoryModal:
 
         # Press Escape - should not cause errors
         await page_with_js_coverage.keyboard.press("Escape")
-        await page_with_js_coverage.wait_for_timeout(200)
 
         # Dashboard should still be functional
         await expect(page_with_js_coverage.locator(".dashboard-grid")).to_be_visible()
@@ -593,7 +592,7 @@ class TestDashboardTableUpdates:
 
         refresh_btn = page_with_js_coverage.locator("#refresh-button")
         await refresh_btn.click()
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Tables should still be visible after refresh
         await expect(page_with_js_coverage.locator("#topRepositoriesTable")).to_be_visible()
@@ -608,10 +607,10 @@ class TestDashboardTableUpdates:
 
         # Change to different time ranges
         await time_range.select_option("1h")
-        await page_with_js_coverage.wait_for_timeout(500)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         await time_range.select_option("30d")
-        await page_with_js_coverage.wait_for_timeout(500)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         await expect(page_with_js_coverage.locator("#topRepositoriesTable")).to_be_visible()
 
@@ -637,7 +636,7 @@ class TestDashboardTableUpdates:
         if count > 1:
             # Click second tab
             await tabs.nth(1).click()
-            await page_with_js_coverage.wait_for_timeout(300)
+            await expect(tabs.nth(1)).to_have_class("active", timeout=TIMEOUT)
 
 
 @pytest.mark.usefixtures("dev_server")
@@ -674,17 +673,15 @@ class TestDashboardUtilityFunctions:
     async def test_local_storage_for_theme(self, page_with_js_coverage: Page) -> None:
         """Test localStorage is used for theme persistence."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(500)
+        await page_with_js_coverage.wait_for_load_state("domcontentloaded")
 
         # Toggle theme to trigger localStorage save
         theme_toggle = page_with_js_coverage.locator("#theme-toggle")
         await theme_toggle.click()
-        await page_with_js_coverage.wait_for_timeout(200)
+        await expect(theme_toggle).to_be_visible()
 
         # Toggle back
         await theme_toggle.click()
-        await page_with_js_coverage.wait_for_timeout(200)
-
         await expect(theme_toggle).to_be_visible()
 
 
@@ -720,7 +717,7 @@ class TestDashboardLoadingStates:
         # Set filters that would return no results
         time_range = page_with_js_coverage.locator("#time-range-select")
         await time_range.select_option("1h")
-        await page_with_js_coverage.wait_for_timeout(500)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Dashboard should still be functional
         await expect(page_with_js_coverage.locator(".dashboard-grid")).to_be_visible()
@@ -748,7 +745,6 @@ class TestDashboardPagination:
         # Click sortable header
         header = page_with_js_coverage.locator("#topRepositoriesTable thead th.sortable").first
         await header.click()
-        await page_with_js_coverage.wait_for_timeout(300)
 
         # Table should still be visible
         await expect(page_with_js_coverage.locator("#topRepositoriesTable")).to_be_visible()
@@ -762,11 +758,9 @@ class TestDashboardPagination:
 
         # First click
         await header.click()
-        await page_with_js_coverage.wait_for_timeout(200)
 
         # Second click
         await header.click()
-        await page_with_js_coverage.wait_for_timeout(200)
 
         await expect(page_with_js_coverage.locator("#topRepositoriesTable")).to_be_visible()
 
@@ -797,7 +791,7 @@ class TestDashboardFilters:
 
         repo_filter = page_with_js_coverage.locator("#repositoryFilter")
         await repo_filter.click()
-        await page_with_js_coverage.wait_for_timeout(300)
+        await expect(repo_filter).to_be_focused()
 
         await expect(repo_filter).to_be_visible()
 
@@ -808,7 +802,7 @@ class TestDashboardFilters:
 
         user_filter = page_with_js_coverage.locator("#userFilter")
         await user_filter.click()
-        await page_with_js_coverage.wait_for_timeout(300)
+        await expect(user_filter).to_be_focused()
 
         await expect(user_filter).to_be_visible()
 
@@ -821,10 +815,9 @@ class TestDashboardFilters:
         await repo_filter.focus()
 
         await page_with_js_coverage.keyboard.press("ArrowDown")
-        await page_with_js_coverage.wait_for_timeout(200)
+        await expect(repo_filter).to_be_focused()
 
         await page_with_js_coverage.keyboard.press("Escape")
-        await page_with_js_coverage.wait_for_timeout(200)
 
     async def test_filter_with_typing(self, page_with_js_coverage: Page) -> None:
         """Test typing in filter input."""
@@ -833,7 +826,6 @@ class TestDashboardFilters:
 
         repo_filter = page_with_js_coverage.locator("#repositoryFilter")
         await repo_filter.fill("test")
-        await page_with_js_coverage.wait_for_timeout(300)
 
         await expect(repo_filter).to_have_value("test")
 
@@ -844,10 +836,9 @@ class TestDashboardFilters:
 
         repo_filter = page_with_js_coverage.locator("#repositoryFilter")
         await repo_filter.fill("test")
-        await page_with_js_coverage.wait_for_timeout(200)
+        await expect(repo_filter).to_have_value("test")
 
         await repo_filter.fill("")
-        await page_with_js_coverage.wait_for_timeout(200)
 
         await expect(repo_filter).to_have_value("")
 
@@ -864,11 +855,8 @@ class TestDashboardKeyboardNavigation:
 
         # Focus on first focusable element and tab through
         await page_with_js_coverage.keyboard.press("Tab")
-        await page_with_js_coverage.wait_for_timeout(100)
         await page_with_js_coverage.keyboard.press("Tab")
-        await page_with_js_coverage.wait_for_timeout(100)
         await page_with_js_coverage.keyboard.press("Tab")
-        await page_with_js_coverage.wait_for_timeout(100)
 
         # Dashboard should still be visible
         await expect(page_with_js_coverage.locator(".dashboard-grid")).to_be_visible()
@@ -881,7 +869,7 @@ class TestDashboardKeyboardNavigation:
         refresh_btn = page_with_js_coverage.locator("#refresh-button")
         await refresh_btn.focus()
         await page_with_js_coverage.keyboard.press("Enter")
-        await page_with_js_coverage.wait_for_timeout(500)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Button should still be visible
         await expect(refresh_btn).to_be_visible()
@@ -894,9 +882,7 @@ class TestDashboardKeyboardNavigation:
         time_select = page_with_js_coverage.locator("#time-range-select")
         await time_select.focus()
         await page_with_js_coverage.keyboard.press("ArrowDown")
-        await page_with_js_coverage.wait_for_timeout(100)
         await page_with_js_coverage.keyboard.press("ArrowUp")
-        await page_with_js_coverage.wait_for_timeout(100)
 
         # Select should still be visible
         await expect(time_select).to_be_visible()
@@ -916,15 +902,14 @@ class TestDashboardComboBox:
 
         # Focus
         await repo_filter.focus()
-        await page_with_js_coverage.wait_for_timeout(200)
+        await expect(repo_filter).to_be_focused()
 
         # Type something
         await repo_filter.fill("test-repo")
-        await page_with_js_coverage.wait_for_timeout(200)
+        await expect(repo_filter).to_have_value("test-repo")
 
         # Blur by clicking elsewhere
         await page_with_js_coverage.locator("h1").click()
-        await page_with_js_coverage.wait_for_timeout(200)
 
         # Verify value persists
         await expect(repo_filter).to_have_value("test-repo")
@@ -939,15 +924,11 @@ class TestDashboardComboBox:
 
         # Type and use keyboard
         await user_filter.fill("alice")
-        await page_with_js_coverage.wait_for_timeout(100)
+        await expect(user_filter).to_have_value("alice")
         await page_with_js_coverage.keyboard.press("ArrowDown")
-        await page_with_js_coverage.wait_for_timeout(100)
         await page_with_js_coverage.keyboard.press("ArrowUp")
-        await page_with_js_coverage.wait_for_timeout(100)
         await page_with_js_coverage.keyboard.press("Enter")
-        await page_with_js_coverage.wait_for_timeout(100)
         await page_with_js_coverage.keyboard.press("Escape")
-        await page_with_js_coverage.wait_for_timeout(100)
 
         # Filter should still be visible
         await expect(user_filter).to_be_visible()
@@ -961,9 +942,8 @@ class TestDashboardComboBox:
 
         # Fill then clear
         await repo_filter.fill("some-value")
-        await page_with_js_coverage.wait_for_timeout(200)
+        await expect(repo_filter).to_have_value("some-value")
         await repo_filter.clear()
-        await page_with_js_coverage.wait_for_timeout(200)
 
         # Verify cleared
         await expect(repo_filter).to_have_value("")
@@ -985,7 +965,6 @@ class TestDashboardTableInteractions:
 
         for i in range(count):
             await headers.nth(i).click()
-            await page_with_js_coverage.wait_for_timeout(200)
 
         # Table should still be visible
         await expect(page_with_js_coverage.locator("#topRepositoriesTable")).to_be_visible()
@@ -1000,7 +979,6 @@ class TestDashboardTableInteractions:
 
         for i in range(min(count, 3)):
             await headers.nth(i).click()
-            await page_with_js_coverage.wait_for_timeout(150)
 
         # Table should still be visible
         await expect(page_with_js_coverage.locator("#prCreatorsTable")).to_be_visible()
@@ -1015,7 +993,6 @@ class TestDashboardTableInteractions:
 
         for i in range(min(count, 2)):
             await headers.nth(i).click()
-            await page_with_js_coverage.wait_for_timeout(150)
 
         # Table should still be visible
         await expect(page_with_js_coverage.locator("#recentEventsTable")).to_be_visible()
@@ -1030,7 +1007,6 @@ class TestDashboardTableInteractions:
 
         for i in range(min(count, 3)):
             await headers.nth(i).click()
-            await page_with_js_coverage.wait_for_timeout(150)
 
         # Table should still be visible
         await expect(page_with_js_coverage.locator("#userPrsTable")).to_be_visible()
@@ -1051,7 +1027,7 @@ class TestDashboardTimeRangeInteractions:
         # Select each option
         for value in ["1h", "24h", "7d", "30d"]:
             await time_range.select_option(value)
-            await page_with_js_coverage.wait_for_timeout(300)
+            await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Dashboard should still be visible
         await expect(page_with_js_coverage.locator(".dashboard-grid")).to_be_visible()
@@ -1066,13 +1042,13 @@ class TestDashboardTimeRangeInteractions:
 
         # Set custom dates
         await start_time.fill("2024-01-01T00:00")
-        await page_with_js_coverage.wait_for_timeout(200)
+        await expect(start_time).to_have_value("2024-01-01T00:00")
         await end_time.fill("2024-12-31T23:59")
-        await page_with_js_coverage.wait_for_timeout(200)
+        await expect(end_time).to_have_value("2024-12-31T23:59")
 
         # Trigger refresh
         await page_with_js_coverage.locator("#refresh-button").click()
-        await page_with_js_coverage.wait_for_timeout(500)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Dashboard should still be visible
         await expect(page_with_js_coverage.locator(".dashboard-grid")).to_be_visible()
@@ -1087,7 +1063,7 @@ class TestDashboardTimeRangeInteractions:
         # Click refresh multiple times
         for _ in range(3):
             await refresh_btn.click()
-            await page_with_js_coverage.wait_for_timeout(300)
+            await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Button should still be visible and enabled
         await expect(refresh_btn).to_be_visible()
@@ -1111,7 +1087,6 @@ class TestDashboardCollapsePanels:
             btn = page_with_js_coverage.locator(f'.collapse-btn[data-section="{section}"]')
             if await btn.count() > 0:
                 await btn.click()
-                await page_with_js_coverage.wait_for_timeout(200)
 
         # Dashboard should still be visible
         await expect(page_with_js_coverage.locator(".dashboard-grid")).to_be_visible()
@@ -1126,11 +1101,9 @@ class TestDashboardCollapsePanels:
 
         # Collapse
         await btn.click()
-        await page_with_js_coverage.wait_for_timeout(200)
 
         # Expand
         await btn.click()
-        await page_with_js_coverage.wait_for_timeout(200)
 
         # Section container should be visible
         await expect(page_with_js_coverage.locator('.chart-container[data-section="top-repositories"]')).to_be_visible()
