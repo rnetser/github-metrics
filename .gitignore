@@ -36,8 +36,10 @@ env/
 .coverage
 .coverage.*
 htmlcov/
+htmlcov/js/
 .tox/
 .nox/
+coverage-js/
 
 # Type checking
 .mypy_cache/

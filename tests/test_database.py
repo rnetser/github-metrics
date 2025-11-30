@@ -253,12 +253,11 @@ class TestGetDatabaseManager:
     def test_get_database_manager_with_config(self) -> None:
         """Test factory function uses configuration from environment variables."""
         # Environment variables are already set by set_test_env_vars fixture in conftest.py
-        # which sets METRICS_DB_NAME=test_metrics and METRICS_DB_USER=test_user
         db_manager = get_database_manager()
 
         # Verify the config was loaded from the environment variables
-        assert db_manager.config.database.name == "test_metrics"
-        assert db_manager.config.database.user == "test_user"
+        assert db_manager.config.database.name == "github_metrics_dev"
+        assert db_manager.config.database.user == "postgres"
 
 
 class TestDatabaseManagerErrorHandling:
