@@ -563,7 +563,7 @@ class TestPRStoryModal:
     async def test_pr_table_exists(self, page_with_js_coverage: Page) -> None:
         """Verify PR table exists for modal triggers."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # User PRs table should exist
         await expect(page_with_js_coverage.locator("#userPrsTable")).to_be_visible()
@@ -571,7 +571,7 @@ class TestPRStoryModal:
     async def test_escape_key_handling(self, page_with_js_coverage: Page) -> None:
         """Test pressing Escape is handled."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Press Escape - should not cause errors
         await page_with_js_coverage.keyboard.press("Escape")
@@ -589,7 +589,7 @@ class TestDashboardTableUpdates:
     async def test_refresh_updates_tables(self, page_with_js_coverage: Page) -> None:
         """Verify refresh button updates all tables."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         refresh_btn = page_with_js_coverage.locator("#refresh-button")
         await refresh_btn.click()
@@ -602,7 +602,7 @@ class TestDashboardTableUpdates:
     async def test_time_range_updates_tables(self, page_with_js_coverage: Page) -> None:
         """Verify time range change updates tables."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         time_range = page_with_js_coverage.locator("#time-range-select")
 
@@ -618,7 +618,7 @@ class TestDashboardTableUpdates:
     async def test_table_body_content_loads(self, page_with_js_coverage: Page) -> None:
         """Verify table bodies can load content."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(2000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Check table bodies exist and are ready for content
         await expect(page_with_js_coverage.locator("#repository-table-body")).to_be_visible()
@@ -628,7 +628,7 @@ class TestDashboardTableUpdates:
     async def test_contributors_tabs_switch(self, page_with_js_coverage: Page) -> None:
         """Test switching between contributor tabs."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Look for tab buttons in PR contributors section
         tabs = page_with_js_coverage.locator('[data-section="pr-contributors"] .tab-btn, .contributor-tab')
@@ -648,7 +648,7 @@ class TestDashboardUtilityFunctions:
     async def test_timestamp_formatting(self, page_with_js_coverage: Page) -> None:
         """Verify timestamps are formatted in tables."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(2000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Recent events table should have formatted timestamps
         time_cells = page_with_js_coverage.locator("#recentEventsTable tbody td:first-child")
@@ -657,7 +657,7 @@ class TestDashboardUtilityFunctions:
     async def test_percentage_formatting(self, page_with_js_coverage: Page) -> None:
         """Verify percentages are formatted in tables."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(2000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Top repositories table has percentage column
         pct_cells = page_with_js_coverage.locator("#topRepositoriesTable tbody td:last-child")
@@ -666,7 +666,7 @@ class TestDashboardUtilityFunctions:
     async def test_number_formatting_in_stats(self, page_with_js_coverage: Page) -> None:
         """Verify numbers are formatted in stats."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Tooltip should have formatted numbers
         await expect(page_with_js_coverage.locator("#tooltipTotalEvents")).to_be_attached()
@@ -706,7 +706,7 @@ class TestDashboardLoadingStates:
         page_with_js_coverage.on("pageerror", lambda e: errors.append(str(e)))
 
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(2000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Should have no critical errors
         critical_errors = [e for e in errors if "TypeError" in e or "ReferenceError" in e]
@@ -715,7 +715,7 @@ class TestDashboardLoadingStates:
     async def test_empty_state_display(self, page_with_js_coverage: Page) -> None:
         """Verify empty states are handled gracefully."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Set filters that would return no results
         time_range = page_with_js_coverage.locator("#time-range-select")
@@ -734,7 +734,7 @@ class TestDashboardPagination:
     async def test_tables_load_data(self, page_with_js_coverage: Page) -> None:
         """Verify tables attempt to load data."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(2000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Tables should be present and ready
         await expect(page_with_js_coverage.locator("#topRepositoriesTable")).to_be_visible()
@@ -743,7 +743,7 @@ class TestDashboardPagination:
     async def test_table_sorting_by_click(self, page_with_js_coverage: Page) -> None:
         """Verify table headers are sortable by click."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Click sortable header
         header = page_with_js_coverage.locator("#topRepositoriesTable thead th.sortable").first
@@ -756,7 +756,7 @@ class TestDashboardPagination:
     async def test_multiple_sort_clicks(self, page_with_js_coverage: Page) -> None:
         """Verify sorting direction changes on multiple clicks."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         header = page_with_js_coverage.locator("#topRepositoriesTable thead th.sortable").first
 
@@ -793,7 +793,7 @@ class TestDashboardFilters:
     async def test_repository_filter_dropdown(self, page_with_js_coverage: Page) -> None:
         """Test repository filter dropdown interaction."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         repo_filter = page_with_js_coverage.locator("#repositoryFilter")
         await repo_filter.click()
@@ -804,7 +804,7 @@ class TestDashboardFilters:
     async def test_user_filter_dropdown(self, page_with_js_coverage: Page) -> None:
         """Test user filter dropdown interaction."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         user_filter = page_with_js_coverage.locator("#userFilter")
         await user_filter.click()
@@ -815,7 +815,7 @@ class TestDashboardFilters:
     async def test_filter_keyboard_navigation(self, page_with_js_coverage: Page) -> None:
         """Test keyboard navigation in filters."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         repo_filter = page_with_js_coverage.locator("#repositoryFilter")
         await repo_filter.focus()
@@ -829,7 +829,7 @@ class TestDashboardFilters:
     async def test_filter_with_typing(self, page_with_js_coverage: Page) -> None:
         """Test typing in filter input."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         repo_filter = page_with_js_coverage.locator("#repositoryFilter")
         await repo_filter.fill("test")
@@ -840,7 +840,7 @@ class TestDashboardFilters:
     async def test_clear_filters(self, page_with_js_coverage: Page) -> None:
         """Test clearing filter values."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         repo_filter = page_with_js_coverage.locator("#repositoryFilter")
         await repo_filter.fill("test")
@@ -860,7 +860,7 @@ class TestDashboardKeyboardNavigation:
     async def test_tab_navigation(self, page_with_js_coverage: Page) -> None:
         """Test Tab key navigation through controls."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Focus on first focusable element and tab through
         await page_with_js_coverage.keyboard.press("Tab")
@@ -876,7 +876,7 @@ class TestDashboardKeyboardNavigation:
     async def test_enter_key_on_refresh(self, page_with_js_coverage: Page) -> None:
         """Test Enter key triggers refresh button."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         refresh_btn = page_with_js_coverage.locator("#refresh-button")
         await refresh_btn.focus()
@@ -889,7 +889,7 @@ class TestDashboardKeyboardNavigation:
     async def test_arrow_keys_in_select(self, page_with_js_coverage: Page) -> None:
         """Test arrow keys in time range select."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         time_select = page_with_js_coverage.locator("#time-range-select")
         await time_select.focus()
@@ -910,7 +910,7 @@ class TestDashboardComboBox:
     async def test_combo_box_focus_blur(self, page_with_js_coverage: Page) -> None:
         """Test combo box focus and blur events."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         repo_filter = page_with_js_coverage.locator("#repositoryFilter")
 
@@ -932,7 +932,7 @@ class TestDashboardComboBox:
     async def test_combo_box_keyboard_events(self, page_with_js_coverage: Page) -> None:
         """Test combo box keyboard events."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         user_filter = page_with_js_coverage.locator("#userFilter")
         await user_filter.focus()
@@ -955,7 +955,7 @@ class TestDashboardComboBox:
     async def test_combo_box_clear_value(self, page_with_js_coverage: Page) -> None:
         """Test clearing combo box value."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         repo_filter = page_with_js_coverage.locator("#repositoryFilter")
 
@@ -977,7 +977,7 @@ class TestDashboardTableInteractions:
     async def test_sort_all_table_columns(self, page_with_js_coverage: Page) -> None:
         """Test sorting on all sortable columns."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Sort all columns in top repositories table
         headers = page_with_js_coverage.locator("#topRepositoriesTable th.sortable")
@@ -993,7 +993,7 @@ class TestDashboardTableInteractions:
     async def test_sort_pr_creators_table(self, page_with_js_coverage: Page) -> None:
         """Test sorting PR creators table."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         headers = page_with_js_coverage.locator("#prCreatorsTable th.sortable")
         count = await headers.count()
@@ -1008,7 +1008,7 @@ class TestDashboardTableInteractions:
     async def test_sort_recent_events_table(self, page_with_js_coverage: Page) -> None:
         """Test sorting recent events table."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         headers = page_with_js_coverage.locator("#recentEventsTable th.sortable")
         count = await headers.count()
@@ -1023,7 +1023,7 @@ class TestDashboardTableInteractions:
     async def test_sort_user_prs_table(self, page_with_js_coverage: Page) -> None:
         """Test sorting user PRs table."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         headers = page_with_js_coverage.locator("#userPrsTable th.sortable")
         count = await headers.count()
@@ -1044,7 +1044,7 @@ class TestDashboardTimeRangeInteractions:
     async def test_all_time_range_options(self, page_with_js_coverage: Page) -> None:
         """Test selecting all time range options."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         time_range = page_with_js_coverage.locator("#time-range-select")
 
@@ -1059,7 +1059,7 @@ class TestDashboardTimeRangeInteractions:
     async def test_custom_date_range(self, page_with_js_coverage: Page) -> None:
         """Test setting custom date range."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         start_time = page_with_js_coverage.locator("#startTime")
         end_time = page_with_js_coverage.locator("#endTime")
@@ -1080,7 +1080,7 @@ class TestDashboardTimeRangeInteractions:
     async def test_multiple_refreshes(self, page_with_js_coverage: Page) -> None:
         """Test multiple refresh button clicks."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         refresh_btn = page_with_js_coverage.locator("#refresh-button")
 
@@ -1102,7 +1102,7 @@ class TestDashboardCollapsePanels:
     async def test_collapse_all_sections(self, page_with_js_coverage: Page) -> None:
         """Test collapsing all collapsible sections."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Collapse each section
         sections = ["control-panel", "top-repositories", "recent-events", "pr-contributors", "user-prs"]
@@ -1119,7 +1119,7 @@ class TestDashboardCollapsePanels:
     async def test_expand_collapsed_sections(self, page_with_js_coverage: Page) -> None:
         """Test expanding collapsed sections."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_timeout(1000)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Collapse then expand
         btn = page_with_js_coverage.locator('.collapse-btn[data-section="top-repositories"]')

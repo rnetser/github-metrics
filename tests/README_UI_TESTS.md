@@ -5,11 +5,13 @@ This directory contains Playwright-based UI tests for the GitHub Metrics dashboa
 ## Prerequisites
 
 1. **Install dependencies:**
+
    ```bash
    uv sync --group tests
    ```
 
 2. **Install Playwright browsers:**
+
    ```bash
    uv run playwright install chromium
    ```
@@ -25,8 +27,9 @@ Before running UI tests, you need to start the development server:
 ```
 
 The server will be available at:
-- Dashboard: http://localhost:8765/dashboard
-- API: http://localhost:8765/api/metrics/
+
+- Dashboard: [http://localhost:8765/dashboard](http://localhost:8765/dashboard)
+- API: [http://localhost:8765/api/metrics/](http://localhost:8765/api/metrics/)
 - PostgreSQL: localhost:15432
 
 ### Run UI Tests
@@ -35,19 +38,19 @@ In a separate terminal, run the UI tests:
 
 ```bash
 # Run all UI tests
-uv run --group tests pytest tests/test_ui_dashboard.py -v
+uv run --group tests pytest -m ui tests/test_ui_dashboard.py -v
 
 # Run specific test class
-uv run --group tests pytest tests/test_ui_dashboard.py::TestDashboardPageLoad -v
+uv run --group tests pytest -m ui tests/test_ui_dashboard.py::TestDashboardPageLoad -v
 
 # Run specific test
-uv run --group tests pytest tests/test_ui_dashboard.py::TestDashboardPageLoad::test_dashboard_loads_successfully -v
+uv run --group tests pytest -m ui tests/test_ui_dashboard.py::TestDashboardPageLoad::test_dashboard_loads_successfully -v
 
 # Run with headed browser (visible browser window)
-uv run --group tests pytest tests/test_ui_dashboard.py --headed -v
+uv run --group tests pytest -m ui tests/test_ui_dashboard.py --headed -v
 
 # Run with slower execution for debugging
-uv run --group tests pytest tests/test_ui_dashboard.py --slowmo 1000 -v
+uv run --group tests pytest -m ui tests/test_ui_dashboard.py --slowmo 1000 -v
 ```
 
 ## Test Structure
@@ -107,7 +110,7 @@ def browser_type_launch_args() -> dict[str, Any]:
 To see the browser while tests run:
 
 ```bash
-uv run --group tests pytest tests/test_ui_dashboard.py --headed
+uv run --group tests pytest -m ui tests/test_ui_dashboard.py --headed
 ```
 
 ### Slow Down Execution
@@ -115,7 +118,7 @@ uv run --group tests pytest tests/test_ui_dashboard.py --headed
 To slow down test execution for debugging:
 
 ```bash
-uv run --group tests pytest tests/test_ui_dashboard.py --slowmo 500
+uv run --group tests pytest -m ui tests/test_ui_dashboard.py --slowmo 500
 ```
 
 ### Playwright Inspector
@@ -123,7 +126,7 @@ uv run --group tests pytest tests/test_ui_dashboard.py --slowmo 500
 Use Playwright's built-in inspector for debugging:
 
 ```bash
-PWDEBUG=1 uv run --group tests pytest tests/test_ui_dashboard.py
+PWDEBUG=1 uv run --group tests pytest -m ui tests/test_ui_dashboard.py
 ```
 
 ### Screenshots on Failure
@@ -139,7 +142,7 @@ To run UI tests in CI/CD pipelines:
 uv run playwright install --with-deps chromium
 
 # Run tests in headless mode
-uv run --group tests pytest tests/test_ui_dashboard.py -v
+uv run --group tests pytest -m ui tests/test_ui_dashboard.py -v
 ```
 
 ## Best Practices

@@ -31,6 +31,11 @@ from github_metrics.config import DatabaseConfig, MetricsConfig
 from github_metrics.database import DatabaseManager
 from tests.test_js_coverage_utils import JSCoverageCollector
 
+
+class DevServerStartupError(Exception):
+    """Raised when the development server fails to start during testing."""
+
+
 # IMPORTANT: app.py reads configuration at module import time (get_config() at module level).
 # Environment variables MUST be set BEFORE importing github_metrics.app.
 os.environ.update({
@@ -411,7 +416,7 @@ def dev_server() -> Generator[str]:
         Base URL of the development server.
 
     Raises:
-        RuntimeError: If the server fails to start within the timeout period.
+        DevServerStartupError: If the server fails to start within the timeout period.
     """
 
     # Start server subprocess
@@ -435,7 +440,7 @@ def dev_server() -> Generator[str]:
     for _ in range(max_retries):
         # Check if process died
         if process.poll() is not None:
-            raise RuntimeError(
+            raise DevServerStartupError(
                 f"Dev server process died during startup (exit code: {process.returncode}). "
                 "Check ./dev/run.sh manually for errors."
             )
@@ -449,7 +454,7 @@ def dev_server() -> Generator[str]:
         time.sleep(1)
     else:
         process.terminate()
-        raise RuntimeError(
+        raise DevServerStartupError(
             f"Dev server failed to start within {max_retries} seconds. "
             f"Process status: {'running' if process.poll() is None else f'exited with code {process.returncode}'}"
         )

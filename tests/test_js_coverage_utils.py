@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -23,7 +24,14 @@ class JSCoverageCollector:
 
     def add_coverage(self, entries: list[dict[str, Any]]) -> None:
         """Add coverage entries, filtering to app JS files only."""
-        filtered = [entry for entry in entries if "/static/js/metrics/" in entry.get("url", "")]
+        filtered = [
+            entry
+            for entry in entries
+            if isinstance(entry, dict)
+            and isinstance(entry.get("url"), str)
+            and entry.get("url")
+            and "/static/js/metrics/" in entry["url"]
+        ]
         self.coverage_entries.extend(filtered)
 
     def generate_reports(self) -> float:
@@ -31,21 +39,27 @@ class JSCoverageCollector:
         if not self.coverage_entries:
             return 0.0
 
-        raw_path = self.output_dir / "v8-coverage.json"
-        with open(raw_path, "w") as f:
-            json.dump(self.coverage_entries, f, indent=2)
+        # Ensure output directory exists before writing
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        summary, overall_pct = self._generate_summary()
-        summary_path = self.output_dir / "coverage-summary.txt"
-        with open(summary_path, "w") as f:
-            f.write(summary)
+        try:
+            raw_path = self.output_dir / "v8-coverage.json"
+            with open(raw_path, "w") as f:
+                json.dump(self.coverage_entries, f, indent=2)
 
-        html = self._generate_html_report()
-        html_path = self.output_dir / "index.html"
-        with open(html_path, "w") as f:
-            f.write(html)
+            summary, overall_pct = self._generate_summary()
+            summary_path = self.output_dir / "coverage-summary.txt"
+            with open(summary_path, "w") as f:
+                f.write(summary)
 
-        return overall_pct
+            html_report = self._generate_html_report()
+            html_path = self.output_dir / "index.html"
+            with open(html_path, "w") as f:
+                f.write(html_report)
+
+            return overall_pct
+        except OSError as e:
+            raise OSError(f"Failed to write coverage reports to {self.output_dir}: {e}") from e
 
     def _get_file_stats(self) -> dict[str, dict[str, Any]]:
         """Analyze coverage entries and return per-file statistics."""
@@ -130,12 +144,14 @@ class JSCoverageCollector:
             for func_name, is_covered in sorted(stats["functions"].items()):
                 status = "&#10003;" if is_covered else "&#10007;"
                 func_color = "#4caf50" if is_covered else "#f44336"
-                func_items.append(f'<span style="color: {func_color}">{status} {func_name}</span>')
+                escaped_func_name = html.escape(func_name)
+                func_items.append(f'<span style="color: {func_color}">{status} {escaped_func_name}</span>')
 
+            escaped_filename = html.escape(filename)
             file_rows.append(f"""
             <div class="file">
                 <div class="file-header">
-                    <span class="filename">{filename}</span>
+                    <span class="filename">{escaped_filename}</span>
                     <span class="coverage" style="color: {color}">{covered}/{total} ({pct:.1f}%)</span>
                 </div>
                 <div class="functions">{" ".join(func_items)}</div>
