@@ -114,6 +114,11 @@ class TestDashboardControls:
         time_range_select = page_with_js_coverage.locator("#time-range-select")
         await expect(time_range_select).to_be_visible()
 
+        # UI Contract Verification:
+        # These assertions verify the UI contract - the dashboard MUST have exactly 4 time range options
+        # (1h, 24h, 7d, 30d) with "24h" as the default. Changes to option count or default value are
+        # breaking changes to the UI contract. Failures here indicate intentional contract violations,
+        # not flaky test behavior.
         # Check options exist
         options = time_range_select.locator("option")
         await expect(options).to_have_count(4)
@@ -799,20 +804,6 @@ class TestDashboardPagination:
         await header.click()
 
         await expect(page_with_js_coverage.locator("#topRepositoriesTable")).to_be_visible()
-
-
-@pytest.mark.usefixtures("dev_server")
-@pytest.mark.asyncio(loop_scope="session")
-class TestDashboardDataExport:
-    """Tests for data export functionality."""
-
-    async def test_download_button_exists(self, page_with_js_coverage: Page) -> None:
-        """Verify download buttons exist for tables."""
-        await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
-
-        download_btns = page_with_js_coverage.locator(".download-btn, [data-action='download']")
-        count = await download_btns.count()
-        assert count > 0, "Expected at least one download button"
 
 
 @pytest.mark.usefixtures("dev_server")

@@ -1038,7 +1038,6 @@ class MetricsDashboard {
         this.showLoading(true);
         try {
             await this.loadInitialData();
-            this.updateTables(this.currentData);
             this.showSuccessNotification('Dashboard refreshed successfully');
         } catch (error) {
             console.error('[Dashboard] Error during manual refresh:', error);
