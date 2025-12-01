@@ -25,7 +25,8 @@ from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
 
 from github_metrics import app as app_module
-from github_metrics.app import app, create_app, parse_datetime_string
+from github_metrics.app import app, create_app
+from github_metrics.utils.datetime_utils import parse_datetime_string
 
 
 class TestHealthEndpoint:
@@ -33,7 +34,7 @@ class TestHealthEndpoint:
 
     def test_health_check_healthy(self) -> None:
         """Test health endpoint returns healthy status."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.health.db_manager") as mock_db:
             mock_db.health_check = AsyncMock(return_value=True)
 
             client = TestClient(app)
@@ -47,7 +48,7 @@ class TestHealthEndpoint:
 
     def test_health_check_degraded(self) -> None:
         """Test health endpoint returns degraded when database unhealthy."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.health.db_manager") as mock_db:
             mock_db.health_check = AsyncMock(return_value=False)
 
             client = TestClient(app)
@@ -60,7 +61,7 @@ class TestHealthEndpoint:
 
     def test_health_check_without_db_manager(self) -> None:
         """Test health endpoint when db_manager is None."""
-        with patch("github_metrics.app.db_manager", None):
+        with patch("github_metrics.routes.health.db_manager", None):
             client = TestClient(app)
             response = client.get("/health")
 
@@ -106,9 +107,9 @@ class TestWebhookEndpoint:
     def test_webhook_receive_success(self, webhook_payload: dict[str, Any]) -> None:
         """Test successful webhook reception."""
         with (
-            patch("github_metrics.app.metrics_tracker") as mock_tracker,
-            patch("github_metrics.app.allowed_ips", ()),
-            patch("github_metrics.app.get_config") as mock_config,
+            patch("github_metrics.routes.webhooks.metrics_tracker") as mock_tracker,
+            patch("github_metrics.routes.webhooks.allowed_ips", ()),
+            patch("github_metrics.routes.webhooks.get_config") as mock_config,
         ):
             # Setup mocks
             mock_tracker.track_webhook_event = AsyncMock()
@@ -138,10 +139,10 @@ class TestWebhookEndpoint:
         # This test verifies the signature validation path works by checking it doesn't
         # throw an error for invalid signature (tested separately)
         with (
-            patch("github_metrics.app.metrics_tracker") as mock_tracker,
-            patch("github_metrics.app.allowed_ips", ()),
-            patch("github_metrics.app.get_config") as mock_config,
-            patch("github_metrics.app.verify_signature") as mock_verify_sig,
+            patch("github_metrics.routes.webhooks.metrics_tracker") as mock_tracker,
+            patch("github_metrics.routes.webhooks.allowed_ips", ()),
+            patch("github_metrics.routes.webhooks.get_config") as mock_config,
+            patch("github_metrics.routes.webhooks.verify_signature") as mock_verify_sig,
         ):
             mock_tracker.track_webhook_event = AsyncMock()
             config_mock = Mock()
@@ -167,8 +168,8 @@ class TestWebhookEndpoint:
     def test_webhook_receive_with_invalid_signature(self, webhook_payload: dict[str, Any]) -> None:
         """Test webhook rejection with invalid signature."""
         with (
-            patch("github_metrics.app.allowed_ips", ()),
-            patch("github_metrics.app.get_config") as mock_config,
+            patch("github_metrics.routes.webhooks.allowed_ips", ()),
+            patch("github_metrics.routes.webhooks.get_config") as mock_config,
         ):
             config_mock = Mock()
             config_mock.webhook.secret = "test_secret"  # pragma: allowlist secret
@@ -191,9 +192,9 @@ class TestWebhookEndpoint:
     def test_webhook_receive_extracts_pr_number(self, webhook_payload: dict[str, Any]) -> None:
         """Test webhook extracts PR number from pull_request event."""
         with (
-            patch("github_metrics.app.metrics_tracker") as mock_tracker,
-            patch("github_metrics.app.allowed_ips", ()),
-            patch("github_metrics.app.get_config") as mock_config,
+            patch("github_metrics.routes.webhooks.metrics_tracker") as mock_tracker,
+            patch("github_metrics.routes.webhooks.allowed_ips", ()),
+            patch("github_metrics.routes.webhooks.get_config") as mock_config,
         ):
             mock_tracker.track_webhook_event = AsyncMock()
             config_mock = Mock()
@@ -221,8 +222,8 @@ class TestWebhookEndpoint:
     def test_webhook_receive_invalid_json(self) -> None:
         """Test webhook rejection with invalid JSON payload."""
         with (
-            patch("github_metrics.app.allowed_ips", ()),
-            patch("github_metrics.app.get_config") as mock_config,
+            patch("github_metrics.routes.webhooks.allowed_ips", ()),
+            patch("github_metrics.routes.webhooks.get_config") as mock_config,
         ):
             config_mock = Mock()
             config_mock.webhook.secret = ""
@@ -248,7 +249,7 @@ class TestDashboardEndpoint:
 
     def test_dashboard_returns_html(self) -> None:
         """Test dashboard endpoint returns HTML page."""
-        with patch("github_metrics.app.dashboard_controller") as mock_controller:
+        with patch("github_metrics.routes.dashboard.dashboard_controller") as mock_controller:
             mock_controller.get_dashboard_page = Mock(return_value="<html>Dashboard</html>")
 
             client = TestClient(app)
@@ -290,7 +291,7 @@ class TestWebhookEventsEndpoint:
             },
         ]
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.webhooks.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(return_value=1)
             mock_db.fetch = AsyncMock(return_value=mock_rows)
 
@@ -306,7 +307,7 @@ class TestWebhookEventsEndpoint:
 
     def test_get_webhook_events_with_filters(self) -> None:
         """Test webhook events retrieval with filters."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.webhooks.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(return_value=0)
             mock_db.fetch = AsyncMock(return_value=[])
 
@@ -329,7 +330,7 @@ class TestWebhookEventsEndpoint:
 
     def test_get_webhook_events_pagination(self) -> None:
         """Test webhook events pagination."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.webhooks.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(return_value=150)
             mock_db.fetch = AsyncMock(return_value=[])
 
@@ -347,7 +348,7 @@ class TestWebhookEventsEndpoint:
 
     def test_get_webhook_events_database_unavailable(self) -> None:
         """Test webhook events when database unavailable."""
-        with patch("github_metrics.app.db_manager", None):
+        with patch("github_metrics.routes.api.webhooks.db_manager", None):
             client = TestClient(app)
             response = client.get("/api/metrics/webhooks")
 
@@ -377,7 +378,7 @@ class TestWebhookEventByIdEndpoint:
             "payload": {"test": "data"},
         }
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.webhooks.db_manager") as mock_db:
             mock_db.fetchrow = AsyncMock(return_value=mock_row)
 
             client = TestClient(app)
@@ -390,7 +391,7 @@ class TestWebhookEventByIdEndpoint:
 
     def test_get_webhook_event_by_id_not_found(self) -> None:
         """Test webhook event retrieval for non-existent ID."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.webhooks.db_manager") as mock_db:
             mock_db.fetchrow = AsyncMock(return_value=None)
 
             client = TestClient(app)
@@ -441,7 +442,7 @@ class TestMetricsSummaryEndpoint:
             "last_event_time": None,
         }
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.summary.db_manager") as mock_db:
             # Setup fetchrow to return summary_row and time_range_row
             mock_db.fetchrow = AsyncMock(side_effect=[mock_summary_row, mock_time_range])
             # Setup fetch to return top_repos and event_types
@@ -485,7 +486,7 @@ class TestMetricsSummaryEndpoint:
             "last_event_time": None,
         }
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.summary.db_manager") as mock_db:
             # Setup fetchrow to return summary_row and time_range_row
             mock_db.fetchrow = AsyncMock(side_effect=[mock_summary_row, mock_time_range])
             # Setup fetch to return empty arrays
@@ -518,7 +519,7 @@ class TestRepositoryStatisticsEndpoint:
             },
         ]
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.repositories.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(return_value=1)
             mock_db.fetch = AsyncMock(return_value=mock_rows)
 
@@ -684,7 +685,7 @@ class TestWebhookEventsEndpointErrors:
 
     def test_get_webhook_events_with_invalid_time_format(self) -> None:
         """Test webhook events with invalid datetime format."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.webhooks.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(return_value=0)
             mock_db.fetch = AsyncMock(return_value=[])
 
@@ -699,7 +700,7 @@ class TestWebhookEventsEndpointErrors:
 
     def test_get_webhook_events_database_error(self) -> None:
         """Test webhook events handles database errors."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.webhooks.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(side_effect=asyncpg.PostgresError("Database error"))
 
             client = TestClient(app)
@@ -709,7 +710,7 @@ class TestWebhookEventsEndpointErrors:
 
     def test_get_webhook_events_with_datetime_params(self) -> None:
         """Test webhook events with valid datetime parameters."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.webhooks.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(return_value=0)
             mock_db.fetch = AsyncMock(return_value=[])
 
@@ -730,7 +731,7 @@ class TestWebhookEventByIdErrors:
 
     def test_get_webhook_event_by_id_database_error(self) -> None:
         """Test webhook event by ID handles database errors."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.webhooks.db_manager") as mock_db:
             mock_db.fetchrow = AsyncMock(side_effect=Exception("Database error"))
 
             client = TestClient(app)
@@ -740,7 +741,7 @@ class TestWebhookEventByIdErrors:
 
     def test_get_webhook_event_by_id_database_unavailable(self) -> None:
         """Test webhook event by ID when database unavailable."""
-        with patch("github_metrics.app.db_manager", None):
+        with patch("github_metrics.routes.api.webhooks.db_manager", None):
             client = TestClient(app)
             response = client.get("/api/metrics/webhooks/test-123")
 
@@ -752,7 +753,7 @@ class TestRepositoryStatisticsErrors:
 
     def test_get_repository_statistics_database_error(self) -> None:
         """Test repository statistics handles database errors."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.repositories.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(side_effect=Exception("Database error"))
 
             client = TestClient(app)
@@ -762,7 +763,7 @@ class TestRepositoryStatisticsErrors:
 
     def test_get_repository_statistics_with_datetime_params(self) -> None:
         """Test repository statistics with datetime parameters."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.repositories.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(return_value=0)
             mock_db.fetch = AsyncMock(return_value=[])
 
@@ -779,7 +780,7 @@ class TestRepositoryStatisticsErrors:
 
     def test_get_repository_statistics_database_unavailable(self) -> None:
         """Test repository statistics when database unavailable."""
-        with patch("github_metrics.app.db_manager", None):
+        with patch("github_metrics.routes.api.repositories.db_manager", None):
             client = TestClient(app)
             response = client.get("/api/metrics/repositories")
 
@@ -791,7 +792,7 @@ class TestMetricsSummaryErrors:
 
     def test_get_metrics_summary_database_error(self) -> None:
         """Test metrics summary handles database errors."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.summary.db_manager") as mock_db:
             mock_db.fetchrow = AsyncMock(side_effect=Exception("Database error"))
 
             client = TestClient(app)
@@ -835,7 +836,7 @@ class TestMetricsSummaryErrors:
             "last_event_time": None,
         }
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.summary.db_manager") as mock_db:
             # Setup fetchrow to return summary_row, time_range_row, and prev_summary_row
             # Note: prev_summary_row is fetched after summary_row but before time_range_row in the code
             # Order: summary_row (line 862), top_repos (fetch line 863), event_types (fetch line 864),
@@ -857,7 +858,7 @@ class TestMetricsSummaryErrors:
 
     def test_get_metrics_summary_database_unavailable(self) -> None:
         """Test metrics summary when database unavailable."""
-        with patch("github_metrics.app.db_manager", None):
+        with patch("github_metrics.routes.api.summary.db_manager", None):
             client = TestClient(app)
             response = client.get("/api/metrics/summary")
 
@@ -880,9 +881,9 @@ class TestWebhookEndpointAdditional:
         }
 
         with (
-            patch("github_metrics.app.metrics_tracker") as mock_tracker,
-            patch("github_metrics.app.allowed_ips", ()),
-            patch("github_metrics.app.get_config") as mock_config,
+            patch("github_metrics.routes.webhooks.metrics_tracker") as mock_tracker,
+            patch("github_metrics.routes.webhooks.allowed_ips", ()),
+            patch("github_metrics.routes.webhooks.get_config") as mock_config,
         ):
             mock_tracker.track_webhook_event = AsyncMock()
             config_mock = Mock()
@@ -916,9 +917,9 @@ class TestWebhookEndpointAdditional:
         }
 
         with (
-            patch("github_metrics.app.metrics_tracker") as mock_tracker,
-            patch("github_metrics.app.allowed_ips", ()),
-            patch("github_metrics.app.get_config") as mock_config,
+            patch("github_metrics.routes.webhooks.metrics_tracker") as mock_tracker,
+            patch("github_metrics.routes.webhooks.allowed_ips", ()),
+            patch("github_metrics.routes.webhooks.get_config") as mock_config,
         ):
             mock_tracker.track_webhook_event = AsyncMock(side_effect=Exception("Tracking failed"))
             config_mock = Mock()
@@ -1002,7 +1003,7 @@ class TestContributorsEndpoint:
             },
         ]
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.contributors.db_manager") as mock_db:
             # Mock fetchval for count queries (4 calls)
             mock_db.fetchval = AsyncMock(
                 side_effect=[mock_creators_count, mock_reviewers_count, mock_approvers_count, mock_lgtm_count],
@@ -1030,7 +1031,7 @@ class TestContributorsEndpoint:
 
     def test_get_contributors_with_filters(self) -> None:
         """Test contributors with user and repository filters."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.contributors.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(side_effect=[0, 0, 0, 0])
             mock_db.fetch = AsyncMock(side_effect=[[], [], [], []])
 
@@ -1057,7 +1058,7 @@ class TestContributorsEndpoint:
         mock_approvers_count = 60
         mock_lgtm_count = 40
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.contributors.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(
                 side_effect=[mock_creators_count, mock_reviewers_count, mock_approvers_count, mock_lgtm_count],
             )
@@ -1079,7 +1080,7 @@ class TestContributorsEndpoint:
 
     def test_get_contributors_database_unavailable(self) -> None:
         """Test contributors when database unavailable."""
-        with patch("github_metrics.app.db_manager", None):
+        with patch("github_metrics.routes.api.contributors.db_manager", None):
             client = TestClient(app)
             response = client.get("/api/metrics/contributors")
 
@@ -1087,7 +1088,7 @@ class TestContributorsEndpoint:
 
     def test_get_contributors_database_error(self) -> None:
         """Test contributors handles database errors."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.contributors.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(side_effect=Exception("Database error"))
 
             client = TestClient(app)
@@ -1097,7 +1098,7 @@ class TestContributorsEndpoint:
 
     def test_get_contributors_cancelled_error(self) -> None:
         """Test contributors handles asyncio.CancelledError."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.contributors.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(side_effect=asyncio.CancelledError())
 
             client = TestClient(app)
@@ -1129,7 +1130,7 @@ class TestUserPullRequestsEndpoint:
             },
         ]
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.user_prs.db_manager") as mock_db:
             mock_db.fetchrow = AsyncMock(return_value=mock_count_row)
             mock_db.fetch = AsyncMock(return_value=mock_pr_rows)
 
@@ -1149,7 +1150,7 @@ class TestUserPullRequestsEndpoint:
         """Test user PRs without user filter (shows all PRs)."""
         mock_count_row = {"total": 5}
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.user_prs.db_manager") as mock_db:
             mock_db.fetchrow = AsyncMock(return_value=mock_count_row)
             mock_db.fetch = AsyncMock(return_value=[])
 
@@ -1164,7 +1165,7 @@ class TestUserPullRequestsEndpoint:
         """Test user PRs with multiple filters."""
         mock_count_row = {"total": 0}
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.user_prs.db_manager") as mock_db:
             mock_db.fetchrow = AsyncMock(return_value=mock_count_row)
             mock_db.fetch = AsyncMock(return_value=[])
 
@@ -1185,7 +1186,7 @@ class TestUserPullRequestsEndpoint:
         """Test user PRs pagination."""
         mock_count_row = {"total": 50}
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.user_prs.db_manager") as mock_db:
             mock_db.fetchrow = AsyncMock(return_value=mock_count_row)
             mock_db.fetch = AsyncMock(return_value=[])
 
@@ -1201,7 +1202,7 @@ class TestUserPullRequestsEndpoint:
 
     def test_get_user_prs_database_unavailable(self) -> None:
         """Test user PRs when database unavailable."""
-        with patch("github_metrics.app.db_manager", None):
+        with patch("github_metrics.routes.api.user_prs.db_manager", None):
             client = TestClient(app)
             response = client.get("/api/metrics/user-prs")
 
@@ -1209,7 +1210,7 @@ class TestUserPullRequestsEndpoint:
 
     def test_get_user_prs_database_error(self) -> None:
         """Test user PRs handles database errors."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.user_prs.db_manager") as mock_db:
             mock_db.fetchrow = AsyncMock(side_effect=Exception("Database error"))
 
             client = TestClient(app)
@@ -1238,7 +1239,7 @@ class TestTrendsEndpoint:
             },
         ]
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.trends.db_manager") as mock_db:
             mock_db.fetch = AsyncMock(return_value=mock_rows)
 
             client = TestClient(app)
@@ -1253,7 +1254,7 @@ class TestTrendsEndpoint:
 
     def test_get_trends_with_time_range(self) -> None:
         """Test trends with time range filters."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.trends.db_manager") as mock_db:
             mock_db.fetch = AsyncMock(return_value=[])
 
             client = TestClient(app)
@@ -1272,7 +1273,7 @@ class TestTrendsEndpoint:
 
     def test_get_trends_invalid_bucket(self) -> None:
         """Test trends with invalid bucket parameter."""
-        with patch("github_metrics.app.db_manager"):
+        with patch("github_metrics.routes.api.trends.db_manager"):
             client = TestClient(app)
             response = client.get("/api/metrics/trends", params={"bucket": "invalid"})
 
@@ -1281,7 +1282,7 @@ class TestTrendsEndpoint:
 
     def test_get_trends_database_unavailable(self) -> None:
         """Test trends when database unavailable."""
-        with patch("github_metrics.app.db_manager", None):
+        with patch("github_metrics.routes.api.trends.db_manager", None):
             client = TestClient(app)
             response = client.get("/api/metrics/trends")
 
@@ -1289,7 +1290,7 @@ class TestTrendsEndpoint:
 
     def test_get_trends_database_error(self) -> None:
         """Test trends handles database errors."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.trends.db_manager") as mock_db:
             mock_db.fetch = AsyncMock(side_effect=Exception("Database error"))
 
             client = TestClient(app)
@@ -1299,7 +1300,7 @@ class TestTrendsEndpoint:
 
     def test_get_trends_cancelled_error(self) -> None:
         """Test trends handles asyncio.CancelledError."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.trends.db_manager") as mock_db:
             mock_db.fetch = AsyncMock(side_effect=asyncio.CancelledError())
 
             client = TestClient(app)
@@ -1346,7 +1347,7 @@ class TestMetricsSummaryTrends:
             "last_event_time": end_time,
         }
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.summary.db_manager") as mock_db:
             # Order: summary_row, top_repos, event_types, time_range_row, prev_summary_row
             mock_db.fetchrow = AsyncMock(side_effect=[mock_summary_row, mock_time_range, mock_prev_summary_row])
             mock_db.fetch = AsyncMock(side_effect=[[], []])
@@ -1398,7 +1399,7 @@ class TestMetricsSummaryTrends:
             "last_event_time": end_time,
         }
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.summary.db_manager") as mock_db:
             # Order: summary_row, top_repos, event_types, time_range_row (no prev period)
             mock_db.fetchrow = AsyncMock(side_effect=[mock_summary_row, mock_time_range])
             mock_db.fetch = AsyncMock(side_effect=[[], []])
@@ -1420,7 +1421,7 @@ class TestHTTPExceptionReraise:
 
     def test_webhook_events_reraises_http_exception(self) -> None:
         """Test webhook events re-raises HTTPException from parse_datetime_string."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.webhooks.db_manager") as mock_db:
             mock_db.fetchval = AsyncMock(return_value=0)
 
             client = TestClient(app)
@@ -1431,7 +1432,7 @@ class TestHTTPExceptionReraise:
 
     def test_repositories_reraises_http_exception(self) -> None:
         """Test repositories re-raises HTTPException from parse_datetime_string."""
-        with patch("github_metrics.app.db_manager"):
+        with patch("github_metrics.routes.api.repositories.db_manager"):
             client = TestClient(app)
             response = client.get("/api/metrics/repositories", params={"end_time": "invalid"})
 
@@ -1474,7 +1475,7 @@ class TestCalculateTrendFunction:
             "avg_processing_time_ms": 200,
         }
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.summary.db_manager") as mock_db:
             mock_db.fetchrow = AsyncMock(
                 side_effect=[
                     mock_summary_row,
@@ -1521,7 +1522,7 @@ class TestCalculateTrendFunction:
             "avg_processing_time_ms": None,
         }
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.summary.db_manager") as mock_db:
             mock_db.fetchrow = AsyncMock(
                 side_effect=[
                     mock_summary_row,
@@ -1593,7 +1594,7 @@ class TestReviewTurnaroundEndpoint:
             },
         ]
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.turnaround.db_manager") as mock_db:
             mock_db.fetch = AsyncMock(
                 side_effect=[
                     mock_first_review_rows,
@@ -1653,7 +1654,7 @@ class TestReviewTurnaroundEndpoint:
             }
         ]
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.turnaround.db_manager") as mock_db:
             mock_db.fetch = AsyncMock(
                 side_effect=[
                     mock_first_review_rows,
@@ -1703,7 +1704,7 @@ class TestReviewTurnaroundEndpoint:
             }
         ]
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.turnaround.db_manager") as mock_db:
             mock_db.fetch = AsyncMock(
                 side_effect=[
                     mock_first_review_rows,
@@ -1724,7 +1725,7 @@ class TestReviewTurnaroundEndpoint:
 
     def test_get_review_turnaround_empty_results(self) -> None:
         """Test review turnaround metrics with no data."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.turnaround.db_manager") as mock_db:
             mock_db.fetch = AsyncMock(side_effect=[[], [], [], []])
             mock_db.fetchrow = AsyncMock(return_value={"avg_hours": None, "total_prs": 0})
 
@@ -1763,7 +1764,7 @@ class TestReviewTurnaroundEndpoint:
             }
         ]
 
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.turnaround.db_manager") as mock_db:
             mock_db.fetch = AsyncMock(
                 side_effect=[
                     mock_first_review_rows,
@@ -1789,7 +1790,7 @@ class TestReviewTurnaroundEndpoint:
 
     def test_get_review_turnaround_invalid_datetime(self) -> None:
         """Test review turnaround metrics with invalid datetime format."""
-        with patch("github_metrics.app.db_manager"):
+        with patch("github_metrics.routes.api.turnaround.db_manager"):
             client = TestClient(app)
             response = client.get("/api/metrics/turnaround", params={"start_time": "invalid-date"})
 
@@ -1798,7 +1799,7 @@ class TestReviewTurnaroundEndpoint:
 
     def test_get_review_turnaround_database_unavailable(self) -> None:
         """Test review turnaround metrics when database is unavailable."""
-        with patch("github_metrics.app.db_manager", None):
+        with patch("github_metrics.routes.api.turnaround.db_manager", None):
             client = TestClient(app)
             response = client.get("/api/metrics/turnaround")
 
@@ -1807,7 +1808,7 @@ class TestReviewTurnaroundEndpoint:
 
     def test_get_review_turnaround_database_error(self) -> None:
         """Test review turnaround metrics handles database errors."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.turnaround.db_manager") as mock_db:
             mock_db.fetch = AsyncMock(side_effect=asyncpg.PostgresError("Database error"))
 
             client = TestClient(app)
@@ -1818,7 +1819,7 @@ class TestReviewTurnaroundEndpoint:
 
     def test_get_review_turnaround_cancelled(self) -> None:
         """Test review turnaround metrics handles asyncio.CancelledError."""
-        with patch("github_metrics.app.db_manager") as mock_db:
+        with patch("github_metrics.routes.api.turnaround.db_manager") as mock_db:
             # Mock both fetch and fetchrow since endpoint uses asyncio.gather with both
             mock_db.fetch = AsyncMock(side_effect=asyncio.CancelledError())
             mock_db.fetchrow = AsyncMock(side_effect=asyncio.CancelledError())

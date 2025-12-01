@@ -181,15 +181,73 @@ raise KeyError("Required field missing")  # Clear error
 
 This is a FastAPI-based metrics service that receives GitHub webhooks, stores event data in PostgreSQL, and provides a real-time dashboard for monitoring.
 
+### Project Structure
+
+```
+github_metrics/
+├── app.py                    # Core app setup (350 lines)
+│                            # - FastAPI application initialization
+│                            # - Lifespan management (startup/shutdown)
+│                            # - MCP server integration
+│                            # - Database connection pooling
+│                            # - Route registration
+├── config.py                # Environment-based configuration
+├── database.py              # DatabaseManager with asyncpg pool
+├── metrics_tracker.py       # Webhook event storage and tracking
+├── models.py                # SQLAlchemy 2.0 declarative models
+├── pr_story.py              # Pull request timeline generation
+├── routes/                  # Modular route handlers
+│   ├── __init__.py
+│   ├── health.py            # GET /health, GET /favicon.ico
+│   ├── webhooks.py          # POST /metrics (webhook receiver)
+│   ├── dashboard.py         # GET /dashboard
+│   └── api/                 # REST API endpoints
+│       ├── __init__.py
+│       ├── webhooks.py      # GET /api/metrics/webhooks
+│       ├── repositories.py  # GET /api/metrics/repositories
+│       ├── summary.py       # GET /api/metrics/summary
+│       ├── contributors.py  # GET /api/metrics/contributors
+│       ├── user_prs.py      # GET /api/metrics/user-prs
+│       ├── trends.py        # GET /api/metrics/trends
+│       ├── pr_story.py      # GET /api/metrics/pr-story
+│       └── turnaround.py    # GET /api/metrics/turnaround
+├── utils/
+│   ├── __init__.py
+│   ├── security.py          # GitHub/Cloudflare IP validation, HMAC verification
+│   ├── datetime_utils.py    # Timezone-aware datetime utilities
+│   └── query_filters.py     # SQL query filter builders
+└── web/
+    ├── dashboard.py         # Jinja2 template rendering
+    ├── templates/
+    │   └── dashboard.html
+    └── static/
+        ├── css/
+        │   └── dashboard.css
+        └── js/
+            └── metrics/
+                ├── main.js          # Dashboard initialization
+                ├── dashboard.js     # Main dashboard logic
+                ├── navigation.js    # Sidebar navigation
+                ├── turnaround.js    # Turnaround metrics
+                └── ...
+```
+
 ### Core Components
 
 **Application (`github_metrics/app.py`):**
 
-- FastAPI application with async endpoints
-- Webhook receiver at POST /metrics
-- Dashboard at GET /dashboard
-- REST API at /api/metrics/\*
-- WebSocket streaming at /metrics/ws
+- FastAPI application initialization with CORS middleware
+- Lifespan context manager for database connection pooling
+- Route registration from modular route handlers
+- MCP server integration for external tool access
+- Database connection passed to route modules via module-level variables
+
+**Routes (`github_metrics/routes/`):**
+
+- Modular route handlers organized by functionality
+- Each API route module has a `db_manager` module-level variable
+- Set during app lifespan startup (before routes are called)
+- Enables clean separation of routing logic from app setup
 
 **Configuration (`github_metrics/config.py`):**
 
@@ -248,16 +306,77 @@ uv run entrypoint.py
 
 ### Testing
 
-```bash
-# Run all tests (parallel execution)
-uv run --group tests pytest tests/ -n auto
+**Two Test Suites:**
 
-# Run with coverage (90% required)
+This project has separate test suites for API tests and UI tests. **Both must pass to declare all tests passed.**
+
+```bash
+# Run API tests (unit tests, integration tests)
+tox
+
+# Run UI tests (Playwright browser automation)
+tox -e ui
+
+# Run all tests (API + UI)
+tox && tox -e ui
+```
+
+**API Tests (via `tox`):**
+- Unit tests for API endpoints, database operations, utilities
+- Integration tests with mocked database
+- Fast execution (parallel with pytest-xdist)
+- 90% code coverage required
+- No external dependencies (uses mocks)
+
+**UI Tests (via `tox -e ui`):**
+- Playwright browser automation tests
+- Tests against live development server
+- Real user interactions: clicks, forms, navigation
+- WebSocket real-time updates
+- Full-stack integration testing
+- Slower execution (requires browser + server)
+
+**Individual Test Commands:**
+
+```bash
+# Run specific API test file
+uv run --group tests pytest tests/test_app.py -v
+
+# Run with coverage report
 uv run --group tests pytest tests/ -n auto --cov=github_metrics --cov-report=term-missing
 
-# Run specific test file
-uv run --group tests pytest tests/test_app.py -v
+# Run specific UI test
+uv run --group tests pytest tests/ui/test_dashboard.py -v
+
+# Run UI tests with headed browser (see what's happening)
+uv run --group tests pytest tests/ui/ --headed
 ```
+
+### Running Tests in Parallel with Claude Code
+
+When using Claude Code, run both test suites in parallel using two agents to reduce total test time:
+
+**Parallel Execution Strategy:**
+- Agent 1: `tox` (API tests - fast execution)
+- Agent 2: `tox -e ui` (UI tests - slower execution with browser automation)
+
+**Rationale:**
+- UI tests take significantly longer due to browser automation and server startup
+- Running both suites concurrently reduces overall test time by approximately 50%
+- Both suites are independent and can run simultaneously without conflicts
+
+**Example:**
+
+```bash
+# In parallel using two agents:
+# Agent 1 (API tests):
+tox
+
+# Agent 2 (UI tests):
+tox -e ui
+```
+
+Both test suites must pass to declare all tests successful.
 
 ### Code Quality
 

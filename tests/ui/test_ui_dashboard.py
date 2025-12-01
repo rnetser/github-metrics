@@ -30,8 +30,8 @@ class TestDashboardPageLoad:
         """Verify page header renders correctly."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
 
-        # Check main heading - scope to overview page to avoid multiple h1 elements
-        heading = page_with_js_coverage.locator("#page-overview h1")
+        # Check main heading - target the shared header in main-content, not page-specific headers
+        heading = page_with_js_coverage.locator(".main-content > .container > .header h1")
         await expect(heading).to_have_text("GitHub Metrics Dashboard")
 
         # Check inline status indicator is present
@@ -532,8 +532,8 @@ class TestDashboardResponsiveness:
         await page_with_js_coverage.set_viewport_size({"width": 375, "height": 667})  # iPhone size
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
 
-        # Main elements should still be visible - scope to overview page
-        await expect(page_with_js_coverage.locator("#page-overview h1")).to_be_visible()
+        # Main elements should still be visible - target the shared header specifically
+        await expect(page_with_js_coverage.locator(".main-content > .container > .header h1")).to_be_visible()
         await expect(page_with_js_coverage.locator("#connection-status-inline")).to_be_visible()
         await expect(page_with_js_coverage.locator(".control-panel")).to_be_visible()
 
@@ -1085,8 +1085,8 @@ class TestDashboardComboBox:
         await repo_filter.fill("test-repo")
         await expect(repo_filter).to_have_value("test-repo")
 
-        # Blur by clicking elsewhere - use specific h1 to avoid multiple elements
-        await page_with_js_coverage.locator("#page-overview h1").click()
+        # Blur by clicking elsewhere - click on the shared header h1 which is always visible
+        await page_with_js_coverage.locator(".main-content > .container > .header h1").click()
 
         # Verify value persists
         await expect(repo_filter).to_have_value("test-repo")
