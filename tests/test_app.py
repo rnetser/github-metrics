@@ -1542,3 +1542,289 @@ class TestCalculateTrendFunction:
 
             # When previous is 0 and current > 0, trend should be 100.0
             assert data["summary"]["total_events_trend"] == 100.0
+
+
+class TestReviewTurnaroundEndpoint:
+    """Tests for /api/metrics/turnaround endpoint."""
+
+    def test_get_review_turnaround_success(self) -> None:
+        """Test successful review turnaround metrics retrieval."""
+        # Mock data for all queries
+        mock_first_review_rows = [
+            {"hours_to_first_review": 2.5},
+            {"hours_to_first_review": 3.0},
+        ]
+        mock_approval_rows = [
+            {"hours_to_approval": 8.0},
+            {"hours_to_approval": 9.0},
+        ]
+        mock_lifecycle_row = {
+            "avg_hours": 24.5,
+            "total_prs": 150,
+        }
+        mock_by_repo_rows = [
+            {
+                "repository": "org/repo1",
+                "avg_time_to_first_review_hours": 1.2,
+                "avg_time_to_approval_hours": 4.5,
+                "avg_pr_lifecycle_hours": 12.0,
+                "total_prs": 50,
+            },
+            {
+                "repository": "org/repo2",
+                "avg_time_to_first_review_hours": 2.8,
+                "avg_time_to_approval_hours": 10.5,
+                "avg_pr_lifecycle_hours": 30.0,
+                "total_prs": 100,
+            },
+        ]
+        mock_by_reviewer_rows = [
+            {
+                "reviewer": "user1",
+                "avg_response_time_hours": 1.5,
+                "total_reviews": 30,
+                "repositories": ["org/repo1", "org/repo2"],
+            },
+            {
+                "reviewer": "user2",
+                "avg_response_time_hours": 2.8,
+                "total_reviews": 25,
+                "repositories": ["org/repo1"],
+            },
+        ]
+
+        with patch("github_metrics.app.db_manager") as mock_db:
+            mock_db.fetch = AsyncMock(
+                side_effect=[
+                    mock_first_review_rows,
+                    mock_approval_rows,
+                    mock_by_repo_rows,
+                    mock_by_reviewer_rows,
+                ]
+            )
+            mock_db.fetchrow = AsyncMock(return_value=mock_lifecycle_row)
+
+            client = TestClient(app)
+            response = client.get("/api/metrics/turnaround")
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+
+            # Check summary
+            assert "summary" in data
+            assert data["summary"]["avg_time_to_first_review_hours"] == 2.8
+            assert data["summary"]["avg_time_to_approval_hours"] == 8.5
+            assert data["summary"]["avg_pr_lifecycle_hours"] == 24.5
+            assert data["summary"]["total_prs_analyzed"] == 150
+
+            # Check by_repository
+            assert "by_repository" in data
+            assert len(data["by_repository"]) == 2
+            assert data["by_repository"][0]["repository"] == "org/repo1"
+            assert data["by_repository"][0]["avg_time_to_first_review_hours"] == 1.2
+
+            # Check by_reviewer
+            assert "by_reviewer" in data
+            assert len(data["by_reviewer"]) == 2
+            assert data["by_reviewer"][0]["reviewer"] == "user1"
+            assert data["by_reviewer"][0]["total_reviews"] == 30
+            assert data["by_reviewer"][0]["repositories_reviewed"] == ["org/repo1", "org/repo2"]
+
+    def test_get_review_turnaround_with_filters(self) -> None:
+        """Test review turnaround metrics with time and repository filters."""
+        mock_first_review_rows = [{"hours_to_first_review": 1.5}]
+        mock_approval_rows = [{"hours_to_approval": 4.0}]
+        mock_lifecycle_row = {"avg_hours": 10.0, "total_prs": 25}
+        mock_by_repo_rows = [
+            {
+                "repository": "org/specific-repo",
+                "avg_time_to_first_review_hours": 1.5,
+                "avg_time_to_approval_hours": 4.0,
+                "avg_pr_lifecycle_hours": 10.0,
+                "total_prs": 25,
+            }
+        ]
+        mock_by_reviewer_rows = [
+            {
+                "reviewer": "reviewer1",
+                "avg_response_time_hours": 1.5,
+                "total_reviews": 15,
+                "repositories": ["org/specific-repo"],
+            }
+        ]
+
+        with patch("github_metrics.app.db_manager") as mock_db:
+            mock_db.fetch = AsyncMock(
+                side_effect=[
+                    mock_first_review_rows,
+                    mock_approval_rows,
+                    mock_by_repo_rows,
+                    mock_by_reviewer_rows,
+                ]
+            )
+            mock_db.fetchrow = AsyncMock(return_value=mock_lifecycle_row)
+
+            client = TestClient(app)
+            response = client.get(
+                "/api/metrics/turnaround",
+                params={
+                    "start_time": "2024-01-01T00:00:00Z",
+                    "end_time": "2024-01-31T23:59:59Z",
+                    "repository": "org/specific-repo",
+                },
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["summary"]["total_prs_analyzed"] == 25
+            assert len(data["by_repository"]) == 1
+            assert data["by_repository"][0]["repository"] == "org/specific-repo"
+
+    def test_get_review_turnaround_with_user_filter(self) -> None:
+        """Test review turnaround metrics filtered by reviewer."""
+        mock_first_review_rows = [{"hours_to_first_review": 2.0}]
+        mock_approval_rows = [{"hours_to_approval": 6.0}]
+        mock_lifecycle_row = {"avg_hours": 15.0, "total_prs": 40}
+        mock_by_repo_rows = [
+            {
+                "repository": "org/repo1",
+                "avg_time_to_first_review_hours": 2.0,
+                "avg_time_to_approval_hours": 6.0,
+                "avg_pr_lifecycle_hours": 15.0,
+                "total_prs": 40,
+            }
+        ]
+        mock_by_reviewer_rows = [
+            {
+                "reviewer": "specific-reviewer",
+                "avg_response_time_hours": 2.0,
+                "total_reviews": 20,
+                "repositories": ["org/repo1", "org/repo2"],
+            }
+        ]
+
+        with patch("github_metrics.app.db_manager") as mock_db:
+            mock_db.fetch = AsyncMock(
+                side_effect=[
+                    mock_first_review_rows,
+                    mock_approval_rows,
+                    mock_by_repo_rows,
+                    mock_by_reviewer_rows,
+                ]
+            )
+            mock_db.fetchrow = AsyncMock(return_value=mock_lifecycle_row)
+
+            client = TestClient(app)
+            response = client.get("/api/metrics/turnaround", params={"user": "specific-reviewer"})
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert len(data["by_reviewer"]) == 1
+            assert data["by_reviewer"][0]["reviewer"] == "specific-reviewer"
+
+    def test_get_review_turnaround_empty_results(self) -> None:
+        """Test review turnaround metrics with no data."""
+        with patch("github_metrics.app.db_manager") as mock_db:
+            mock_db.fetch = AsyncMock(side_effect=[[], [], [], []])
+            mock_db.fetchrow = AsyncMock(return_value={"avg_hours": None, "total_prs": 0})
+
+            client = TestClient(app)
+            response = client.get("/api/metrics/turnaround")
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["summary"]["avg_time_to_first_review_hours"] == 0.0
+            assert data["summary"]["avg_time_to_approval_hours"] == 0.0
+            assert data["summary"]["avg_pr_lifecycle_hours"] == 0.0
+            assert data["summary"]["total_prs_analyzed"] == 0
+            assert len(data["by_repository"]) == 0
+            assert len(data["by_reviewer"]) == 0
+
+    def test_get_review_turnaround_handles_null_values(self) -> None:
+        """Test review turnaround metrics handles NULL values gracefully."""
+        mock_first_review_rows = [{"hours_to_first_review": None}, {"hours_to_first_review": 3.0}]
+        mock_approval_rows = [{"hours_to_approval": None}]
+        mock_lifecycle_row = {"avg_hours": None, "total_prs": 10}
+        mock_by_repo_rows = [
+            {
+                "repository": "org/repo1",
+                "avg_time_to_first_review_hours": None,
+                "avg_time_to_approval_hours": None,
+                "avg_pr_lifecycle_hours": None,
+                "total_prs": 10,
+            }
+        ]
+        mock_by_reviewer_rows = [
+            {
+                "reviewer": "user1",
+                "avg_response_time_hours": None,
+                "total_reviews": 5,
+                "repositories": ["org/repo1"],
+            }
+        ]
+
+        with patch("github_metrics.app.db_manager") as mock_db:
+            mock_db.fetch = AsyncMock(
+                side_effect=[
+                    mock_first_review_rows,
+                    mock_approval_rows,
+                    mock_by_repo_rows,
+                    mock_by_reviewer_rows,
+                ]
+            )
+            mock_db.fetchrow = AsyncMock(return_value=mock_lifecycle_row)
+
+            client = TestClient(app)
+            response = client.get("/api/metrics/turnaround")
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+
+            # Should handle NULL values and still compute averages
+            assert data["summary"]["avg_time_to_first_review_hours"] == 3.0
+            assert data["summary"]["avg_time_to_approval_hours"] == 0.0
+            assert data["summary"]["avg_pr_lifecycle_hours"] == 0.0
+            assert data["by_repository"][0]["avg_time_to_first_review_hours"] == 0.0
+            assert data["by_reviewer"][0]["avg_response_time_hours"] == 0.0
+
+    def test_get_review_turnaround_invalid_datetime(self) -> None:
+        """Test review turnaround metrics with invalid datetime format."""
+        with patch("github_metrics.app.db_manager"):
+            client = TestClient(app)
+            response = client.get("/api/metrics/turnaround", params={"start_time": "invalid-date"})
+
+            assert response.status_code == status.HTTP_400_BAD_REQUEST
+            assert "Invalid datetime format" in response.json()["detail"]
+
+    def test_get_review_turnaround_database_unavailable(self) -> None:
+        """Test review turnaround metrics when database is unavailable."""
+        with patch("github_metrics.app.db_manager", None):
+            client = TestClient(app)
+            response = client.get("/api/metrics/turnaround")
+
+            assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+            assert "Database not available" in response.json()["detail"]
+
+    def test_get_review_turnaround_database_error(self) -> None:
+        """Test review turnaround metrics handles database errors."""
+        with patch("github_metrics.app.db_manager") as mock_db:
+            mock_db.fetch = AsyncMock(side_effect=asyncpg.PostgresError("Database error"))
+
+            client = TestClient(app)
+            response = client.get("/api/metrics/turnaround")
+
+            assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+            assert "Failed to fetch review turnaround metrics" in response.json()["detail"]
+
+    def test_get_review_turnaround_cancelled(self) -> None:
+        """Test review turnaround metrics handles asyncio.CancelledError."""
+        with patch("github_metrics.app.db_manager") as mock_db:
+            # Mock both fetch and fetchrow since endpoint uses asyncio.gather with both
+            mock_db.fetch = AsyncMock(side_effect=asyncio.CancelledError())
+            mock_db.fetchrow = AsyncMock(side_effect=asyncio.CancelledError())
+
+            client = TestClient(app)
+
+            # TestClient wraps asyncio.CancelledError into concurrent.futures.CancelledError
+            with pytest.raises(CancelledError):
+                client.get("/api/metrics/turnaround")

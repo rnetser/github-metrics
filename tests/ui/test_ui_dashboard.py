@@ -1284,8 +1284,8 @@ class TestDashboardDownloadButtons:
         download_buttons = page_with_js_coverage.locator(".download-btn")
         button_count = await download_buttons.count()
 
-        # Should have 12 buttons (6 sections x 2 formats)
-        await expect(download_buttons).to_have_count(12)
+        # Should have 16 buttons (8 sections x 2 formats: 6 overview + 2 contributors)
+        await expect(download_buttons).to_have_count(16)
 
         # Verify each button has required attributes
         for i in range(button_count):

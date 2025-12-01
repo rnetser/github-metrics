@@ -428,6 +428,52 @@ test_database.py     # All database.py tests
 test_config.py       # All config.py tests
 ```
 
+### UI Tests vs Unit Tests
+
+**CRITICAL:** UI tests and unit tests have fundamentally different approaches.
+
+**UI Tests (`tests/ui/`):**
+
+- Run against the **live dev server** (no mocking)
+- Use Playwright for browser automation
+- Test real user interactions and full stack behavior
+- Require dev server to be running before test execution
+- Automatically start/stop server process in test fixtures
+- Test realistic scenarios: clicking buttons, filling forms, WebSocket connections
+- Verify actual DOM elements, CSS rendering, JavaScript execution
+
+```python
+# ✅ CORRECT - UI test runs against real server
+@pytest.mark.ui
+async def test_dashboard_loads(page: Page):
+    """Test dashboard page loads correctly."""
+    await page.goto("http://localhost:8000/dashboard")
+    await expect(page.locator("h1")).to_have_text("GitHub Metrics Dashboard")
+```
+
+**Unit Tests (`tests/test_*.py`):**
+
+- Use mocking for database and external services
+- Test individual components in isolation
+- Fast execution without external dependencies
+- Mock database connections, HTTP clients, file I/O
+- Verify component behavior with controlled inputs
+
+```python
+# ✅ CORRECT - Unit test with mocking
+@pytest.mark.asyncio
+async def test_track_webhook_event(mock_db):
+    """Test webhook event tracking with mocked database."""
+    with patch("github_metrics.metrics_tracker.db_manager", mock_db):
+        await track_webhook_event("delivery-123", "repo", "push", {})
+        mock_db.execute.assert_called_once()
+```
+
+**When to Use Each:**
+
+- **UI Tests:** User workflows, page navigation, form submissions, real-time updates, visual regression
+- **Unit Tests:** API endpoints, database queries, utility functions, error handling, configuration parsing
+
 ---
 
 ## Security Considerations
@@ -445,3 +491,171 @@ test_config.py       # All config.py tests
 - Store tokens in environment variables
 - Never commit tokens to repository
 - Use secrets management in production
+
+---
+
+## Dashboard UI Guidelines
+
+**MANDATORY:** All dashboard components must follow these UI/UX principles.
+
+### Collapsible Sections
+
+All data sections must be collapsible with expand/collapse controls:
+
+```html
+<!-- ✅ CORRECT - Section with collapse button -->
+<div class="metrics-section">
+    <div class="section-header">
+        <h2>Pull Requests</h2>
+        <button class="collapse-btn" onclick="toggleSection('pr-section')">▼</button>
+    </div>
+    <div id="pr-section" class="section-content">
+        <!-- Section content -->
+    </div>
+</div>
+```
+
+### Shared Time Filters
+
+Time range controls must be visible and functional on all pages:
+
+- Time filters apply globally across all sections
+- Persist selected time range across page navigation
+- Supported ranges: Last 24h, Last 7 days, Last 30 days, Custom range
+- Display current filter selection prominently
+
+```javascript
+// ✅ CORRECT - Shared time filter state
+const timeFilter = {
+    start: '2024-01-01T00:00:00Z',
+    end: '2024-01-31T23:59:59Z'
+};
+// Apply to all API calls
+```
+
+### Table Features
+
+All data tables must support:
+
+**Sorting:**
+- Click column headers to sort ascending/descending
+- Visual indicator for current sort column and direction
+- Default sort by most recent/relevant data
+
+**Download:**
+- CSV download button for raw data export
+- JSON download button for programmatic access
+- File naming: `{table_name}_{timestamp}.{format}`
+
+**Pagination:**
+- Paginate tables with > 50 rows
+- Show row count and current page
+- Configurable page size (25, 50, 100 rows)
+
+```html
+<!-- ✅ CORRECT - Table with all features -->
+<div class="table-controls">
+    <button onclick="downloadCSV('pull_requests')">📥 CSV</button>
+    <button onclick="downloadJSON('pull_requests')">📥 JSON</button>
+</div>
+<table class="sortable-table">
+    <thead>
+        <tr>
+            <th onclick="sortTable('pr', 'number')">PR # ▼</th>
+            <th onclick="sortTable('pr', 'created')">Created ▲</th>
+        </tr>
+    </thead>
+    <!-- Table body -->
+</table>
+```
+
+### Theme Support
+
+Implement light/dark mode using CSS variables:
+
+**CSS Variables Pattern:**
+
+```css
+/* ✅ CORRECT - Theme-aware CSS variables */
+:root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f5;
+    --text-primary: #000000;
+    --text-secondary: #666666;
+    --border-color: #dddddd;
+}
+
+[data-theme="dark"] {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --text-primary: #ffffff;
+    --text-secondary: #aaaaaa;
+    --border-color: #444444;
+}
+```
+
+**Theme Toggle:**
+
+```html
+<!-- ✅ CORRECT - Theme toggle button -->
+<button onclick="toggleTheme()">🌙/☀️</button>
+
+<script>
+function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+}
+</script>
+```
+
+### Responsive Design
+
+Dashboard must be usable on mobile, tablet, and desktop:
+
+**Breakpoints:**
+- Mobile: < 768px (single column, stacked sections)
+- Tablet: 768px - 1024px (two column where appropriate)
+- Desktop: > 1024px (full layout)
+
+**Mobile Optimizations:**
+- Tables scroll horizontally on small screens
+- Navigation collapses to hamburger menu
+- Touch-friendly button sizes (min 44x44px)
+- Readable font sizes (min 16px for body text)
+
+```css
+/* ✅ CORRECT - Responsive table */
+@media (max-width: 768px) {
+    .metrics-table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .section-header h2 {
+        font-size: 1.25rem;  /* Smaller on mobile */
+    }
+}
+```
+
+### Accessibility
+
+**MANDATORY:** Follow WCAG 2.1 AA standards:
+
+- All interactive elements keyboard accessible
+- ARIA labels for icon-only buttons
+- Sufficient color contrast (4.5:1 for normal text)
+- Focus indicators visible
+- No content conveyed by color alone
+
+```html
+<!-- ✅ CORRECT - Accessible button -->
+<button aria-label="Download as CSV" class="download-btn">
+    📥 CSV
+</button>
+
+<!-- ❌ WRONG - No accessible label -->
+<button class="download-btn">📥</button>
+```

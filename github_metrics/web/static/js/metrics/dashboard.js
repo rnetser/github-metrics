@@ -476,7 +476,7 @@ class MetricsDashboard {
 
         try {
             // Update Repository Table with top repositories from summary (has percentage field)
-            if (data.topRepositories && data.topRepositories.length > 0) {
+            if (data.topRepositories) {
                 // Top repositories from summary endpoint (has percentage field)
                 // Apply repository filter if active
                 const topRepos = this.repositoryFilter
@@ -962,12 +962,13 @@ class MetricsDashboard {
      * Set up collapse button listeners and restore collapsed state.
      */
     setupCollapseButtons() {
-        const collapseButtons = document.querySelectorAll('.collapse-btn');
-        collapseButtons.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const sectionId = e.currentTarget.dataset.section;
+        // Use event delegation to handle collapse buttons on ALL pages
+        document.addEventListener('click', (e) => {
+            const collapseBtn = e.target.closest('.collapse-btn');
+            if (collapseBtn) {
+                const sectionId = collapseBtn.dataset.section;
                 this.toggleSection(sectionId);
-            });
+            }
         });
 
         // Restore collapsed state from localStorage
@@ -1119,6 +1120,16 @@ class MetricsDashboard {
         this.showLoading(true);
         try {
             await this.loadInitialData();
+
+            // Also refresh Contributors page if it's currently active
+            const contributorsPage = document.getElementById('page-contributors');
+            if (contributorsPage && contributorsPage.classList.contains('active')) {
+                console.log('[Dashboard] Refreshing Contributors page');
+                if (window.turnaroundMetrics) {
+                    await window.turnaroundMetrics.loadMetrics();
+                }
+            }
+
             this.showSuccessNotification('Dashboard refreshed successfully');
         } catch (error) {
             console.error('[Dashboard] Error during manual refresh:', error);
@@ -1583,18 +1594,21 @@ class MetricsDashboard {
             switch (section) {
                 case 'topRepositories':
                     data = await this.apiClient.fetchRepositories(startTime, endTime, params);
+                    this.currentData.topRepositories = data.data || data;  // Store for sorting/downloads
                     this.updateRepositoryTable(data);
                     break;
                 case 'recentEvents':
                     params.start_time = startTime;
                     params.end_time = endTime;
                     data = await this.apiClient.fetchWebhooks(params);
+                    this.currentData.webhooks = data;  // Store for sorting/downloads
                     this.updateRecentEventsTable(data);
                     break;
                 case 'prCreators':
                 case 'prReviewers':
                 case 'prApprovers':
                     data = await this.apiClient.fetchContributors(startTime, endTime, state.pageSize, params);
+                    this.currentData.contributors = data;  // Store for sorting/downloads
                     this.updateContributorsTables(data);
                     break;
                 case 'userPrs':
