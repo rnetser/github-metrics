@@ -1038,7 +1038,21 @@ class MetricsDashboard {
     initializeTheme() {
         const savedTheme = localStorage.getItem('theme') || 'light';
         document.documentElement.setAttribute('data-theme', savedTheme);
+        this.updateThemeIcon(savedTheme);
         console.log(`[Dashboard] Theme initialized: ${savedTheme}`);
+    }
+
+    /**
+     * Update theme toggle button icon based on current theme.
+     * @param {string} theme - Current theme ('light' or 'dark')
+     */
+    updateThemeIcon(theme) {
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) {
+            // Show moon (🌙) in light mode (clicking will switch to dark)
+            // Show sun (☀️) in dark mode (clicking will switch to light)
+            themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
     }
 
     /**
@@ -1050,6 +1064,7 @@ class MetricsDashboard {
 
         document.documentElement.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
+        this.updateThemeIcon(newTheme);
 
         console.log(`[Dashboard] Theme changed to: ${newTheme}`);
     }
@@ -1272,19 +1287,32 @@ class MetricsDashboard {
      * @param {boolean} ready - Dashboard ready status
      */
     updateConnectionStatus(ready) {
+        // Update legacy status indicator (if present)
         const statusElement = document.getElementById('connection-status');
         const statusText = document.getElementById('statusText');
 
-        if (!statusElement || !statusText) {
-            return;
+        if (statusElement && statusText) {
+            if (ready) {
+                statusElement.className = 'status connected';
+                statusText.textContent = 'Ready';
+            } else {
+                statusElement.className = 'status disconnected';
+                statusText.textContent = 'Initializing...';
+            }
         }
 
-        if (ready) {
-            statusElement.className = 'status connected';
-            statusText.textContent = 'Ready';
-        } else {
-            statusElement.className = 'status disconnected';
-            statusText.textContent = 'Initializing...';
+        // Update new inline status indicator
+        const statusInline = document.getElementById('connection-status-inline');
+        const statusTextInline = document.getElementById('statusTextInline');
+
+        if (statusInline && statusTextInline) {
+            if (ready) {
+                statusInline.className = 'status-inline connected';
+                statusTextInline.textContent = 'Ready';
+            } else {
+                statusInline.className = 'status-inline disconnected';
+                statusTextInline.textContent = 'Connecting...';
+            }
         }
 
         console.log(`[Dashboard] Status: ${ready ? 'Ready' : 'Initializing'}`);

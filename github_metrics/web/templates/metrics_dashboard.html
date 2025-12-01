@@ -8,13 +8,87 @@
     <link rel="stylesheet" href="/static/css/metrics_dashboard.css" />
   </head>
   <body>
-    <div class="container">
-      <div class="header">
-        <div>
+    <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle navigation menu">☰</button>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <div class="app-layout">
+      <aside class="sidebar" id="sidebar">
+        <button class="sidebar-collapse-toggle" id="sidebar-collapse-toggle" aria-label="Toggle sidebar" title="Toggle sidebar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+        <nav class="sidebar-nav">
+          <a href="#overview" class="nav-item active" data-page="overview">
+            <span class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+              </svg>
+            </span>
+            <span class="nav-text">Overview</span>
+          </a>
+          <a href="#contributors" class="nav-item" data-page="contributors">
+            <span class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+            </span>
+            <span class="nav-text">Contributors</span>
+          </a>
+        </nav>
+        <div class="sidebar-footer">
+          <button
+            id="theme-toggle"
+            class="theme-toggle sidebar-theme-toggle"
+            title="Toggle between light and dark theme"
+            aria-label="Toggle light or dark theme"
+          >
+            🌙
+          </button>
+        </div>
+      </aside>
+      <main class="main-content">
+        <div class="page" id="page-overview">
+          <div class="container">
+            <div class="header">
+        <div class="header-title-group">
+          <div class="status-inline-wrapper">
+            <span class="status-inline" id="connection-status-inline">
+              <span id="statusTextInline">Connecting...</span>
+            </span>
+            <div class="status-tooltip">
+              <div class="status-tooltip-content">
+                <p><strong>Total Events:</strong> <span id="tooltipTotalEvents">-</span> <span id="tooltipTotalEventsTrend" class="kpi-trend-text">-</span></p>
+                <p><strong>Success Rate:</strong> <span id="tooltipSuccessRate">-</span> <span id="tooltipSuccessRateTrend" class="kpi-trend-text">-</span></p>
+                <p><strong>Failed Events:</strong> <span id="tooltipFailedEvents">-</span> <span id="tooltipFailedEventsTrend" class="kpi-trend-text">-</span></p>
+                <p><strong>Avg Duration:</strong> <span id="tooltipAvgDuration">-</span> <span id="tooltipAvgDurationTrend" class="kpi-trend-text">-</span></p>
+                <p class="status-tooltip-note"><em>Trends compare current period stats with the previous equivalent period</em></p>
+              </div>
+            </div>
+          </div>
           <h1>GitHub Metrics Dashboard</h1>
-          <p>Real-time monitoring of webhook processing metrics</p>
         </div>
         <div class="header-actions">
+          <a
+            href="/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="docs-link"
+            aria-label="View API documentation"
+            title="View API documentation"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h6v6h6v10H6z"/>
+              <path d="M8 12h8v2H8zm0 4h8v2H8z"/>
+            </svg>
+          </a>
           <a
             href="https://github.com/myk-org/github-metrics"
             target="_blank"
@@ -34,27 +108,6 @@
               <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
             </svg>
           </a>
-          <button
-            id="theme-toggle"
-            class="theme-toggle"
-            title="Toggle between light and dark theme"
-            aria-label="Toggle light or dark theme"
-          >
-            🌙
-          </button>
-        </div>
-      </div>
-
-      <div class="status" id="connection-status">
-        <span id="statusText">Connecting...</span>
-        <div class="status-tooltip">
-          <div class="status-tooltip-content">
-            <p><strong>Total Events:</strong> <span id="tooltipTotalEvents">-</span> <span id="tooltipTotalEventsTrend" class="kpi-trend-text">-</span></p>
-            <p><strong>Success Rate:</strong> <span id="tooltipSuccessRate">-</span> <span id="tooltipSuccessRateTrend" class="kpi-trend-text">-</span></p>
-            <p><strong>Failed Events:</strong> <span id="tooltipFailedEvents">-</span> <span id="tooltipFailedEventsTrend" class="kpi-trend-text">-</span></p>
-            <p><strong>Avg Duration:</strong> <span id="tooltipAvgDuration">-</span> <span id="tooltipAvgDurationTrend" class="kpi-trend-text">-</span></p>
-            <p class="status-tooltip-note"><em>Trends compare current period stats with the previous equivalent period</em></p>
-          </div>
         </div>
       </div>
 
@@ -295,12 +348,39 @@
         </div>
       </div>
     </div>
+        </div>
+
+        <div class="page" id="page-contributors">
+          <div class="container">
+            <div class="header">
+              <div>
+                <h1>Contributors Analytics</h1>
+                <p>Detailed contributor metrics and insights</p>
+              </div>
+            </div>
+            <div class="dashboard-grid">
+              <div class="chart-container full-width">
+                <div class="chart-header">
+                  <h2>Coming Soon</h2>
+                </div>
+                <div class="chart-content">
+                  <p class="coming-soon-message">
+                    Advanced contributor analytics and insights will be available in the next release.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
 
     <!-- Load JavaScript modules in correct order -->
     <script type="module" src="/static/js/metrics/utils.js"></script>
     <script type="module" src="/static/js/metrics/api-client.js"></script>
     <script type="module" src="/static/js/metrics/combo-box.js"></script>
     <script type="module" src="/static/js/metrics/pr-story.js"></script>
+    <script type="module" src="/static/js/metrics/navigation.js"></script>
     <script type="module" src="/static/js/metrics/dashboard.js"></script>
   </body>
 </html>

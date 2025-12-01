@@ -1277,7 +1277,7 @@ class TestTrendsEndpoint:
             response = client.get("/api/metrics/trends", params={"bucket": "invalid"})
 
             # FastAPI validation should reject this
-            assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+            assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     def test_get_trends_database_unavailable(self) -> None:
         """Test trends when database unavailable."""
