@@ -1,118 +1,102 @@
-# GitHub Metrics
+<h1 align="center">GitHub Metrics</h1>
 
-Standalone metrics service for GitHub webhook event tracking and visualization.
+<p align="center">
+  <strong>Real-time GitHub webhook tracking and analytics dashboard</strong>
+</p>
 
-## Overview
+<p align="center">
+  <a href="https://github.com/myk-org/github-metrics">
+    <img src="https://img.shields.io/badge/coverage-90%25-brightgreen" alt="Coverage">
+  </a>
+  <a href="https://github.com/myk-org/github-metrics">
+    <img src="https://img.shields.io/badge/python-3.13+-blue" alt="Python 3.13+">
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License">
+  </a>
+</p>
 
-GitHub Metrics is a FastAPI-based service that receives GitHub webhooks, stores event data in PostgreSQL, and provides a real-time dashboard for monitoring repository activity. The service tracks webhook events, pull request metrics, review workflows, CI/CD check runs, and GitHub API usage.
+<p align="center">
+  <img src="docs/images/dashboard-dark.png" alt="GitHub Metrics Dashboard" width="800">
+</p>
+
+<p align="center">
+  <em>Interactive PR Story Modal - Track the complete lifecycle of pull requests</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/pr-story-modal.png" alt="PR Story Modal" width="800">
+</p>
+
+---
+
+## Why GitHub Metrics?
+
+Track, analyze, and visualize your GitHub repository activity in real-time. GitHub Metrics provides a comprehensive solution for monitoring webhook events, PR workflows, CI/CD pipelines, and API usage—all from a single, beautiful dashboard.
+
+Perfect for teams who want to:
+- **Monitor** repository activity and webhook health in real-time
+- **Analyze** PR lifecycle, review patterns, and contributor metrics
+- **Optimize** GitHub API usage and track rate limit consumption
+- **Integrate** with AI assistants via MCP (Model Context Protocol) for natural language queries
+
+---
 
 ## Features
 
-- **Webhook Processing**: Receives and validates GitHub webhook events with IP allowlist verification and signature validation
-- **Real-time Dashboard**: Interactive web dashboard with live updates via WebSocket streaming
-- **Event Storage**: Comprehensive event tracking in PostgreSQL with full payload storage
-- **PR Analytics**: Track pull request lifecycle, reviews, labels, and code metrics
-- **CI/CD Monitoring**: Monitor check runs, test results, and pipeline execution
-- **API Usage Tracking**: Track GitHub API rate limit consumption and optimization
-- **REST API**: Query metrics programmatically with filtering and pagination
-- **MCP Server**: Expose API endpoints as MCP tools for LLM integration (Claude, etc.)
-- **Security**: IP allowlist verification (GitHub/Cloudflare), webhook signature validation (HMAC SHA256)
-- **Automatic Webhook Setup**: Optionally auto-create webhooks on startup for configured repositories
+🔔 **Webhook Processing** - Secure webhook receiver with IP allowlist verification and HMAC SHA256 signature validation
+
+📊 **Real-time Dashboard** - Interactive web interface with live updates via WebSocket streaming and dark/light theme support
+
+💾 **Event Storage** - Comprehensive event tracking in PostgreSQL with full payload storage and optimized indexing
+
+🔍 **PR Analytics** - Track pull request lifecycle, reviews, labels, code metrics, and contributor statistics
+
+⚙️ **CI/CD Monitoring** - Monitor check runs, test results, pipeline execution, and build status
+
+📈 **API Usage Tracking** - Track GitHub API rate limit consumption, token spend, and optimization opportunities
+
+🔌 **REST API** - Query metrics programmatically with filtering, pagination, and time-range support
+
+🤖 **MCP Server** - Expose metrics as tools for LLM integration (Claude, ChatGPT, etc.) with natural language queries
+
+🔒 **Security** - Multi-layer security with IP allowlist (GitHub/Cloudflare), webhook signature validation, and secure configuration
+
+🚀 **Auto-Setup** - Optionally auto-create webhooks on startup for configured repositories
+
+---
 
 ## Quick Start
 
-### Using Docker Compose
+### Three Simple Steps
 
-1. Copy the example configuration:
+1. **Copy the Docker Compose configuration:**
 
 ```bash
 cp examples/docker-compose.yaml docker-compose.yaml
 ```
 
-2. Create `.env` file with database password:
+2. **Create your environment file:**
 
 ```bash
 echo "POSTGRES_PASSWORD=your-secure-password-here" > .env
 ```
 
-3. Start the service:
+3. **Launch the service:**
 
 ```bash
 docker-compose up -d
 ```
 
-4. Access the dashboard:
+That's it! Access the dashboard at **http://localhost:8080/dashboard**
 
-```
-http://localhost:8080/dashboard
-```
+The service automatically handles database migrations and configuration.
 
-The service will automatically:
-
-- Run database migrations
-- Start the metrics server on port 8080
-
-### Docker Compose Configuration
-
-```yaml
-services:
-  # PostgreSQL database for metrics storage
-  github-metrics-postgres:
-    image: postgres:16-alpine
-    container_name: github-metrics-postgres
-    environment:
-      - POSTGRES_DB=github_metrics
-      - POSTGRES_USER=metrics
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD} # Set in .env file
-    volumes:
-      - "./postgres-data:/var/lib/postgresql/data"
-    ports:
-      # Bind to localhost only - prevents external network access
-      - "127.0.0.1:5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U metrics -d github_metrics"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-  # GitHub Metrics service
-  github-metrics:
-    image: ghcr.io/myk-org/github-metrics:latest
-    container_name: github-metrics
-    environment:
-      # Database configuration
-      - METRICS_DB_HOST=github-metrics-postgres
-      - METRICS_DB_PORT=5432
-      - METRICS_DB_NAME=github_metrics
-      - METRICS_DB_USER=metrics
-      - METRICS_DB_PASSWORD=${POSTGRES_PASSWORD}
-      - METRICS_DB_POOL_SIZE=20
-      # Server configuration
-      - METRICS_SERVER_HOST=0.0.0.0
-      - METRICS_SERVER_PORT=8080
-      - METRICS_SERVER_WORKERS=4
-      - METRICS_SERVER_ALLOW_ALL_HOSTS=true  # Required when using 0.0.0.0
-      # Webhook security (uncomment to enable)
-      # - METRICS_WEBHOOK_SECRET=your-webhook-secret
-      # - METRICS_VERIFY_GITHUB_IPS=true
-      # - METRICS_VERIFY_CLOUDFLARE_IPS=true
-      # Optional: Webhook setup on startup (uncomment to enable)
-      # - METRICS_SETUP_WEBHOOK=true
-      # - METRICS_GITHUB_TOKEN=ghp_xxx
-      # - METRICS_WEBHOOK_URL=https://your-domain.com/metrics
-      # - METRICS_REPOSITORIES=org/repo1,org/repo2
-    ports:
-      - "8080:8080"
-    depends_on:
-      github-metrics-postgres:
-        condition: service_healthy
-    restart: unless-stopped
-```
+---
 
 ## Configuration
 
-All configuration is done via environment variables. No configuration files are required.
+All configuration is managed via environment variables—no configuration files needed.
 
 ### Required Environment Variables
 
@@ -122,7 +106,8 @@ All configuration is done via environment variables. No configuration files are 
 | `METRICS_DB_USER`     | PostgreSQL username      | `metrics`         |
 | `METRICS_DB_PASSWORD` | PostgreSQL password      | `secure-password` |
 
-### Database Configuration
+<details>
+<summary><strong>Database Configuration</strong></summary>
 
 | Variable               | Description          | Default     |
 | ---------------------- | -------------------- | ----------- |
@@ -130,7 +115,10 @@ All configuration is done via environment variables. No configuration files are 
 | `METRICS_DB_PORT`      | Database port        | `5432`      |
 | `METRICS_DB_POOL_SIZE` | Connection pool size | `20`        |
 
-### Server Configuration
+</details>
+
+<details>
+<summary><strong>Server Configuration</strong></summary>
 
 | Variable                         | Description                                              | Default   |
 | -------------------------------- | -------------------------------------------------------- | --------- |
@@ -139,20 +127,20 @@ All configuration is done via environment variables. No configuration files are 
 | `METRICS_SERVER_WORKERS`         | Uvicorn workers                                          | `4`       |
 | `METRICS_SERVER_ALLOW_ALL_HOSTS` | Allow binding to 0.0.0.0 (required for wildcard binding) | `false`   |
 
-### MCP Server Configuration
+</details>
 
-| Variable              | Description                           | Default |
-| --------------------- | ------------------------------------- | ------- |
-| `METRICS_MCP_ENABLED` | Enable MCP server for LLM integration | `true`  |
-
-### Security Configuration
+<details>
+<summary><strong>Security Configuration</strong></summary>
 
 | Variable               | Description                                 | Default         |
 | ---------------------- | ------------------------------------------- | --------------- |
 | `METRICS_API_KEYS`     | Comma-separated API keys for authentication | Empty (no auth) |
 | `METRICS_CORS_ORIGINS` | Comma-separated CORS origins                | Empty           |
 
-### Webhook Security Configuration
+</details>
+
+<details>
+<summary><strong>Webhook Security Configuration</strong></summary>
 
 | Variable                        | Description                                            | Default               |
 | ------------------------------- | ------------------------------------------------------ | --------------------- |
@@ -160,7 +148,10 @@ All configuration is done via environment variables. No configuration files are 
 | `METRICS_VERIFY_GITHUB_IPS`     | Verify requests from GitHub IP allowlist               | `false`               |
 | `METRICS_VERIFY_CLOUDFLARE_IPS` | Verify requests from Cloudflare IP allowlist           | `false`               |
 
-### Webhook Setup Configuration
+</details>
+
+<details>
+<summary><strong>Webhook Auto-Setup Configuration</strong></summary>
 
 | Variable                | Description                                                   | Default |
 | ----------------------- | ------------------------------------------------------------- | ------- |
@@ -169,18 +160,30 @@ All configuration is done via environment variables. No configuration files are 
 | `METRICS_WEBHOOK_URL`   | URL where webhooks will be delivered                          | Empty   |
 | `METRICS_REPOSITORIES`  | Comma-separated list of repositories (org/repo format)        | Empty   |
 
-## API Endpoints
+</details>
+
+<details>
+<summary><strong>MCP Server Configuration</strong></summary>
+
+| Variable              | Description                           | Default |
+| --------------------- | ------------------------------------- | ------- |
+| `METRICS_MCP_ENABLED` | Enable MCP server for LLM integration | `true`  |
+
+</details>
+
+---
+
+## API Reference
 
 ### Health Check
 
-```
+```http
 GET /health
 ```
 
 Returns service health status and database connectivity.
 
 **Response:**
-
 ```json
 {
   "status": "healthy",
@@ -191,20 +194,18 @@ Returns service health status and database connectivity.
 
 ### Webhook Receiver
 
-```
+```http
 POST /metrics
 ```
 
-Receives GitHub webhook events. Verifies IP allowlist (if configured) and signature, then stores event metrics.
+Receives GitHub webhook events with IP and signature verification.
 
-**Headers:**
-
+**Required Headers:**
 - `X-GitHub-Delivery`: Unique webhook delivery ID
 - `X-GitHub-Event`: Event type (pull_request, issue_comment, etc.)
-- `X-Hub-Signature-256`: HMAC SHA256 signature (if METRICS_WEBHOOK_SECRET is set)
+- `X-Hub-Signature-256`: HMAC SHA256 signature (if `METRICS_WEBHOOK_SECRET` is set)
 
 **Response:**
-
 ```json
 {
   "status": "ok",
@@ -214,38 +215,37 @@ Receives GitHub webhook events. Verifies IP allowlist (if configured) and signat
 
 ### Dashboard
 
-```
+```http
 GET /dashboard
 ```
 
-Interactive web dashboard with real-time metrics visualization.
+Interactive web dashboard with real-time metrics visualization and theme switcher.
 
 ### WebSocket Streaming
 
-```
+```http
 WS /metrics/ws?repository=org/repo&event_type=pull_request&status=success
 ```
 
 Real-time metrics streaming with optional filtering.
 
 **Query Parameters:**
-
 - `repository`: Filter by repository (org/repo format)
 - `event_type`: Filter by event type
 - `status`: Filter by status (success, error, partial)
 
-### REST API Endpoints
+<details>
+<summary><strong>REST API Endpoints</strong></summary>
 
-#### Get Webhook Events
+### Get Webhook Events
 
-```
+```http
 GET /api/metrics/webhooks
 ```
 
 Retrieve webhook events with filtering and pagination.
 
 **Query Parameters:**
-
 - `repository`: Filter by repository (org/repo format)
 - `event_type`: Filter by event type
 - `status`: Filter by status (success, error, partial)
@@ -255,7 +255,6 @@ Retrieve webhook events with filtering and pagination.
 - `page_size`: Items per page (1-1000, default: 100)
 
 **Response:**
-
 ```json
 {
   "data": [
@@ -287,58 +286,29 @@ Retrieve webhook events with filtering and pagination.
 }
 ```
 
-#### Get Webhook Event by ID
+### Get Webhook Event by ID
 
-```
+```http
 GET /api/metrics/webhooks/{delivery_id}
 ```
 
 Get specific webhook event details including full payload.
 
-**Response:**
+### Get Repository Statistics
 
-```json
-{
-  "delivery_id": "12345678-1234-1234-1234-123456789abc",
-  "repository": "org/repo",
-  "event_type": "pull_request",
-  "action": "opened",
-  "pr_number": 123,
-  "sender": "username",
-  "status": "success",
-  "created_at": "2024-01-15T10:30:00Z",
-  "processed_at": "2024-01-15T10:30:01Z",
-  "duration_ms": 1234,
-  "api_calls_count": 5,
-  "token_spend": 5,
-  "token_remaining": 4995,
-  "error_message": null,
-  "payload": {
-    "action": "opened",
-    "pull_request": { ... },
-    "repository": { ... },
-    "sender": { ... }
-  }
-}
-```
-
-#### Get Repository Statistics
-
-```
+```http
 GET /api/metrics/repositories
 ```
 
 Get aggregated statistics per repository.
 
 **Query Parameters:**
-
 - `start_time`: Start time in ISO 8601 format
 - `end_time`: End time in ISO 8601 format
 - `page`: Page number (1-indexed, default: 1)
 - `page_size`: Items per page (1-100, default: 10)
 
 **Response:**
-
 ```json
 {
   "time_range": {
@@ -368,21 +338,15 @@ Get aggregated statistics per repository.
 }
 ```
 
-#### Get Metrics Summary
+### Get Metrics Summary
 
-```
+```http
 GET /api/metrics/summary
 ```
 
 Get overall metrics summary across all repositories.
 
-**Query Parameters:**
-
-- `start_time`: Start time in ISO 8601 format
-- `end_time`: End time in ISO 8601 format
-
 **Response:**
-
 ```json
 {
   "time_range": {
@@ -403,15 +367,19 @@ Get overall metrics summary across all repositories.
 }
 ```
 
+</details>
+
+---
+
 ## MCP Server
 
-GitHub Metrics includes an embedded MCP (Model Context Protocol) server that exposes metrics endpoints as tools for LLM integration.
+GitHub Metrics includes an embedded **Model Context Protocol (MCP)** server for seamless AI assistant integration.
 
 ### Overview
 
-The MCP server allows AI assistants like Claude to query metrics data directly using natural language. The server is mounted at `/mcp` and automatically exposes all REST API endpoints as MCP tools.
+The MCP server exposes metrics endpoints as tools that AI assistants like Claude can query using natural language. Mounted at `/mcp`, it automatically provides access to all REST API endpoints.
 
-### Available MCP Tools
+### Available Tools
 
 | Tool                        | Description                                             |
 | --------------------------- | ------------------------------------------------------- |
@@ -424,15 +392,9 @@ The MCP server allows AI assistants like Claude to query metrics data directly u
 | `get_user_pull_requests`    | Get user's PR details with commit info                  |
 | `get_metrics_trends`        | Get time-series event trends                            |
 
-### Configuration
+### Configuration for MCP Clients
 
-| Variable              | Description               | Default |
-| --------------------- | ------------------------- | ------- |
-| `METRICS_MCP_ENABLED` | Enable/disable MCP server | `true`  |
-
-### Usage with MCP Clients
-
-Add to your MCP client configuration:
+Add to your MCP client configuration (e.g., Claude Desktop):
 
 ```json
 {
@@ -444,26 +406,29 @@ Add to your MCP client configuration:
 }
 ```
 
-Example queries:
+### Example Natural Language Queries
 
+Once configured, you can ask your AI assistant:
 - "Get metrics for the last 24 hours"
-- "Show repository statistics for myakove/github-metrics"
+- "Show repository statistics for myk-org/github-metrics"
 - "Who are the top PR contributors this month?"
-- "What's the metrics success rate for the last week?"
+- "What's the webhook success rate for the last week?"
 
 ### Disabling MCP Server
 
-To disable the MCP server, set the environment variable:
+To disable the MCP server:
 
 ```bash
 METRICS_MCP_ENABLED=false
 ```
 
+---
+
 ## Webhook Setup
 
 ### Automatic Webhook Creation
 
-The service can automatically create webhooks on startup by setting environment variables:
+Enable automatic webhook creation by setting environment variables:
 
 ```bash
 # Enable webhook setup
@@ -482,8 +447,7 @@ METRICS_REPOSITORIES=org/repo1,org/repo2,org/repo3
 METRICS_WEBHOOK_SECRET=your-webhook-secret
 ```
 
-The service will:
-
+On startup, the service will:
 1. Check if webhooks already exist for each repository
 2. Create new webhooks if they don't exist
 3. Configure webhooks to send all events (`["*"]`)
@@ -493,19 +457,23 @@ The service will:
 
 To manually configure webhooks in GitHub:
 
-1. Go to repository Settings → Webhooks → Add webhook
+1. Navigate to: **Repository Settings → Webhooks → Add webhook**
 2. Set **Payload URL**: `https://your-domain.com/metrics`
 3. Set **Content type**: `application/json`
 4. Set **Secret**: (same as `METRICS_WEBHOOK_SECRET` if configured)
 5. Select **Which events**: "Send me everything" or specific events
-6. Set **Active**: Checked
-7. Click "Add webhook"
+6. Ensure **Active** is checked
+7. Click **Add webhook**
+
+---
 
 ## Security
 
-### IP Allowlist Verification
+### Multi-Layer Security
 
-Enable IP verification to only accept webhooks from GitHub or Cloudflare:
+GitHub Metrics implements defense-in-depth security:
+
+#### IP Allowlist Verification
 
 ```bash
 # Verify requests from GitHub IPs
@@ -516,13 +484,10 @@ METRICS_VERIFY_CLOUDFLARE_IPS=true
 ```
 
 The service fetches IP ranges from:
+- **GitHub**: `https://api.github.com/meta` (hooks field)
+- **Cloudflare**: `https://www.cloudflare.com/ips-v4` and `ips-v6`
 
-- GitHub: `https://api.github.com/meta` (hooks field)
-- Cloudflare: `https://www.cloudflare.com/ips-v4` and `ips-v6`
-
-### Webhook Signature Validation
-
-Enable signature validation to verify webhook authenticity:
+#### Webhook Signature Validation
 
 ```bash
 # Set webhook secret (same secret configured in GitHub)
@@ -531,18 +496,9 @@ METRICS_WEBHOOK_SECRET=your-webhook-secret
 
 The service validates webhook signatures using HMAC SHA256 (`X-Hub-Signature-256` header).
 
-### Deployment Recommendations
+#### Server Binding Security
 
-- Deploy behind a reverse proxy (nginx, Caddy) with HTTPS
-- Use firewall rules to restrict access to webhook endpoint
-- Store secrets in environment variables or secret management systems
-- Enable both IP verification and signature validation for maximum security
-- Never expose PostgreSQL port to public internet (bind to 127.0.0.1 only)
-- Use strong database passwords (generated, not dictionary words)
-
-### Server Binding Security
-
-**IMPORTANT:** By default, binding to wildcard addresses (`0.0.0.0` or `::`) requires explicit opt-in for security.
+**IMPORTANT:** By default, binding to wildcard addresses (`0.0.0.0` or `::`) requires explicit opt-in.
 
 **Production recommendation:**
 ```bash
@@ -560,39 +516,44 @@ METRICS_SERVER_ALLOW_ALL_HOSTS=true  # Explicit security acknowledgment
 - For local development or single-host deployments, `127.0.0.1` is safer
 - The explicit opt-in prevents accidental exposure to unintended networks
 
-**Container deployment:**
-When deploying with Docker/Podman, you'll typically use:
-- `METRICS_SERVER_HOST=0.0.0.0` (listens inside container)
-- `METRICS_SERVER_ALLOW_ALL_HOSTS=true` (explicit acknowledgment)
-- Port mapping controls external access (e.g., `8080:8080` or `127.0.0.1:8080:8080`)
+### Deployment Best Practices
 
-**Development:**
-The `dev/run.sh` script automatically sets `METRICS_SERVER_ALLOW_ALL_HOSTS=true` for convenience.
+✅ **Recommended security measures:**
+- Deploy behind a reverse proxy (nginx, Caddy) with HTTPS/TLS
+- Use firewall rules to restrict access to webhook endpoint
+- Store secrets in environment variables or secret management systems (Vault, AWS Secrets Manager)
+- Enable both IP verification and signature validation for maximum security
+- Never expose PostgreSQL port to public internet (bind to `127.0.0.1` only)
+- Use strong database passwords (generated, not dictionary words)
+- Regularly rotate webhook secrets and API keys
+- Monitor logs for suspicious activity
+
+---
 
 ## Development
 
 ### Requirements
 
-- Python 3.13
-- PostgreSQL 16+
-- uv (Python package manager)
+- **Python** 3.13+
+- **PostgreSQL** 16+
+- **uv** (Python package manager)
 
-### Setup
+### Local Setup
 
-1. Clone the repository:
+1. **Clone the repository:**
 
 ```bash
-git clone https://github.com/your-org/github-metrics.git
+git clone https://github.com/myk-org/github-metrics.git
 cd github-metrics
 ```
 
-2. Install dependencies:
+2. **Install dependencies:**
 
 ```bash
 uv sync
 ```
 
-3. Set environment variables:
+3. **Configure environment:**
 
 ```bash
 export METRICS_DB_NAME=github_metrics
@@ -602,13 +563,13 @@ export METRICS_DB_HOST=localhost
 export METRICS_DB_PORT=5432
 ```
 
-4. Run database migrations:
+4. **Run database migrations:**
 
 ```bash
 uv run alembic upgrade head
 ```
 
-5. Start the development server:
+5. **Start the development server:**
 
 ```bash
 uv run entrypoint.py
@@ -631,18 +592,18 @@ uv run ruff check --fix
 # Type checking
 uv run mypy github_metrics/
 
-# Run all checks
-uv run ruff check && uv run ruff format && uv run mypy github_metrics/
+# Run all checks (pre-commit hooks)
+prek run --all-files
 ```
 
 ### Testing
 
 ```bash
-# Run tests
-uv run --group tests pytest
+# Run tests (parallel execution)
+uv run --group tests pytest -n auto
 
-# Run with coverage
-uv run --group tests pytest --cov=github_metrics
+# Run with coverage (90% required)
+uv run --group tests pytest -n auto --cov=github_metrics --cov-report=term-missing
 
 # Run specific test file
 uv run --group tests pytest tests/test_app.py -v
@@ -652,7 +613,7 @@ uv run --group tests pytest tests/test_app.py -v
 
 Migrations are automatically applied on container startup. For manual operations:
 
-#### Using Docker (Production/Container)
+**Using Docker (Production/Container):**
 
 ```bash
 # Apply migrations (automatic on container start, or manual)
@@ -663,12 +624,9 @@ docker exec -it github-metrics alembic downgrade -1
 
 # Show migration history
 docker exec -it github-metrics alembic history
-
-# Mark existing database as migrated (one-time for existing DBs)
-docker exec -it github-metrics alembic stamp head
 ```
 
-#### Local Development
+**Local Development:**
 
 ```bash
 # Create new migration
@@ -684,9 +642,9 @@ uv run alembic downgrade -1
 uv run alembic history
 ```
 
-## Database Schema
+### Database Schema
 
-The service stores data in the following tables:
+The service stores data in the following PostgreSQL tables:
 
 - **webhooks**: Webhook event store with full payload and processing metrics
 - **pull_requests**: PR master records with size metrics and state tracking
@@ -698,10 +656,49 @@ The service stores data in the following tables:
 
 All tables use PostgreSQL-specific types (UUID, JSONB) for optimal performance and include comprehensive indexes for fast queries.
 
+---
+
+## Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
+1. **Fork the repository** and create a feature branch
+2. **Follow code style**: Run `prek run --all-files` before committing
+3. **Write tests**: Maintain 90% code coverage
+4. **Update documentation**: Keep README.md and docstrings current
+5. **Submit a pull request** with a clear description of changes
+
+### Development Workflow
+
+```bash
+# Create feature branch
+git checkout -b feature/your-feature-name
+
+# Make changes and test
+uv run --group tests pytest -n auto --cov=github_metrics
+
+# Run code quality checks
+prek run --all-files
+
+# Commit and push
+git commit -m "feat: add new feature"
+git push origin feature/your-feature-name
+```
+
+---
+
 ## License
 
 Apache-2.0
 
+---
+
 ## Author
 
-myakove
+**myakove**
+
+---
+
+<p align="center">
+  <sub>Built with FastAPI, PostgreSQL, and ❤️</sub>
+</p>
