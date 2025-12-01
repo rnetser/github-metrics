@@ -12,6 +12,9 @@
 
 // Dashboard Controller
 class MetricsDashboard {
+    // Large download threshold - warn user before downloading large datasets
+    static LARGE_DOWNLOAD_THRESHOLD = 10000;
+
     // Section display names for downloads and error messages
     static SECTION_DISPLAY_NAMES = {
         'topRepositories': 'top_repositories',
@@ -1373,8 +1376,8 @@ class MetricsDashboard {
      * @param {string} format - Format ('csv' or 'json')
      */
     downloadData(data, filename, format) {
-        // Warn for large downloads (> 10,000 rows)
-        if (data.length > 10000) {
+        // Warn for large downloads
+        if (data.length > MetricsDashboard.LARGE_DOWNLOAD_THRESHOLD) {
             if (!window.confirm(`This download contains ${data.length.toLocaleString()} rows. Continue?`)) {
                 return;
             }
@@ -1403,7 +1406,10 @@ class MetricsDashboard {
         a.href = url;
         a.download = filename;
         a.click();
-        URL.revokeObjectURL(url);
+        // Defer URL cleanup to ensure download starts in all browsers
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 100);
     }
 
 

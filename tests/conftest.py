@@ -16,6 +16,7 @@ import hmac
 import json
 import logging
 import os
+import signal
 import subprocess
 import time
 from collections.abc import AsyncGenerator, Generator
@@ -431,6 +432,7 @@ def dev_server() -> Generator[str]:
         cwd=project_dir,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
+        start_new_session=True,  # Create new process group to kill entire process tree
     )
 
     # Wait for server to be ready
@@ -453,7 +455,11 @@ def dev_server() -> Generator[str]:
             pass
         time.sleep(1)
     else:
-        process.terminate()
+        # Kill entire process group (shell script + child Python process)
+        try:
+            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+        except (ProcessLookupError, OSError):
+            pass  # Process already dead
         raise DevServerStartupError(
             f"Dev server failed to start within {max_retries} seconds. "
             f"Process status: {'running' if process.poll() is None else f'exited with code {process.returncode}'}"
@@ -461,9 +467,20 @@ def dev_server() -> Generator[str]:
 
     yield base_url
 
-    # Cleanup
-    process.terminate()
-    process.wait(timeout=10)
+    # Cleanup - kill entire process group to ensure child processes are terminated
+    try:
+        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+    except (ProcessLookupError, OSError):
+        pass  # Process already dead
+    try:
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        # Force kill if graceful shutdown fails
+        try:
+            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+        except (ProcessLookupError, OSError):
+            pass  # Process already dead
+        process.wait()
 
 
 @pytest.fixture(scope="session")

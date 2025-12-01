@@ -7,6 +7,7 @@ import re
 
 import pytest
 from playwright.async_api import Page, expect
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 # Test constants
 DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "http://localhost:8765/dashboard")
@@ -1134,7 +1135,7 @@ class TestDashboardDownloadButtons:
         download_buttons = page_with_js_coverage.locator(".download-btn")
         button_count = await download_buttons.count()
 
-        # Should have 12 buttons (6 sections × 2 formats)
+        # Should have 12 buttons (6 sections x 2 formats)
         await expect(download_buttons).to_have_count(12)
 
         # Verify each button has required attributes
@@ -1240,8 +1241,9 @@ class TestDashboardDownloadButtons:
             # Verify download properties
             assert download.suggested_filename.endswith(".csv")
             assert "github_metrics_" in download.suggested_filename
-        except Exception:
-            # If no download occurs (e.g., no data), verify button is still functional
+        except (TimeoutError, PlaywrightTimeoutError):
+            # No download triggered - likely no data available
+            # Verify button is still functional
             await expect(csv_button).to_be_visible()
 
         # Test JSON download for recent events
@@ -1256,8 +1258,9 @@ class TestDashboardDownloadButtons:
             # Verify download properties
             assert download.suggested_filename.endswith(".json")
             assert "github_metrics_" in download.suggested_filename
-        except Exception:
-            # If no download occurs (e.g., no data), verify button is still functional
+        except (TimeoutError, PlaywrightTimeoutError):
+            # No download triggered - likely no data available
+            # Verify button is still functional
             await expect(json_button).to_be_visible()
 
     async def test_download_with_filtered_empty_data(self, page_with_js_coverage: Page) -> None:
@@ -1281,8 +1284,9 @@ class TestDashboardDownloadButtons:
             download = await download_info.value
             # If download occurs, verify it's a valid CSV file
             assert download.suggested_filename.endswith(".csv")
-        except Exception:
-            # If no download occurs (expected with no data), verify:
+        except (TimeoutError, PlaywrightTimeoutError):
+            # No download triggered - likely no data available
+            # Verify button is still functional
             # 1. No JavaScript errors occurred
             # 2. Button is still functional
             await expect(csv_button).to_be_visible()

@@ -263,6 +263,7 @@ h3 {
   border-radius: 4px;
   background: var(--input-bg);
   color: var(--text-color);
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 
