@@ -267,71 +267,80 @@ def dev_server() -> Generator[str]:
         DevServerStartupError: If the server fails to start within the timeout period.
     """
     base_url = "http://localhost:8765"
-    response = httpx.get(f"{base_url}/dashboard", timeout=2.0)
-    if response.status_code == 200:
-        print(f"Dev server {base_url} is already up, reusing it.")
+    server_already_running = False
+    try:
+        response = httpx.get(f"{base_url}/dashboard", timeout=2.0)
+        if response.status_code == 200:
+            print(f"Dev server {base_url} is already up, reusing it.")
+            server_already_running = True
+    except httpx.RequestError:
+        # Server not running, start it
+        pass
+
+    if server_already_running:
         yield base_url
-    else:
-        # Start server subprocess
-        # CRITICAL: Use DEVNULL for stdout/stderr to prevent buffering deadlock
-        # The script produces significant output (Docker startup, PostgreSQL logs, migrations)
-        # Using PIPE causes the process to block when buffers fill up
-        project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        script_path = os.path.join(project_dir, "dev", "run.sh")
+        return
 
-        process = subprocess.Popen(
-            [script_path],
-            cwd=project_dir,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,  # Create new process group to kill entire process tree
-        )
+    # Start server subprocess
+    # CRITICAL: Use DEVNULL for stdout/stderr to prevent buffering deadlock
+    # The script produces significant output (Docker startup, PostgreSQL logs, migrations)
+    # Using PIPE causes the process to block when buffers fill up
+    project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    script_path = os.path.join(project_dir, "dev", "run.sh")
 
-        # Wait for server to be ready
-        # Startup sequence: Docker (3s) + PostgreSQL (variable) + migrations (variable) + server (variable)
-        max_retries = 30  # 30 seconds total timeout
-        for _ in range(max_retries):
-            # Check if process died
-            if process.poll() is not None:
-                raise DevServerStartupError(
-                    f"Dev server process died during startup (exit code: {process.returncode}). "
-                    "Check ./dev/run.sh manually for errors."
-                )
+    process = subprocess.Popen(
+        [script_path],
+        cwd=project_dir,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,  # Create new process group to kill entire process tree
+    )
 
-            try:
-                response = httpx.get(f"{base_url}/dashboard", timeout=2.0)
-                if response.status_code == 200:
-                    break
-            except httpx.RequestError:
-                pass
-            time.sleep(1)
-        else:
-            # Kill entire process group (shell script + child Python process)
-            try:
-                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-            except (ProcessLookupError, OSError):
-                pass  # Process already dead
+    # Wait for server to be ready
+    # Startup sequence: Docker (3s) + PostgreSQL (variable) + migrations (variable) + server (variable)
+    max_retries = 30  # 30 seconds total timeout
+    for _ in range(max_retries):
+        # Check if process died
+        if process.poll() is not None:
             raise DevServerStartupError(
-                f"Dev server failed to start within {max_retries} seconds. "
-                f"Process status: {'running' if process.poll() is None else f'exited with code {process.returncode}'}"
+                f"Dev server process died during startup (exit code: {process.returncode}). "
+                "Check ./dev/run.sh manually for errors."
             )
 
-        yield base_url
-
-        # Cleanup - kill entire process group to ensure child processes are terminated
+        try:
+            response = httpx.get(f"{base_url}/dashboard", timeout=2.0)
+            if response.status_code == 200:
+                break
+        except httpx.RequestError:
+            pass
+        time.sleep(1)
+    else:
+        # Kill entire process group (shell script + child Python process)
         try:
             os.killpg(os.getpgid(process.pid), signal.SIGTERM)
         except (ProcessLookupError, OSError):
             pass  # Process already dead
+        raise DevServerStartupError(
+            f"Dev server failed to start within {max_retries} seconds. "
+            f"Process status: {'running' if process.poll() is None else f'exited with code {process.returncode}'}"
+        )
+
+    yield base_url
+
+    # Cleanup - kill entire process group to ensure child processes are terminated
+    try:
+        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+    except (ProcessLookupError, OSError):
+        pass  # Process already dead
+    try:
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        # Force kill if graceful shutdown fails
         try:
-            process.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            # Force kill if graceful shutdown fails
-            try:
-                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-            except (ProcessLookupError, OSError):
-                pass  # Process already dead
-            process.wait()
+            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+        except (ProcessLookupError, OSError):
+            pass  # Process already dead
+        process.wait()
 
 
 @pytest.fixture(scope="session")

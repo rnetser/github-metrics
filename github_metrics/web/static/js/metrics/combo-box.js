@@ -63,6 +63,7 @@ class ComboBox {
         this._boundHandleInput = null;
         this._boundHandleBlur = null;
         this._boundHandleKeydown = null;
+        this._onClearClick = null;
 
         this._initialize();
     }
@@ -145,8 +146,8 @@ class ComboBox {
         // Insert clear button after input
         this.input.parentNode.insertBefore(this.clearButton, this.input.nextSibling);
 
-        // Click handler
-        this.clearButton.addEventListener('click', (e) => {
+        // Store click handler for cleanup
+        this._onClearClick = (e) => {
             e.preventDefault();
             e.stopPropagation();
             this.input.value = '';
@@ -157,7 +158,10 @@ class ComboBox {
 
             // Focus back on input
             this.input.focus();
-        });
+        };
+
+        // Attach click handler
+        this.clearButton.addEventListener('click', this._onClearClick);
     }
 
     /**
@@ -456,6 +460,8 @@ class ComboBox {
         // Dispatch input event so external listeners (like turnaround.js filters) can react
         this.input.dispatchEvent(new Event('input', { bubbles: true }));
 
+        // Note: onSelect is called AFTER the input event, allowing external
+        // listeners to react to value changes before selection-specific logic
         this.onSelect(option.value);
         this.close();
     }
@@ -630,6 +636,12 @@ class ComboBox {
         // Remove dropdown
         if (this.dropdown && this.dropdown.parentNode) {
             this.dropdown.parentNode.removeChild(this.dropdown);
+        }
+
+        // Remove clear button click listener
+        if (this.clearButton && this._onClearClick) {
+            this.clearButton.removeEventListener('click', this._onClearClick);
+            this._onClearClick = null;
         }
 
         // Remove clear button

@@ -304,12 +304,12 @@ app = create_app()
 
 # Allow tests to patch these via github_metrics.app.*
 __all__ = [
+    "allowed_ips",
     "app",
     "create_app",
+    "dashboard_controller",
     "db_manager",
     "metrics_tracker",
-    "dashboard_controller",
-    "allowed_ips",
 ]
 
 

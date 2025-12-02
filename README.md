@@ -73,6 +73,7 @@ Perfect for teams who want to:
 The interactive dashboard provides two specialized views accessible via sidebar navigation:
 
 ### Overview
+
 The main dashboard view includes:
 - **Real-time Event Stream** - Live webhook events with filters for repository, event type, and status
 - **Repository Statistics** - Event counts, success rates, and processing times per repository
@@ -80,6 +81,7 @@ The main dashboard view includes:
 - **PR Story Modal** - Complete PR lifecycle timeline with reviews, comments, and check runs
 
 ### Contributors
+
 Review turnaround analytics and contributor performance:
 - **Summary KPI Cards** - Quick metrics for average first review time, approval time, PR lifecycle duration, and total PRs analyzed
 - **Turnaround by Repository** - Review metrics broken down by repository with sortable columns

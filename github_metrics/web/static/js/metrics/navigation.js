@@ -18,9 +18,24 @@ class NavigationManager {
         this.navItems = document.querySelectorAll('.nav-item');
         this.pages = document.querySelectorAll('.page');
 
+        // Validate required DOM elements
+        const missingElements = [];
+        if (!this.sidebar) missingElements.push('sidebar');
+        if (!this.sidebarCollapseToggle) missingElements.push('sidebar-collapse-toggle');
+        if (!this.mobileMenuToggle) missingElements.push('mobile-menu-toggle');
+        if (!this.sidebarOverlay) missingElements.push('sidebar-overlay');
+        if (this.navItems.length === 0) missingElements.push('nav-items');
+        if (this.pages.length === 0) missingElements.push('pages');
+        if (missingElements.length > 0) {
+            throw new Error(`Missing required DOM elements: ${missingElements.join(', ')}`);
+        }
+
         this.currentPage = 'overview';
         this.isMobile = window.innerWidth < 1024;
         this.isCollapsed = false;
+
+        // Store debounced resize handler for cleanup
+        this._debouncedResizeHandler = null;
 
         this.initialize();
     }
@@ -40,8 +55,21 @@ class NavigationManager {
         // Load saved sidebar collapsed state
         this.loadSidebarState();
 
-        // Handle window resize
-        window.addEventListener('resize', () => this.handleResize());
+        // Handle window resize with debounce
+        this._debouncedResizeHandler = this._debounce(() => this.handleResize(), 100);
+        window.addEventListener('resize', this._debouncedResizeHandler);
+    }
+
+    /**
+     * Debounce utility function
+     * @private
+     */
+    _debounce(func, delay) {
+        let timeout;
+        return function(...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), delay);
+        };
     }
 
     /**
@@ -176,22 +204,32 @@ class NavigationManager {
      * Load initial page from hash or localStorage
      */
     loadInitialPage() {
+        // Known valid pages
+        const knownPages = Array.from(this.navItems).map(item => item.dataset.page);
         let initialPage = 'overview';
 
         // Check URL hash first
         const hash = window.location.hash.slice(1);
-        if (hash) {
+        if (hash && knownPages.includes(hash)) {
             initialPage = hash;
+        } else if (hash) {
+            // Invalid hash - fall back to overview
+            console.warn(`[Navigation] Invalid page in URL hash: ${hash}, falling back to overview`);
+            initialPage = 'overview';
+            window.location.hash = 'overview';
         } else {
             // Check localStorage
             try {
                 const savedPage = localStorage.getItem('lastViewedPage');
-                if (savedPage) {
+                if (savedPage && knownPages.includes(savedPage)) {
                     initialPage = savedPage;
                     // Update hash to match saved page
                     window.location.hash = savedPage;
                 } else {
-                    // Default to overview
+                    // Invalid or missing saved page - default to overview
+                    if (savedPage) {
+                        console.warn(`[Navigation] Invalid page in localStorage: ${savedPage}, falling back to overview`);
+                    }
                     window.location.hash = 'overview';
                 }
             } catch (error) {
@@ -254,7 +292,7 @@ class NavigationManager {
         const wasMobile = this.isMobile;
         this.isMobile = window.innerWidth < 1024;
 
-        // If transitioning from mobile to desktop, ensure sidebar is closed
+        // If transitioning from mobile to desktop, clear mobile overlay/open state so desktop sidebar is shown
         if (wasMobile && !this.isMobile) {
             this.closeSidebar();
         }

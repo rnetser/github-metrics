@@ -123,8 +123,12 @@ async def get_metrics_trends(
             },
             "trends": trends,
         }
-    except asyncio.CancelledError:
-        raise
+    except asyncio.CancelledError as ex:
+        LOGGER.debug("Metrics trends request was cancelled")
+        raise HTTPException(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Request was cancelled",
+        ) from ex
     except Exception as ex:
         LOGGER.exception("Failed to fetch metrics trends from database")
         raise HTTPException(

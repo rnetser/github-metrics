@@ -4,4 +4,4 @@ from __future__ import annotations
 
 from github_metrics.routes import dashboard, health, webhooks
 
-__all__ = ["health", "webhooks", "dashboard"]
+__all__ = ["dashboard", "health", "webhooks"]

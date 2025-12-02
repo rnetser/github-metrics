@@ -25,9 +25,10 @@ def parse_datetime_string(value: str | None, param_name: str) -> datetime | None
         return None
     try:
         # Handle both 'Z' suffix and '+00:00' timezone
-        if value.endswith("Z"):
-            value = value[:-1] + "+00:00"
-        return datetime.fromisoformat(value)
+        normalized = value
+        if normalized.endswith("Z"):
+            normalized = normalized[:-1] + "+00:00"
+        return datetime.fromisoformat(normalized)
     except ValueError as ex:
         detail = f"Invalid datetime format for {param_name}: {value}. Use ISO 8601 format (e.g., 2024-01-15T00:00:00Z)"
         raise HTTPException(

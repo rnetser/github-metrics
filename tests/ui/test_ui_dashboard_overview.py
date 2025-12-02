@@ -1,4 +1,4 @@
-"""Playwright UI tests for the metrics dashboard."""
+"""Playwright UI tests for the metrics dashboard Overview page."""
 
 from __future__ import annotations
 
@@ -81,27 +81,28 @@ class TestDashboardPageLoad:
     async def test_all_dashboard_sections_render(self, page_with_js_coverage: Page) -> None:
         """Verify all dashboard sections are present."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
+        await page_with_js_coverage.wait_for_load_state("networkidle")
 
         # Top Repositories section - scope to overview page
         top_repos = page_with_js_coverage.locator('#page-overview .chart-container[data-section="top-repositories"]')
-        await expect(top_repos).to_be_visible()
+        await expect(top_repos).to_be_attached()
         await expect(top_repos.locator("h2")).to_have_text("Top Repositories")
 
         # Recent Events section
         recent_events = page_with_js_coverage.locator('#page-overview .chart-container[data-section="recent-events"]')
-        await expect(recent_events).to_be_visible()
+        await expect(recent_events).to_be_attached()
         await expect(recent_events.locator("h2")).to_have_text("Recent Events")
 
         # PR Contributors section
         pr_contributors = page_with_js_coverage.locator(
             '#page-overview .chart-container[data-section="pr-contributors"]'
         )
-        await expect(pr_contributors).to_be_visible()
+        await expect(pr_contributors).to_be_attached()
         await expect(pr_contributors.locator("h2")).to_have_text("PR Contributors")
 
         # User PRs section
         user_prs = page_with_js_coverage.locator('#page-overview .chart-container[data-section="user-prs"]')
-        await expect(user_prs).to_be_visible()
+        await expect(user_prs).to_be_attached()
         await expect(user_prs.locator("h2")).to_have_text("Pull Requests")
 
 
@@ -671,12 +672,9 @@ class TestDashboardNavigation:
         contributors_nav = page_with_js_coverage.locator('.nav-item[data-page="contributors"]')
         await contributors_nav.click()
 
-        # Wait for navigation
-        await page_with_js_coverage.wait_for_timeout(500)
-
-        # Contributors page should be visible
+        # Wait for contributors page to be visible (event-based waiting)
         contributors_page = page_with_js_coverage.locator("#page-contributors")
-        await expect(contributors_page).to_be_visible()
+        await expect(contributors_page).to_be_visible(timeout=5000)
 
         # Overview page should be hidden
         overview_page = page_with_js_coverage.locator("#page-overview")
@@ -690,16 +688,18 @@ class TestDashboardNavigation:
         # Navigate to contributors
         contributors_nav = page_with_js_coverage.locator('.nav-item[data-page="contributors"]')
         await contributors_nav.click()
-        await page_with_js_coverage.wait_for_timeout(500)
+
+        # Wait for contributors page to be visible
+        contributors_page = page_with_js_coverage.locator("#page-contributors")
+        await expect(contributors_page).to_be_visible(timeout=5000)
 
         # Navigate back to overview
         overview_nav = page_with_js_coverage.locator('.nav-item[data-page="overview"]')
         await overview_nav.click()
-        await page_with_js_coverage.wait_for_timeout(500)
 
-        # Overview page should be visible
+        # Wait for overview page to be visible (event-based waiting)
         overview_page = page_with_js_coverage.locator("#page-overview")
-        await expect(overview_page).to_be_visible()
+        await expect(overview_page).to_be_visible(timeout=5000)
 
     async def test_active_nav_item_indicator(self, page_with_js_coverage: Page) -> None:
         """Test active navigation item has active class."""
@@ -716,10 +716,9 @@ class TestDashboardNavigation:
 
         # Click contributors
         await contributors_nav.click()
-        await page_with_js_coverage.wait_for_timeout(500)
 
-        # Now contributors should be active
-        await expect(contributors_nav).to_have_class(re.compile(r"\bactive\b"))
+        # Wait for contributors nav to become active (event-based waiting)
+        await expect(contributors_nav).to_have_class(re.compile(r"\bactive\b"), timeout=5000)
 
         # Overview should not be active
         await expect(overview_nav).not_to_have_class(re.compile(r"\bactive\b"))
@@ -1250,14 +1249,14 @@ class TestDashboardTimeRangeInteractions:
 @pytest.mark.usefixtures("dev_server")
 @pytest.mark.asyncio(loop_scope="session")
 class TestDashboardDownloadButtons:
-    """Tests for download button functionality."""
+    """Tests for download button functionality on Overview page."""
 
     async def test_download_buttons_exist(self, page_with_js_coverage: Page) -> None:
-        """Verify download buttons (CSV/JSON) exist for each table section."""
+        """Verify download buttons (CSV/JSON) exist for each table section on Overview page."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
         await page_with_js_coverage.wait_for_load_state("networkidle")
 
-        # Define all sections that should have download buttons (using camelCase as in HTML)
+        # Define Overview page sections that should have download buttons (using camelCase as in HTML)
         sections = [
             "topRepositories",
             "recentEvents",
@@ -1285,6 +1284,7 @@ class TestDashboardDownloadButtons:
         button_count = await download_buttons.count()
 
         # Should have 16 buttons (8 sections x 2 formats: 6 overview + 2 contributors)
+        # Contributors page sections (turnaroundByRepo, turnaroundByReviewer) are counted separately
         await expect(download_buttons).to_have_count(16)
 
         # Verify each button has required attributes

@@ -13,7 +13,6 @@ import asyncio
 import hashlib
 import hmac
 import json
-from concurrent.futures import CancelledError
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
@@ -1099,13 +1098,13 @@ class TestContributorsEndpoint:
     def test_get_contributors_cancelled_error(self) -> None:
         """Test contributors handles asyncio.CancelledError."""
         with patch("github_metrics.routes.api.contributors.db_manager") as mock_db:
-            mock_db.fetchval = AsyncMock(side_effect=asyncio.CancelledError())
+            mock_db.fetchval = AsyncMock(side_effect=asyncio.CancelledError)
 
             client = TestClient(app)
+            response = client.get("/api/metrics/contributors")
 
-            # TestClient wraps asyncio.CancelledError into concurrent.futures.CancelledError
-            with pytest.raises(CancelledError):
-                client.get("/api/metrics/contributors")
+            assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+            assert response.json()["detail"] == "Request was cancelled"
 
 
 class TestUserPullRequestsEndpoint:
@@ -1301,13 +1300,13 @@ class TestTrendsEndpoint:
     def test_get_trends_cancelled_error(self) -> None:
         """Test trends handles asyncio.CancelledError."""
         with patch("github_metrics.routes.api.trends.db_manager") as mock_db:
-            mock_db.fetch = AsyncMock(side_effect=asyncio.CancelledError())
+            mock_db.fetch = AsyncMock(side_effect=asyncio.CancelledError)
 
             client = TestClient(app)
+            response = client.get("/api/metrics/trends")
 
-            # TestClient wraps asyncio.CancelledError into concurrent.futures.CancelledError
-            with pytest.raises(CancelledError):
-                client.get("/api/metrics/trends")
+            assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+            assert response.json()["detail"] == "Request was cancelled"
 
 
 class TestMetricsSummaryTrends:
@@ -1821,11 +1820,11 @@ class TestReviewTurnaroundEndpoint:
         """Test review turnaround metrics handles asyncio.CancelledError."""
         with patch("github_metrics.routes.api.turnaround.db_manager") as mock_db:
             # Mock both fetch and fetchrow since endpoint uses asyncio.gather with both
-            mock_db.fetch = AsyncMock(side_effect=asyncio.CancelledError())
-            mock_db.fetchrow = AsyncMock(side_effect=asyncio.CancelledError())
+            mock_db.fetch = AsyncMock(side_effect=asyncio.CancelledError)
+            mock_db.fetchrow = AsyncMock(side_effect=asyncio.CancelledError)
 
             client = TestClient(app)
+            response = client.get("/api/metrics/turnaround")
 
-            # TestClient wraps asyncio.CancelledError into concurrent.futures.CancelledError
-            with pytest.raises(CancelledError):
-                client.get("/api/metrics/turnaround")
+            assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+            assert response.json()["detail"] == "Request was cancelled"

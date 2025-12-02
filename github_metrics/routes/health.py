@@ -14,6 +14,11 @@ router = APIRouter()
 # Global database manager (set by app.py during lifespan)
 db_manager: DatabaseManager | None = None
 
+# Favicon bytes (1x1 transparent PNG)
+FAVICON_BYTES = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+)
+
 
 @router.get("/health", operation_id="health_check")
 async def health_check() -> dict[str, Any]:
@@ -32,7 +37,4 @@ async def health_check() -> dict[str, Any]:
 @router.get("/favicon.ico", include_in_schema=False, tags=["mcp_exclude"])
 async def favicon() -> Response:
     """Serve favicon.ico."""
-    transparent_png = base64.b64decode(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-    )
-    return Response(content=transparent_png, media_type="image/png")
+    return Response(content=FAVICON_BYTES, media_type="image/png")

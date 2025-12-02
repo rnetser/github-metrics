@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import math
 from typing import Any
 
@@ -127,6 +128,8 @@ async def get_webhook_events(
                 "has_prev": page > 1,
             },
         }
+    except asyncio.CancelledError:
+        raise
     except HTTPException:
         raise
     except Exception as ex:
@@ -179,6 +182,8 @@ async def get_webhook_event_by_id(delivery_id: str) -> dict[str, Any]:
             "error_message": row["error_message"],
             "payload": row["payload"],
         }
+    except asyncio.CancelledError:
+        raise
     except HTTPException:
         raise
     except Exception as ex:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import json
 import time
 from typing import Any
 
@@ -51,8 +52,8 @@ async def receive_webhook(request: Request) -> dict[str, str]:
     # Parse webhook payload
     try:
         payload: dict[str, Any] = await request.json()
-    except Exception as ex:
-        LOGGER.exception("Failed to parse webhook payload")
+    except json.JSONDecodeError as ex:
+        LOGGER.warning("Failed to parse webhook payload: invalid JSON")
         raise HTTPException(
             status_code=http_status.HTTP_400_BAD_REQUEST,
             detail="Invalid JSON payload",

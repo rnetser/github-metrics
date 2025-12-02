@@ -31,6 +31,12 @@ class TurnaroundMetrics {
         this.repoTableBody = document.getElementById('turnaround-by-repo-body');
         this.reviewerTableBody = document.getElementById('turnaround-by-reviewer-body');
 
+        // Filter timeouts for debouncing
+        this.filterTimeouts = {
+            repo: null,
+            user: null
+        };
+
         this.initialize();
     }
 
@@ -56,7 +62,7 @@ class TurnaroundMetrics {
     /**
      * Check if we should load metrics and load them if conditions are met
      */
-    checkAndLoadMetrics() {
+    checkAndLoadMetrics(retryCount = 0) {
         const hash = window.location.hash; // Full hash including #
         const currentHash = hash.slice(1) || 'overview'; // Remove # and default to overview
 
@@ -78,8 +84,13 @@ class TurnaroundMetrics {
             this.loadMetrics();
         } else {
             console.log('[Turnaround] Time filters not ready, waiting...');
-            // Retry after a short delay
-            setTimeout(() => this.checkAndLoadMetrics(), 100);
+            // Retry after a short delay with max attempts
+            const maxRetries = 50; // 50 retries * 100ms = 5 seconds
+            if (retryCount < maxRetries) {
+                setTimeout(() => this.checkAndLoadMetrics(retryCount + 1), 100);
+            } else {
+                console.error('[Turnaround] Max retry attempts reached. Time filters failed to initialize.');
+            }
         }
     }
 
@@ -107,11 +118,10 @@ class TurnaroundMetrics {
         });
 
         // Listen for repository filter changes with debounce
-        let repoFilterTimeout = null;
         document.addEventListener('input', (e) => {
             if (e.target.id === 'repositoryFilter') {
-                clearTimeout(repoFilterTimeout);
-                repoFilterTimeout = setTimeout(() => {
+                clearTimeout(this.filterTimeouts.repo);
+                this.filterTimeouts.repo = setTimeout(() => {
                     const hash = window.location.hash.slice(1);
                     if (hash === 'contributors') {
                         console.log('[Turnaround] Repository filter changed, refreshing metrics');
@@ -122,11 +132,10 @@ class TurnaroundMetrics {
         });
 
         // Listen for user filter changes with debounce
-        let userFilterTimeout = null;
         document.addEventListener('input', (e) => {
             if (e.target.id === 'userFilter') {
-                clearTimeout(userFilterTimeout);
-                userFilterTimeout = setTimeout(() => {
+                clearTimeout(this.filterTimeouts.user);
+                this.filterTimeouts.user = setTimeout(() => {
                     const hash = window.location.hash.slice(1);
                     if (hash === 'contributors') {
                         console.log('[Turnaround] User filter changed, refreshing metrics');
@@ -589,7 +598,8 @@ class TurnaroundMetrics {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        // Delay URL.revokeObjectURL to ensure download starts
+        setTimeout(() => URL.revokeObjectURL(url), 100);
     }
 }
 

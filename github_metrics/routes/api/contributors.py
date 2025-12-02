@@ -463,6 +463,12 @@ async def get_metrics_contributors(
             db_manager.fetchval(pr_lgtm_count_query, *params_without_pagination),
         )
 
+        # Convert potentially None values to integers with safe defaults
+        pr_creators_total = int(pr_creators_total or 0)
+        pr_reviewers_total = int(pr_reviewers_total or 0)
+        pr_approvers_total = int(pr_approvers_total or 0)
+        pr_lgtm_total = int(pr_lgtm_total or 0)
+
         # Execute all data queries in parallel for better performance
         pr_creators_rows, pr_reviewers_rows, pr_approvers_rows, pr_lgtm_rows = await asyncio.gather(
             db_manager.fetch(pr_creators_query, *params),
@@ -570,8 +576,12 @@ async def get_metrics_contributors(
                 },
             },
         }
-    except asyncio.CancelledError:
-        raise
+    except asyncio.CancelledError as ex:
+        LOGGER.debug("Contributors metrics request was cancelled")
+        raise HTTPException(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Request was cancelled",
+        ) from ex
     except HTTPException:
         raise
     except Exception as ex:

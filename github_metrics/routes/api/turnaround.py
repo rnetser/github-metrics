@@ -450,13 +450,12 @@ async def get_review_turnaround(
             for row in by_reviewer_rows
         ]
 
-        return {
-            "summary": summary,
-            "by_repository": by_repository,
-            "by_reviewer": by_reviewer,
-        }
-    except asyncio.CancelledError:
-        raise
+    except asyncio.CancelledError as ex:
+        LOGGER.debug("Review turnaround metrics request was cancelled")
+        raise HTTPException(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Request was cancelled",
+        ) from ex
     except HTTPException:
         raise
     except Exception as ex:
@@ -465,3 +464,9 @@ async def get_review_turnaround(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch review turnaround metrics",
         ) from ex
+    else:
+        return {
+            "summary": summary,
+            "by_repository": by_repository,
+            "by_reviewer": by_reviewer,
+        }

@@ -183,7 +183,7 @@ This is a FastAPI-based metrics service that receives GitHub webhooks, stores ev
 
 ### Project Structure
 
-```
+```text
 github_metrics/
 ├── app.py                    # Core app setup (350 lines)
 │                            # - FastAPI application initialization
@@ -380,10 +380,10 @@ Both test suites must pass to declare all tests successful.
 
 ### Development Server
 
-For debugging and code verification, use the dev server at http://localhost:8765/
+For debugging and code verification, use the dev server at <http://localhost:8765/>
 
 **Before making changes:**
-1. Check if the dev server is already running (visit http://localhost:8765/dashboard)
+1. Check if the dev server is already running (visit <http://localhost:8765/dashboard>)
 2. If running, use it directly - the server has **hot reload** enabled, so no restart is needed when code changes
 3. If not running, start it with: `./dev/run.sh`
 
@@ -572,7 +572,7 @@ test_config.py       # All config.py tests
 
 - Run against the **live dev server** (no mocking)
 - Use Playwright for browser automation
-- Test real user interactions and full stack behavior
+- Test real user interactions and full-stack behavior
 - Require dev server to be running before test execution
 - Automatically start/stop server process in test fixtures
 - Test realistic scenarios: clicking buttons, filling forms, WebSocket connections

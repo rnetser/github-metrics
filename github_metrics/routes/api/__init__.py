@@ -14,12 +14,12 @@ from github_metrics.routes.api import (
 )
 
 __all__ = [
-    "webhooks",
+    "contributors",
+    "pr_story",
     "repositories",
     "summary",
-    "contributors",
-    "user_prs",
     "trends",
-    "pr_story",
     "turnaround",
+    "user_prs",
+    "webhooks",
 ]

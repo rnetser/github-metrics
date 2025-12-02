@@ -320,11 +320,13 @@ async def get_metrics_summary(
     )
 
     try:
-        # Execute queries using DatabaseManager helpers
-        summary_row = await db_manager.fetchrow(summary_query, *params)
-        top_repos_rows = await db_manager.fetch(top_repos_query, *params)
-        event_type_rows = await db_manager.fetch(event_type_query, *params)
-        time_range_row = await db_manager.fetchrow(time_range_query, *params)
+        # Execute independent queries in parallel for better performance
+        summary_row, top_repos_rows, event_type_rows, time_range_row = await asyncio.gather(
+            db_manager.fetchrow(summary_query, *params),
+            db_manager.fetch(top_repos_query, *params),
+            db_manager.fetch(event_type_query, *params),
+            db_manager.fetchrow(time_range_query, *params),
+        )
 
         # Execute previous period query if time range is specified
         prev_summary_row = None
