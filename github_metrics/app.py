@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import logging
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -22,6 +22,7 @@ from fastapi_mcp import FastApiMCP
 from fastapi_mcp.transport.http import FastApiHttpSessionManager
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from simple_logger.logger import get_logger
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from github_metrics.config import get_config
 from github_metrics.database import DatabaseManager, get_database_manager
@@ -70,6 +71,35 @@ class MCPClosedResourceErrorFilter(logging.Filter):
         if record.exc_info and "ClosedResourceError" in str(record.exc_info):
             return False
         return True
+
+
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    """Middleware to disable caching for static files during development.
+
+    Adds Cache-Control headers to prevent browser caching of static assets.
+    This ensures that updated JavaScript, CSS, and other static files are
+    immediately visible without requiring hard refresh.
+    """
+
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+        """Add no-cache headers to static file responses.
+
+        Args:
+            request: The incoming HTTP request.
+            call_next: The next middleware or route handler.
+
+        Returns:
+            Response with Cache-Control headers for static paths.
+        """
+        response = await call_next(request)
+
+        # Only apply to /static/ paths
+        if request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+
+        return response
 
 
 # Add filter to MCP logger to suppress specific known errors while allowing other logs
@@ -244,6 +274,9 @@ def create_app() -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
+
+    # Add middleware to prevent browser caching of static files
+    app.add_middleware(NoCacheMiddleware)
 
     # Mount static files
     static_path = Path(__file__).parent / "web" / "static"

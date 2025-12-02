@@ -1,3 +1,5 @@
+/* global Event */
+
 /**
  * ComboBox Component - Unified dropdown + free text input with fuzzy search
  *
@@ -46,6 +48,7 @@ class ComboBox {
 
         this.input = null;
         this.dropdown = null;
+        this.clearButton = null;
         this.highlightedIndex = -1;
         this.filteredOptions = [];
         this.isOpen = false;
@@ -98,6 +101,9 @@ class ComboBox {
         // Create dropdown element
         this._createDropdown();
 
+        // Create clear button
+        this._createClearButton();
+
         // Set up event listeners
         this._setupEventListeners();
 
@@ -122,6 +128,46 @@ class ComboBox {
 
         // Append dropdown to container
         this.container.appendChild(this.dropdown);
+    }
+
+    /**
+     * Create clear button element
+     * @private
+     */
+    _createClearButton() {
+        this.clearButton = document.createElement('button');
+        this.clearButton.className = 'combo-box-clear';
+        this.clearButton.type = 'button';
+        this.clearButton.innerHTML = '&times;';
+        this.clearButton.setAttribute('aria-label', 'Clear input');
+        this.clearButton.style.display = 'none'; // Initially hidden
+
+        // Insert clear button after input
+        this.input.parentNode.insertBefore(this.clearButton, this.input.nextSibling);
+
+        // Click handler
+        this.clearButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.input.value = '';
+            this._updateClearButtonVisibility();
+
+            // Trigger input event to update filters
+            this.input.dispatchEvent(new Event('input', { bubbles: true }));
+
+            // Focus back on input
+            this.input.focus();
+        });
+    }
+
+    /**
+     * Update clear button visibility based on input value
+     * @private
+     */
+    _updateClearButtonVisibility() {
+        if (this.clearButton) {
+            this.clearButton.style.display = this.input.value ? 'block' : 'none';
+        }
     }
 
     /**
@@ -166,12 +212,16 @@ class ComboBox {
      */
     _handleInput(e) {
         const value = e.target.value;
-        this._filterOptions(value);
+        const trimmedValue = value.trim();
+        this._filterOptions(trimmedValue);
         this._renderDropdown();
 
-        // Trigger onInput callback
+        // Update clear button visibility
+        this._updateClearButtonVisibility();
+
+        // Trigger onInput callback with trimmed value
         if (this.allowFreeText) {
-            this.onInput(value);
+            this.onInput(trimmedValue);
         }
 
         // Open dropdown if closed
@@ -400,7 +450,12 @@ class ComboBox {
         });
 
         this.input.value = option.label;
+        this._updateClearButtonVisibility();
         this.input.removeAttribute('aria-activedescendant');
+
+        // Dispatch input event so external listeners (like turnaround.js filters) can react
+        this.input.dispatchEvent(new Event('input', { bubbles: true }));
+
         this.onSelect(option.value);
         this.close();
     }
@@ -527,6 +582,7 @@ class ComboBox {
         } else {
             this.input.value = value;
         }
+        this._updateClearButtonVisibility();
     }
 
     /**
@@ -534,6 +590,7 @@ class ComboBox {
      */
     clear() {
         this.input.value = '';
+        this._updateClearButtonVisibility();
         this.close();
     }
 
@@ -573,6 +630,11 @@ class ComboBox {
         // Remove dropdown
         if (this.dropdown && this.dropdown.parentNode) {
             this.dropdown.parentNode.removeChild(this.dropdown);
+        }
+
+        // Remove clear button
+        if (this.clearButton && this.clearButton.parentNode) {
+            this.clearButton.parentNode.removeChild(this.clearButton);
         }
 
         // Remove classes

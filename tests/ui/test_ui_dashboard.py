@@ -119,7 +119,7 @@ class TestDashboardControls:
 
         # UI Contract Verification:
         # These assertions verify the UI contract - the dashboard MUST have exactly 4 time range options
-        # (1h, 24h, 7d, 30d) with "24h" as the default. Changes to option count or default value are
+        # (1h, 24h, 7d, 30d) with "7d" as the default. Changes to option count or default value are
         # breaking changes to the UI contract. Failures here indicate intentional contract violations,
         # not flaky test behavior.
         # Check options exist
@@ -133,7 +133,7 @@ class TestDashboardControls:
         await expect(options.nth(3)).to_have_attribute("value", "30d")
 
         # Check default selection
-        await expect(time_range_select).to_have_value("24h")
+        await expect(time_range_select).to_have_value("7d")
 
     async def test_time_range_selector_changes(self, page_with_js_coverage: Page) -> None:
         """Test time range selector can be changed."""
@@ -592,12 +592,12 @@ class TestDashboardStaticAssets:
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
 
         # Check all JS modules are referenced
-        await expect(page_with_js_coverage.locator('script[src="/static/js/metrics/utils.js"]')).to_be_attached()
-        await expect(page_with_js_coverage.locator('script[src="/static/js/metrics/api-client.js"]')).to_be_attached()
-        await expect(page_with_js_coverage.locator('script[src="/static/js/metrics/combo-box.js"]')).to_be_attached()
-        await expect(page_with_js_coverage.locator('script[src="/static/js/metrics/pr-story.js"]')).to_be_attached()
-        await expect(page_with_js_coverage.locator('script[src="/static/js/metrics/navigation.js"]')).to_be_attached()
-        await expect(page_with_js_coverage.locator('script[src="/static/js/metrics/dashboard.js"]')).to_be_attached()
+        await expect(page_with_js_coverage.locator('script[src^="/static/js/metrics/utils.js"]')).to_be_attached()
+        await expect(page_with_js_coverage.locator('script[src^="/static/js/metrics/api-client.js"]')).to_be_attached()
+        await expect(page_with_js_coverage.locator('script[src^="/static/js/metrics/combo-box.js"]')).to_be_attached()
+        await expect(page_with_js_coverage.locator('script[src^="/static/js/metrics/pr-story.js"]')).to_be_attached()
+        await expect(page_with_js_coverage.locator('script[src^="/static/js/metrics/navigation.js"]')).to_be_attached()
+        await expect(page_with_js_coverage.locator('script[src^="/static/js/metrics/dashboard.js"]')).to_be_attached()
 
     async def test_favicon_loads(self, page_with_js_coverage: Page) -> None:
         """Verify favicon is linked."""
@@ -748,7 +748,7 @@ class TestPRStoryModal:
         """Verify PR story script is loaded."""
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
 
-        script = page_with_js_coverage.locator('script[src="/static/js/metrics/pr-story.js"]')
+        script = page_with_js_coverage.locator('script[src^="/static/js/metrics/pr-story.js"]')
         await expect(script).to_be_attached()
 
     async def test_pr_table_exists(self, page_with_js_coverage: Page) -> None:

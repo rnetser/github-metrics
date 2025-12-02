@@ -1,3 +1,5 @@
+/* global CustomEvent */
+
 /**
  * Metrics Dashboard - Main JavaScript Controller
  *
@@ -32,7 +34,9 @@ class MetricsDashboard {
             webhooks: null,
             repositories: null
         };
-        this.timeRange = '24h';  // Default time range
+        // Read default from HTML select element (single source of truth)
+        const timeRangeSelect = document.getElementById('time-range-select');
+        this.timeRange = timeRangeSelect ? timeRangeSelect.value : '7d';
         this.repositoryFilter = '';  // Repository filter lowercase for local comparisons (empty = show all)
         this.repositoryFilterRaw = '';  // Repository filter original case for API calls
         this.userFilter = '';  // User filter (empty = show all)
@@ -98,13 +102,15 @@ class MetricsDashboard {
         // 5. Initialize ComboBox components
         this.initializeComboBoxes();
 
-        // 6. Populate date inputs with default 24h range logic so they are not empty
+        // 6. Populate date inputs with default 7d range logic so they are not empty
         const { startTime, endTime } = this.getTimeRangeDates(this.timeRange);
         const startInput = document.getElementById('startTime');
         const endInput = document.getElementById('endTime');
         if (startInput && endInput) {
             startInput.value = this.formatDateForInput(startTime);
             endInput.value = this.formatDateForInput(endTime);
+            // Note: No change events dispatched here to avoid triggering handleCustomDateChange
+            // during initialization. Events are only dispatched when user changes time range.
         }
 
         // 7. Show loading state
@@ -196,6 +202,10 @@ class MetricsDashboard {
             this.populateRepositoryFilter();
             this.populateUserFilter();
 
+            // Dispatch event to notify other modules that dashboard is ready
+            document.dispatchEvent(new CustomEvent('dashboard:ready'));
+            console.log('[Dashboard] Dispatched dashboard:ready event');
+
         } catch (error) {
             console.error('[Dashboard] Error loading initial data:', error);
             throw error;
@@ -234,13 +244,13 @@ class MetricsDashboard {
                         endTime: new Date(endInput.value).toISOString()
                     };
                 }
-                // Fallback to 24h if inputs invalid
-                start.setHours(now.getHours() - 24);
+                // Fallback to 7d if inputs invalid
+                start.setDate(now.getDate() - 7);
                 break;
             }
             default:
-                // Default to 24h if unknown
-                start.setHours(now.getHours() - 24);
+                // Default to 7d if unknown
+                start.setDate(now.getDate() - 7);
         }
 
         return {
@@ -1088,6 +1098,10 @@ class MetricsDashboard {
             if (startInput && endInput) {
                 startInput.value = this.formatDateForInput(startTime);
                 endInput.value = this.formatDateForInput(endTime);
+
+                // Dispatch custom event for turnaround.js to reload data
+                // Don't use 'change' event to avoid triggering handleCustomDateChange
+                document.dispatchEvent(new CustomEvent('timeFiltersUpdated'));
             }
         }
 

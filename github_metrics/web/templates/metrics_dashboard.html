@@ -129,8 +129,8 @@
                   <label for="time-range-select">Quick Range:</label>
                   <select id="time-range-select">
                     <option value="1h">Last Hour</option>
-                    <option value="24h" selected>Last 24 Hours</option>
-                    <option value="7d">Last 7 Days</option>
+                    <option value="24h">Last 24 Hours</option>
+                    <option value="7d" selected>Last 7 Days</option>
                     <option value="30d">Last 30 Days</option>
                   </select>
                 </div>
@@ -142,13 +142,17 @@
                   <label for="endTime">End Time:</label>
                   <input type="datetime-local" id="endTime" />
                 </div>
-                <div class="filter-group" id="repository-filter-group">
+                <div class="filter-group">
                   <label for="repositoryFilter">Repository:</label>
-                  <input type="text" id="repositoryFilter" placeholder="Type to search or select..." />
+                  <div class="combo-box-wrapper" id="repository-filter-group">
+                    <input type="text" id="repositoryFilter" placeholder="Type to search or select..." />
+                  </div>
                 </div>
-                <div class="filter-group" id="user-filter-group">
+                <div class="filter-group">
                   <label for="userFilter">User:</label>
-                  <input type="text" id="userFilter" placeholder="Type to search or select..." />
+                  <div class="combo-box-wrapper" id="user-filter-group">
+                    <input type="text" id="userFilter" placeholder="Type to search or select..." />
+                  </div>
                 </div>
                 <div class="filter-group filter-group-button">
                   <button id="refresh-button" class="btn btn-primary" title="Reload Metrics">Refresh</button>
@@ -388,17 +392,17 @@
                     <div class="kpi-card">
                       <div class="kpi-label">Avg First Review</div>
                       <div class="kpi-value" id="kpi-first-review">-</div>
-                      <div class="kpi-unit">hours</div>
+                      <div class="kpi-unit"></div>
                     </div>
                     <div class="kpi-card">
                       <div class="kpi-label">Avg Approval</div>
                       <div class="kpi-value" id="kpi-approval">-</div>
-                      <div class="kpi-unit">hours</div>
+                      <div class="kpi-unit"></div>
                     </div>
                     <div class="kpi-card">
                       <div class="kpi-label">Avg PR Lifecycle</div>
                       <div class="kpi-value" id="kpi-lifecycle">-</div>
-                      <div class="kpi-unit">hours</div>
+                      <div class="kpi-unit"></div>
                     </div>
                     <div class="kpi-card">
                       <div class="kpi-label">PRs Analyzed</div>
