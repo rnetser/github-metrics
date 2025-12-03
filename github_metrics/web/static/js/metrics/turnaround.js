@@ -117,7 +117,7 @@ class TurnaroundMetrics {
             }
         });
 
-        // Listen for repository filter changes with debounce
+        // Listen for repository and user filter changes with debounce
         document.addEventListener('input', (e) => {
             if (e.target.id === 'repositoryFilter') {
                 clearTimeout(this.filterTimeouts.repo);
@@ -128,12 +128,7 @@ class TurnaroundMetrics {
                         this.loadMetrics();
                     }
                 }, 300);
-            }
-        });
-
-        // Listen for user filter changes with debounce
-        document.addEventListener('input', (e) => {
-            if (e.target.id === 'userFilter') {
+            } else if (e.target.id === 'userFilter') {
                 clearTimeout(this.filterTimeouts.user);
                 this.filterTimeouts.user = setTimeout(() => {
                     const hash = window.location.hash.slice(1);

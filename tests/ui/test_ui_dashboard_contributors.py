@@ -14,6 +14,12 @@ TIMEOUT = 10000  # 10 seconds timeout for UI interactions
 pytestmark = [pytest.mark.ui, pytest.mark.asyncio]
 
 
+async def go_to_contributors(page: Page) -> None:
+    """Navigate to Contributors page and wait for load."""
+    await page.goto(f"{DASHBOARD_URL}#contributors", timeout=TIMEOUT)
+    await page.wait_for_load_state("networkidle")
+
+
 @pytest.mark.usefixtures("dev_server")
 @pytest.mark.asyncio(loop_scope="session")
 class TestContributorsPage:
@@ -34,8 +40,7 @@ class TestContributorsPage:
 
     async def test_turnaround_by_repo_section_exists(self, page_with_js_coverage: Page) -> None:
         """Verify Turnaround by Repository section exists."""
-        await page_with_js_coverage.goto(f"{DASHBOARD_URL}#contributors", timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_load_state("networkidle")
+        await go_to_contributors(page_with_js_coverage)
 
         # Check if turnaround by repo section exists
         turnaround_by_repo = page_with_js_coverage.locator('.chart-container[data-section="turnaround-by-repo"]')
@@ -43,8 +48,7 @@ class TestContributorsPage:
 
     async def test_turnaround_by_reviewer_section_exists(self, page_with_js_coverage: Page) -> None:
         """Verify Turnaround by Reviewer section exists."""
-        await page_with_js_coverage.goto(f"{DASHBOARD_URL}#contributors", timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_load_state("networkidle")
+        await go_to_contributors(page_with_js_coverage)
 
         # Check if turnaround by reviewer section exists
         turnaround_by_reviewer = page_with_js_coverage.locator(
@@ -54,8 +58,7 @@ class TestContributorsPage:
 
     async def test_contributors_page_download_buttons_exist(self, page_with_js_coverage: Page) -> None:
         """Verify download buttons exist for Contributors page sections."""
-        await page_with_js_coverage.goto(f"{DASHBOARD_URL}#contributors", timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_load_state("networkidle")
+        await go_to_contributors(page_with_js_coverage)
 
         # Contributors page sections that should have download buttons
         sections = [
@@ -73,8 +76,7 @@ class TestContributorsPage:
 
     async def test_contributors_page_download_buttons_clickable(self, page_with_js_coverage: Page) -> None:
         """Verify download buttons are clickable on Contributors page."""
-        await page_with_js_coverage.goto(f"{DASHBOARD_URL}#contributors", timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_load_state("networkidle")
+        await go_to_contributors(page_with_js_coverage)
 
         # Test turnaround by repo CSV button
         turnaround_repo_csv = page_with_js_coverage.locator(
@@ -92,8 +94,7 @@ class TestContributorsPage:
 
     async def test_contributors_page_sections_have_collapse_buttons(self, page_with_js_coverage: Page) -> None:
         """Verify Contributors page sections have collapse buttons."""
-        await page_with_js_coverage.goto(f"{DASHBOARD_URL}#contributors", timeout=TIMEOUT)
-        await page_with_js_coverage.wait_for_load_state("networkidle")
+        await go_to_contributors(page_with_js_coverage)
 
         # Check collapse buttons exist
         turnaround_repo_collapse = page_with_js_coverage.locator('[data-section="turnaround-by-repo"] .collapse-btn')

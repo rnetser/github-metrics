@@ -273,9 +273,9 @@ def dev_server() -> Generator[str]:
         if response.status_code == 200:
             print(f"Dev server {base_url} is already up, reusing it.")
             server_already_running = True
-    except httpx.RequestError:
+    except httpx.RequestError as e:
         # Server not running, start it
-        pass
+        print(f"Dev server probe failed for {base_url}: {e}")
 
     if server_already_running:
         yield base_url

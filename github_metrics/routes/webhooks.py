@@ -97,8 +97,26 @@ async def receive_webhook(request: Request) -> dict[str, str]:
                 pr_number=pr_number,
             )
         except Exception:
+            # CRITICAL: Metrics tracking failure indicates potential data loss
+            # This should trigger operational alerts for immediate investigation
+            LOGGER.critical(
+                "METRICS_TRACKING_FAILURE: Webhook event not persisted - potential data loss",
+                extra={
+                    "alert": "metrics_tracking_failure",
+                    "severity": "critical",
+                    "delivery_id": delivery_id,
+                    "repository": repository,
+                    "event_type": event_type,
+                    "action": action,
+                    "sender": sender,
+                    "pr_number": pr_number,
+                    "processing_time_ms": processing_time_ms,
+                    "impact": "data_loss",
+                },
+            )
+            # Also log full exception details for debugging
             LOGGER.exception(
-                "Failed to track webhook event",
+                "Failed to track webhook event - exception details",
                 extra={
                     "delivery_id": delivery_id,
                     "repository": repository,

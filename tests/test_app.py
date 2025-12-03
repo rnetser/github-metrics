@@ -13,6 +13,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+import os
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
@@ -25,6 +26,7 @@ from fastapi.testclient import TestClient
 
 from github_metrics import app as app_module
 from github_metrics.app import app, create_app
+from github_metrics.config import _reset_config_for_testing
 from github_metrics.utils.datetime_utils import parse_datetime_string
 
 
@@ -259,7 +261,7 @@ class TestDashboardEndpoint:
 
     def test_dashboard_error_when_controller_not_initialized(self) -> None:
         """Test dashboard returns error when controller not initialized."""
-        with patch("github_metrics.app.dashboard_controller", None):
+        with patch("github_metrics.routes.dashboard.dashboard_controller", None):
             client = TestClient(app)
             response = client.get("/dashboard")
 
@@ -937,6 +939,65 @@ class TestWebhookEndpointAdditional:
 
             # Webhook should still succeed
             assert response.status_code == status.HTTP_200_OK
+
+    def test_webhook_tracking_failure_emits_critical_alert(self) -> None:
+        """Test webhook tracking failure emits CRITICAL alert log for operational monitoring."""
+        payload = {
+            "action": "opened",
+            "pull_request": {"number": 123},
+            "repository": {"full_name": "testorg/testrepo"},
+            "sender": {"login": "testuser"},
+        }
+
+        with (
+            patch("github_metrics.routes.webhooks.metrics_tracker") as mock_tracker,
+            patch("github_metrics.routes.webhooks.allowed_ips", ()),
+            patch("github_metrics.routes.webhooks.get_config") as mock_config,
+            patch("github_metrics.routes.webhooks.LOGGER") as mock_logger,
+        ):
+            mock_tracker.track_webhook_event = AsyncMock(side_effect=Exception("Database connection failed"))
+            config_mock = Mock()
+            config_mock.webhook.secret = ""
+            mock_config.return_value = config_mock
+
+            client = TestClient(app)
+            response = client.post(
+                "/metrics",
+                json=payload,
+                headers={
+                    "X-GitHub-Delivery": "test-delivery-critical",
+                    "X-GitHub-Event": "pull_request",
+                },
+            )
+
+            # Webhook should still succeed
+            assert response.status_code == status.HTTP_200_OK
+
+            # Verify CRITICAL log was emitted with alertable structured fields
+            mock_logger.critical.assert_called_once()
+            critical_call_args = mock_logger.critical.call_args
+
+            # Verify critical message
+            assert "METRICS_TRACKING_FAILURE" in critical_call_args[0][0]
+            assert "potential data loss" in critical_call_args[0][0]
+
+            # Verify structured fields for operational alerting
+            extra = critical_call_args[1]["extra"]
+            assert extra["alert"] == "metrics_tracking_failure"
+            assert extra["severity"] == "critical"
+            assert extra["delivery_id"] == "test-delivery-critical"
+            assert extra["repository"] == "testorg/testrepo"
+            assert extra["event_type"] == "pull_request"
+            assert extra["action"] == "opened"
+            assert extra["sender"] == "testuser"
+            assert extra["pr_number"] == 123
+            assert extra["impact"] == "data_loss"
+            assert "processing_time_ms" in extra
+
+            # Verify exception details are also logged
+            mock_logger.exception.assert_called_once()
+            exception_call_args = mock_logger.exception.call_args
+            assert "Failed to track webhook event" in exception_call_args[0][0]
 
 
 class TestCreateApp:
@@ -1828,3 +1889,57 @@ class TestReviewTurnaroundEndpoint:
 
             assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
             assert response.json()["detail"] == "Request was cancelled"
+
+
+class TestNoCacheMiddleware:
+    """Tests for NoCacheMiddleware application based on debug mode."""
+
+    def test_no_cache_middleware_enabled_in_debug_mode(self) -> None:
+        """Test NoCacheMiddleware is applied when debug mode is enabled."""
+        # Save and set environment variable for debug mode
+        original_value = os.environ.get("METRICS_SERVER_DEBUG")
+        os.environ["METRICS_SERVER_DEBUG"] = "true"
+
+        try:
+            # Reset config to pick up new environment variable
+            _reset_config_for_testing()
+
+            # Create new app with debug mode
+            test_app = create_app()
+
+            # Verify middleware is in the app (middleware objects have a cls attribute)
+            assert any(
+                hasattr(middleware, "cls") and middleware.cls.__name__ == "NoCacheMiddleware"
+                for middleware in test_app.user_middleware
+            ), "NoCacheMiddleware should be present in debug mode"
+        finally:
+            # Restore original value
+            if original_value is not None:
+                os.environ["METRICS_SERVER_DEBUG"] = original_value
+            else:
+                os.environ.pop("METRICS_SERVER_DEBUG", None)
+            _reset_config_for_testing()
+
+    def test_no_cache_middleware_disabled_in_production(self) -> None:
+        """Test NoCacheMiddleware is not applied when debug mode is disabled."""
+        # Save and ensure debug mode is disabled
+        original_value = os.environ.get("METRICS_SERVER_DEBUG")
+        os.environ.pop("METRICS_SERVER_DEBUG", None)
+
+        try:
+            # Reset config to pick up new environment variable
+            _reset_config_for_testing()
+
+            # Create new app without debug mode
+            test_app = create_app()
+
+            # Verify middleware is NOT in the app (check cls attribute)
+            middleware_names = [
+                middleware.cls.__name__ for middleware in test_app.user_middleware if hasattr(middleware, "cls")
+            ]
+            assert "NoCacheMiddleware" not in middleware_names, "NoCacheMiddleware should NOT be present in production"
+        finally:
+            # Restore original value
+            if original_value is not None:
+                os.environ["METRICS_SERVER_DEBUG"] = original_value
+            _reset_config_for_testing()

@@ -93,6 +93,7 @@ Both views share common filtering capabilities:
 - **User Filter** - ComboBox dropdown to filter by specific users
 - **Time Range** - Defaults to last 7 days, configurable for custom date ranges
 - **Clear Filters** - One-click reset button (X) to clear all active filters
+- **Data Export** - Download filtered data as CSV or JSON for external analysis and reporting
 
 ---
 

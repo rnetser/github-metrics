@@ -268,6 +268,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
 def create_app() -> FastAPI:
     """Create and configure FastAPI application."""
+    config = get_config()
+
     app = FastAPI(
         title="GitHub Metrics",
         description="Metrics service for GitHub webhook event tracking and visualization",
@@ -275,8 +277,10 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Add middleware to prevent browser caching of static files
-    app.add_middleware(NoCacheMiddleware)
+    # Add middleware to prevent browser caching of static files (development only)
+    if config.server.debug:
+        app.add_middleware(NoCacheMiddleware)
+        LOGGER.info("Debug mode enabled: NoCacheMiddleware active for static files")
 
     # Mount static files
     static_path = Path(__file__).parent / "web" / "static"

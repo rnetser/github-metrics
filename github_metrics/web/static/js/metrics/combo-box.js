@@ -108,6 +108,9 @@ class ComboBox {
         // Set up event listeners
         this._setupEventListeners();
 
+        // Sync clear button visibility with initial input value
+        this._updateClearButtonVisibility();
+
         if (this.debug) {
             console.log(`[ComboBox] Initialized for input #${this.inputId}`);
         }
@@ -217,7 +220,7 @@ class ComboBox {
     _handleInput(e) {
         const value = e.target.value;
         const trimmedValue = value.trim();
-        this._filterOptions(trimmedValue);
+        this._filterOptions(value);
         this._renderDropdown();
 
         // Update clear button visibility
