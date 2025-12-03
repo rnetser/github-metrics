@@ -21,10 +21,9 @@ class MetricsDashboard {
     static SECTION_DISPLAY_NAMES = {
         'topRepositories': 'top_repositories',
         'recentEvents': 'recent_events',
-        'prCreators': 'pr_creators',
-        'prReviewers': 'pr_reviewers',
-        'prApprovers': 'pr_approvers',
         'userPrs': 'pull_requests'
+        // Note: prCreators, prReviewers, prApprovers removed from Overview page
+        // They're now only in Contributors page, managed by turnaround.js
     };
 
     constructor() {
@@ -47,20 +46,16 @@ class MetricsDashboard {
         this.pagination = {
             topRepositories: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
             recentEvents: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
-            prCreators: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
-            prReviewers: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
-            prApprovers: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
             userPrs: { page: 1, pageSize: 10, total: 0, totalPages: 0 }
+            // Note: prCreators, prReviewers, prApprovers removed from Overview page
         };
 
         // Sort state for each table
         this.tableSortState = {
             topRepositories: { column: null, direction: 'asc' },
             recentEvents: { column: null, direction: 'asc' },
-            prCreators: { column: null, direction: 'asc' },
-            prReviewers: { column: null, direction: 'asc' },
-            prApprovers: { column: null, direction: 'asc' },
             userPrs: { column: null, direction: 'asc' }
+            // Note: prCreators, prReviewers, prApprovers removed from Overview page
         };
 
         // Load saved page sizes from localStorage
@@ -653,125 +648,15 @@ class MetricsDashboard {
 
     /**
      * Update PR contributors tables with new data.
+     * Note: This method is now a no-op as PR contributor tables were removed from Overview page.
+     * PR contributor tables are only in Contributors page, managed by turnaround.js.
      *
      * @param {Object} contributors - Contributors data with pagination
      */
     updateContributorsTables(contributors) {
-        if (!contributors) {
-            console.warn('[Dashboard] No contributors data available');
-            return;
-        }
-
-        // Extract data and pagination for PR Creators
-        const prCreatorsData = contributors.pr_creators?.data || contributors.pr_creators || [];
-        const prCreatorsPagination = contributors.pr_creators?.pagination;
-
-        if (prCreatorsPagination) {
-            this.pagination.prCreators = {
-                page: prCreatorsPagination.page,
-                pageSize: prCreatorsPagination.page_size,
-                total: prCreatorsPagination.total,
-                totalPages: prCreatorsPagination.total_pages
-            };
-        }
-
-        // Update PR Creators table
-        this.updateContributorsTable(
-            'pr-creators-table-body',
-            prCreatorsData,
-            (creator) => `
-                <tr>
-                    <td><span class="clickable-username" data-user="${this.escapeHtml(creator.user)}">${this.escapeHtml(creator.user)}</span></td>
-                    <td>${creator.total_prs}</td>
-                    <td>${creator.merged_prs}</td>
-                    <td>${creator.closed_prs}</td>
-                    <td>${creator.avg_commits_per_pr || 0}</td>
-                </tr>
-            `
-        );
-
-        // Add pagination controls for PR Creators
-        const creatorsContainer = document.querySelector('[data-section="pr-creators"]');
-        const creatorsExistingControls = creatorsContainer?.querySelector('.pagination-controls');
-        if (creatorsExistingControls) {
-            creatorsExistingControls.remove();
-        }
-        if (creatorsContainer && prCreatorsPagination) {
-            creatorsContainer.insertAdjacentHTML('beforeend', this.createPaginationControls('prCreators'));
-        }
-
-        // Extract data and pagination for PR Reviewers
-        const prReviewersData = contributors.pr_reviewers?.data || contributors.pr_reviewers || [];
-        const prReviewersPagination = contributors.pr_reviewers?.pagination;
-
-        if (prReviewersPagination) {
-            this.pagination.prReviewers = {
-                page: prReviewersPagination.page,
-                pageSize: prReviewersPagination.page_size,
-                total: prReviewersPagination.total,
-                totalPages: prReviewersPagination.total_pages
-            };
-        }
-
-        // Update PR Reviewers table
-        this.updateContributorsTable(
-            'pr-reviewers-table-body',
-            prReviewersData,
-            (reviewer) => `
-                <tr>
-                    <td><span class="clickable-username" data-user="${this.escapeHtml(reviewer.user)}">${this.escapeHtml(reviewer.user)}</span></td>
-                    <td>${reviewer.total_reviews}</td>
-                    <td>${reviewer.prs_reviewed}</td>
-                    <td>${reviewer.avg_reviews_per_pr}</td>
-                </tr>
-            `
-        );
-
-        // Add pagination controls for PR Reviewers
-        const reviewersContainer = document.querySelector('[data-section="pr-reviewers"]');
-        const reviewersExistingControls = reviewersContainer?.querySelector('.pagination-controls');
-        if (reviewersExistingControls) {
-            reviewersExistingControls.remove();
-        }
-        if (reviewersContainer && prReviewersPagination) {
-            reviewersContainer.insertAdjacentHTML('beforeend', this.createPaginationControls('prReviewers'));
-        }
-
-        // Extract data and pagination for PR Approvers
-        const prApproversData = contributors.pr_approvers?.data || contributors.pr_approvers || [];
-        const prApproversPagination = contributors.pr_approvers?.pagination;
-
-        if (prApproversPagination) {
-            this.pagination.prApprovers = {
-                page: prApproversPagination.page,
-                pageSize: prApproversPagination.page_size,
-                total: prApproversPagination.total,
-                totalPages: prApproversPagination.total_pages
-            };
-        }
-
-        // Update PR Approvers table
-        this.updateContributorsTable(
-            'pr-approvers-table-body',
-            prApproversData,
-            (approver) => `
-                <tr>
-                    <td><span class="clickable-username" data-user="${this.escapeHtml(approver.user)}">${this.escapeHtml(approver.user)}</span></td>
-                    <td>${approver.total_approvals}</td>
-                    <td>${approver.prs_approved}</td>
-                </tr>
-            `
-        );
-
-        // Add pagination controls for PR Approvers
-        const approversContainer = document.querySelector('[data-section="pr-approvers"]');
-        const approversExistingControls = approversContainer?.querySelector('.pagination-controls');
-        if (approversExistingControls) {
-            approversExistingControls.remove();
-        }
-        if (approversContainer && prApproversPagination) {
-            approversContainer.insertAdjacentHTML('beforeend', this.createPaginationControls('prApprovers'));
-        }
+        // No-op: PR contributor tables removed from Overview page
+        // They're only in Contributors page now, managed by turnaround.js
+        console.log('[Dashboard] updateContributorsTables called but PR contributor tables are in Contributors page');
     }
 
     /**
@@ -1618,13 +1503,6 @@ class MetricsDashboard {
                     this.currentData.webhooks = data;  // Store for sorting/downloads
                     this.updateRecentEventsTable(data);
                     break;
-                case 'prCreators':
-                case 'prReviewers':
-                case 'prApprovers':
-                    data = await this.apiClient.fetchContributors(startTime, endTime, state.pageSize, params);
-                    this.currentData.contributors = data;  // Store for sorting/downloads
-                    this.updateContributorsTables(data);
-                    break;
                 case 'userPrs':
                     data = await this.apiClient.fetchUserPRs(startTime, endTime, params);
                     // Store user PRs data for sorting
@@ -1634,6 +1512,8 @@ class MetricsDashboard {
                     this.currentData.userPrsView = null;
                     this.updateUserPRsTable(data);
                     break;
+                // Note: prCreators, prReviewers, prApprovers removed from Overview page
+                // They're only in Contributors page now, managed by turnaround.js
             }
         } catch (error) {
             console.error(`[Dashboard] Error loading ${section} data:`, error);
@@ -1795,10 +1675,9 @@ class MetricsDashboard {
         const tableToSection = {
             'topRepositoriesTable': 'topRepositories',
             'recentEventsTable': 'recentEvents',
-            'prCreatorsTable': 'prCreators',
-            'prReviewersTable': 'prReviewers',
-            'prApproversTable': 'prApprovers',
             'userPrsTable': 'userPrs'
+            // Note: PR contributor tables (prCreators, prReviewers, prApprovers) removed from Overview page
+            // They only exist in Contributors page now, managed by turnaround.js
         };
         return tableToSection[tableId] || null;
     }
@@ -1856,43 +1735,12 @@ class MetricsDashboard {
                 this.updateRecentEventsTable(sortedData);
                 this.updateSortIndicators('recentEventsTable', state.column, state.direction);
                 break;
-            case 'prCreators':
-                this.updateContributorsTable('pr-creators-table-body', sortedData, (creator) => `
-                    <tr>
-                        <td><span class="clickable-username" data-user="${this.escapeHtml(creator.user)}">${this.escapeHtml(creator.user)}</span></td>
-                        <td>${creator.total_prs}</td>
-                        <td>${creator.merged_prs}</td>
-                        <td>${creator.closed_prs}</td>
-                        <td>${creator.avg_commits_per_pr || 0}</td>
-                    </tr>
-                `);
-                this.updateSortIndicators('prCreatorsTable', state.column, state.direction);
-                break;
-            case 'prReviewers':
-                this.updateContributorsTable('pr-reviewers-table-body', sortedData, (reviewer) => `
-                    <tr>
-                        <td><span class="clickable-username" data-user="${this.escapeHtml(reviewer.user)}">${this.escapeHtml(reviewer.user)}</span></td>
-                        <td>${reviewer.total_reviews}</td>
-                        <td>${reviewer.prs_reviewed}</td>
-                        <td>${reviewer.avg_reviews_per_pr}</td>
-                    </tr>
-                `);
-                this.updateSortIndicators('prReviewersTable', state.column, state.direction);
-                break;
-            case 'prApprovers':
-                this.updateContributorsTable('pr-approvers-table-body', sortedData, (approver) => `
-                    <tr>
-                        <td><span class="clickable-username" data-user="${this.escapeHtml(approver.user)}">${this.escapeHtml(approver.user)}</span></td>
-                        <td>${approver.total_approvals}</td>
-                        <td>${approver.prs_approved}</td>
-                    </tr>
-                `);
-                this.updateSortIndicators('prApproversTable', state.column, state.direction);
-                break;
             case 'userPrs':
                 this.updateUserPRsTable({ data: sortedData, pagination: this.pagination.userPrs });
                 this.updateSortIndicators('userPrsTable', state.column, state.direction);
                 break;
+            // Note: PR contributor tables (prCreators, prReviewers, prApprovers) removed from Overview page
+            // They only exist in Contributors page now, managed by turnaround.js
         }
     }
 
@@ -1907,16 +1755,11 @@ class MetricsDashboard {
                 return this.currentData.topRepositories || [];
             case 'recentEvents':
                 return this.currentData.webhooks?.data || this.currentData.webhooks || [];
-            case 'prCreators':
-                return this.currentData.contributors?.pr_creators?.data || this.currentData.contributors?.pr_creators || [];
-            case 'prReviewers':
-                return this.currentData.contributors?.pr_reviewers?.data || this.currentData.contributors?.pr_reviewers || [];
-            case 'prApprovers':
-                return this.currentData.contributors?.pr_approvers?.data || this.currentData.contributors?.pr_approvers || [];
             case 'userPrs':
                 return this.currentData.userPrsView?.data || this.currentData.userPrsView ||
                        this.currentData.userPrs?.data || this.currentData.userPrs || [];
             default:
+                // Note: prCreators, prReviewers, prApprovers removed from Overview page
                 return [];
         }
     }

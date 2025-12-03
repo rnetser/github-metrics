@@ -31,6 +31,20 @@ class TurnaroundMetrics {
         this.repoTableBody = document.getElementById('turnaround-by-repo-body');
         this.reviewerTableBody = document.getElementById('turnaround-by-reviewer-body');
 
+        // Contributor metrics table bodies
+        this.prCreatorsTableBody = document.getElementById('pr-creators-metrics-body');
+        this.prReviewersTableBody = document.getElementById('pr-reviewers-metrics-body');
+        this.prApproversTableBody = document.getElementById('pr-approvers-metrics-body');
+        this.prLgtmTableBody = document.getElementById('pr-lgtm-metrics-body');
+
+        // Contributor metrics data and pagination state
+        this.contributorMetrics = {
+            pr_creators: { data: [], pagination: null, currentPage: 1 },
+            pr_reviewers: { data: [], pagination: null, currentPage: 1 },
+            pr_approvers: { data: [], pagination: null, currentPage: 1 },
+            pr_lgtm: { data: [], pagination: null, currentPage: 1 }
+        };
+
         // Filter timeouts for debouncing
         this.filterTimeouts = {
             repo: null,
@@ -54,6 +68,9 @@ class TurnaroundMetrics {
 
         // Set up download buttons
         this.setupDownloadButtons();
+
+        // Set up contributor metrics pagination
+        this.setupContributorPagination();
 
         // Check if we should load metrics (handles direct navigation to #contributors)
         this.checkAndLoadMetrics();
@@ -178,6 +195,9 @@ class TurnaroundMetrics {
             this.updateKPIs(response.summary);
             this.updateRepositoryTable(response.by_repository || []);
             this.updateReviewerTable(response.by_reviewer || []);
+
+            // Load contributor metrics (each category separately)
+            await this.loadContributorMetrics();
 
             // Show content
             this.showContent();
@@ -410,6 +430,27 @@ class TurnaroundMetrics {
         if (reviewerTable) {
             this.setupTableSortingForTable(reviewerTable, 'by_reviewer');
         }
+
+        // Contributor metrics tables
+        const prCreatorsTable = document.getElementById('prCreatorsMetricsTable');
+        if (prCreatorsTable) {
+            this.setupContributorTableSorting(prCreatorsTable, 'pr_creators');
+        }
+
+        const prReviewersTable = document.getElementById('prReviewersMetricsTable');
+        if (prReviewersTable) {
+            this.setupContributorTableSorting(prReviewersTable, 'pr_reviewers');
+        }
+
+        const prApproversTable = document.getElementById('prApproversMetricsTable');
+        if (prApproversTable) {
+            this.setupContributorTableSorting(prApproversTable, 'pr_approvers');
+        }
+
+        const prLgtmTable = document.getElementById('prLgtmMetricsTable');
+        if (prLgtmTable) {
+            this.setupContributorTableSorting(prLgtmTable, 'pr_lgtm');
+        }
     }
 
     /**
@@ -500,6 +541,24 @@ class TurnaroundMetrics {
             button.addEventListener('click', (e) => {
                 const format = e.currentTarget.dataset.format;
                 this.downloadData('by_reviewer', 'turnaround_by_reviewer', format);
+            });
+        });
+
+        // Contributor metrics download buttons
+        const contributorSections = {
+            prCreatorsMetrics: 'pr_creators',
+            prReviewersMetrics: 'pr_reviewers',
+            prApproversMetrics: 'pr_approvers',
+            prLgtmMetrics: 'pr_lgtm'
+        };
+
+        Object.entries(contributorSections).forEach(([section, category]) => {
+            const buttons = document.querySelectorAll(`[data-section="${section}"]`);
+            buttons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const format = e.currentTarget.dataset.format;
+                    this.downloadContributorData(category, section, format);
+                });
             });
         });
     }
@@ -595,6 +654,644 @@ class TurnaroundMetrics {
         document.body.removeChild(link);
         // Delay URL.revokeObjectURL to ensure download starts
         setTimeout(() => URL.revokeObjectURL(url), 100);
+    }
+
+    /**
+     * Download contributor data as CSV or JSON
+     */
+    downloadContributorData(category, filename, format) {
+        const data = this.contributorMetrics[category].data;
+
+        if (!data || data.length === 0) {
+            console.warn(`[Turnaround] No data available for download: ${category}`);
+            return;
+        }
+
+        if (format === 'csv') {
+            this.downloadCSV(data, filename);
+        } else if (format === 'json') {
+            this.downloadJSON(data, filename);
+        }
+    }
+
+    /**
+     * Load contributor metrics from API
+     */
+    async loadContributorMetrics() {
+        console.log('[Turnaround] Loading contributor metrics');
+
+        // Get filters
+        const filters = this.getTimeFilters();
+
+        // Fetch all contributor categories in parallel
+        await Promise.all([
+            this.loadContributorCategory('pr_creators', filters),
+            this.loadContributorCategory('pr_reviewers', filters),
+            this.loadContributorCategory('pr_approvers', filters),
+            this.loadContributorCategory('pr_lgtm', filters)
+        ]);
+    }
+
+    /**
+     * Load a specific contributor category
+     */
+    async loadContributorCategory(category, filters = {}) {
+        try {
+            const page = this.contributorMetrics[category].currentPage;
+            const params = {
+                ...filters,
+                page: page,
+                page_size: 10
+            };
+
+            console.log(`[Turnaround] Fetching ${category} metrics, page ${page}`);
+
+            const response = await apiClient.fetchContributors(
+                params.start_time,
+                params.end_time,
+                10,
+                {
+                    repository: params.repository,
+                    user: params.user,
+                    page: params.page,
+                    page_size: params.page_size
+                }
+            );
+
+            if (response.error) {
+                console.error(`[Turnaround] Error loading ${category}:`, response.error);
+                this.showContributorCategoryError(category, response.detail || response.error);
+                return;
+            }
+
+            // Store data and pagination
+            this.contributorMetrics[category].data = response[category]?.data || [];
+            this.contributorMetrics[category].pagination = response[category]?.pagination || null;
+
+            console.log(`[Turnaround] ${category} loaded:`, {
+                count: this.contributorMetrics[category].data.length,
+                pagination: this.contributorMetrics[category].pagination
+            });
+
+            // Update table
+            this.updateContributorTable(category);
+            this.updateContributorPagination(category);
+
+        } catch (error) {
+            console.error(`[Turnaround] Error loading ${category}:`, error);
+            this.showContributorCategoryError(category, error.message);
+        }
+    }
+
+    /**
+     * Update contributor table with data
+     */
+    updateContributorTable(category) {
+        const tableBodyMap = {
+            pr_creators: this.prCreatorsTableBody,
+            pr_reviewers: this.prReviewersTableBody,
+            pr_approvers: this.prApproversTableBody,
+            pr_lgtm: this.prLgtmTableBody
+        };
+
+        const tableBody = tableBodyMap[category];
+        if (!tableBody) {
+            console.warn(`[Turnaround] Table body not found for ${category}`);
+            return;
+        }
+
+        const data = this.contributorMetrics[category].data;
+
+        // Clear existing rows
+        tableBody.innerHTML = '';
+
+        // Handle empty data
+        if (!data || data.length === 0) {
+            const colspan = category === 'pr_creators' ? 5 : category === 'pr_reviewers' ? 4 : 3;
+            tableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; padding: 20px; color: var(--text-secondary);">No data available</td></tr>`;
+            return;
+        }
+
+        // Populate table based on category
+        data.forEach(item => {
+            const row = document.createElement('tr');
+
+            if (category === 'pr_creators') {
+                row.innerHTML = `
+                    <td><a href="#" class="clickable-username" data-username="${this.escapeHtml(item.user)}">${this.escapeHtml(item.user)}</a></td>
+                    <td>${item.total_prs || 0}</td>
+                    <td>${item.merged_prs || 0}</td>
+                    <td>${item.closed_prs || 0}</td>
+                    <td>${item.avg_commits_per_pr ? parseFloat(item.avg_commits_per_pr).toFixed(1) : '0.0'}</td>
+                `;
+            } else if (category === 'pr_reviewers') {
+                row.innerHTML = `
+                    <td><a href="#" class="clickable-username" data-username="${this.escapeHtml(item.user)}">${this.escapeHtml(item.user)}</a></td>
+                    <td>${item.total_reviews || 0}</td>
+                    <td>${item.prs_reviewed || 0}</td>
+                    <td>${item.avg_reviews_per_pr ? parseFloat(item.avg_reviews_per_pr).toFixed(1) : '0.0'}</td>
+                `;
+            } else if (category === 'pr_approvers') {
+                row.innerHTML = `
+                    <td><a href="#" class="clickable-username" data-username="${this.escapeHtml(item.user)}">${this.escapeHtml(item.user)}</a></td>
+                    <td>${item.total_approvals || 0}</td>
+                    <td>${item.prs_approved || 0}</td>
+                `;
+            } else if (category === 'pr_lgtm') {
+                row.innerHTML = `
+                    <td><a href="#" class="clickable-username" data-username="${this.escapeHtml(item.user)}">${this.escapeHtml(item.user)}</a></td>
+                    <td>${item.total_lgtm || 0}</td>
+                    <td>${item.prs_lgtm || 0}</td>
+                `;
+            }
+
+            tableBody.appendChild(row);
+        });
+
+        // Set up click handlers for usernames
+        this.setupUsernameClickHandlers(tableBody);
+    }
+
+    /**
+     * Set up click handlers for usernames
+     */
+    setupUsernameClickHandlers(tableBody) {
+        const usernameLinks = tableBody.querySelectorAll('.clickable-username');
+        console.log(`[Turnaround] Setting up click handlers for ${usernameLinks.length} username links`);
+        usernameLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation(); // Prevent dashboard.js global handler from firing
+                const username = e.currentTarget.dataset.username;
+                if (username) {
+                    this.showUserPrsModal(username);
+                }
+            });
+        });
+    }
+
+    /**
+     * Show modal with user's PRs
+     */
+    async showUserPrsModal(username) {
+        console.log(`[Turnaround] Opening PRs modal for ${username}`);
+
+        // Show modal
+        const modal = document.getElementById('userPrsModal');
+        const modalTitle = document.getElementById('userPrsUsername');
+        const modalBody = document.getElementById('userPrsModalBody');
+        const loadingEl = document.getElementById('userPrsLoading');
+        const prsList = document.getElementById('userPrsList');
+
+        if (!modal || !modalTitle || !prsList) {
+            console.error('[Turnaround] Modal elements not found');
+            return;
+        }
+
+        // Set username in title
+        modalTitle.textContent = username;
+
+        // Show modal and loading state
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        loadingEl.style.display = 'flex';
+        prsList.innerHTML = '';
+
+        // Set up close button handler
+        const closeBtn = modal.querySelector('.close-modal');
+        if (closeBtn) {
+            closeBtn.onclick = () => this.closeUserPrsModal();
+        }
+
+        // Close on click outside
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                this.closeUserPrsModal();
+            }
+        };
+
+        // Close on ESC key
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                this.closeUserPrsModal();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+
+        // Fetch user PRs
+        try {
+            const filters = this.getTimeFilters();
+            const params = new URLSearchParams({
+                user: username,
+                page: '1',
+                page_size: '50'
+            });
+
+            if (filters.start_time) params.append('start_time', filters.start_time);
+            if (filters.end_time) params.append('end_time', filters.end_time);
+            if (filters.repository) params.append('repository', filters.repository);
+
+            const response = await fetch(`/api/metrics/user-prs?${params}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            // Hide loading
+            loadingEl.style.display = 'none';
+
+            // Render PRs
+            this.renderUserPrsList(data.data, username);
+
+        } catch (error) {
+            console.error('[Turnaround] Error loading user PRs:', error);
+            loadingEl.style.display = 'none';
+            prsList.innerHTML = `<div class="error-message">Failed to load PRs: ${this.escapeHtml(error.message)}</div>`;
+        }
+    }
+
+    /**
+     * Close user PRs modal
+     */
+    closeUserPrsModal() {
+        const modal = document.getElementById('userPrsModal');
+        if (modal) {
+            modal.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+    }
+
+    /**
+     * Render list of user PRs
+     */
+    renderUserPrsList(prs, username) {
+        const prsList = document.getElementById('userPrsList');
+        if (!prsList) return;
+
+        if (!prs || prs.length === 0) {
+            prsList.innerHTML = '<div class="empty-state">No PRs found for this user in the selected time range.</div>';
+            return;
+        }
+
+        const prsHtml = prs.map((pr, index) => {
+            const stateClass = pr.merged ? 'merged' : pr.state === 'closed' ? 'closed' : 'open';
+            const stateLabel = pr.merged ? 'merged' : pr.state;
+            const prId = `user-pr-${index}`;
+
+            return `
+                <div class="user-pr-item" data-pr-id="${prId}">
+                    <div class="user-pr-header" onclick="window.turnaroundMetrics.togglePrStory('${prId}', '${this.escapeHtml(pr.repository)}', ${pr.number})">
+                        <div class="user-pr-title">
+                            <span class="user-pr-expand-icon" id="${prId}-icon">▶</span>
+                            <span class="pr-number">#${pr.number}</span>
+                            <span class="pr-title">${this.escapeHtml(pr.title)}</span>
+                        </div>
+                        <div class="user-pr-meta">
+                            <span class="pr-repo">${this.escapeHtml(pr.repository)}</span>
+                            <span class="pr-state pr-state-${stateClass}">${stateLabel}</span>
+                            <span class="pr-date">${this.formatDate(pr.created_at)}</span>
+                            <span class="pr-commits">${pr.commits_count} commit${pr.commits_count !== 1 ? 's' : ''}</span>
+                        </div>
+                    </div>
+                    <div class="user-pr-story" id="${prId}-story" style="display: none;">
+                        <div class="pr-story-loading">Loading PR timeline...</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        prsList.innerHTML = prsHtml;
+    }
+
+    /**
+     * Toggle PR story visibility and load if needed
+     */
+    async togglePrStory(prId, repository, prNumber) {
+        const storyContainer = document.getElementById(`${prId}-story`);
+        const expandIcon = document.getElementById(`${prId}-icon`);
+
+        if (!storyContainer || !expandIcon) return;
+
+        // Toggle visibility
+        if (storyContainer.style.display === 'none') {
+            storyContainer.style.display = 'block';
+            expandIcon.textContent = '▼';
+
+            // Load PR story if not already loaded
+            if (storyContainer.innerHTML.includes('Loading PR timeline')) {
+                await this.loadPrStory(prId, repository, prNumber);
+            }
+        } else {
+            storyContainer.style.display = 'none';
+            expandIcon.textContent = '▶';
+        }
+    }
+
+    /**
+     * Load and render PR story timeline
+     */
+    async loadPrStory(prId, repository, prNumber) {
+        const storyContainer = document.getElementById(`${prId}-story`);
+        if (!storyContainer) return;
+
+        try {
+            const response = await fetch(`/api/metrics/pr-story/${encodeURIComponent(repository)}/${prNumber}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            // Render PR story timeline
+            storyContainer.innerHTML = this.renderPrStoryTimeline(data);
+
+        } catch (error) {
+            console.error(`[Turnaround] Error loading PR story for ${repository}#${prNumber}:`, error);
+            storyContainer.innerHTML = `<div class="error-message">Failed to load PR timeline: ${this.escapeHtml(error.message)}</div>`;
+        }
+    }
+
+    /**
+     * Render PR story timeline
+     */
+    renderPrStoryTimeline(storyData) {
+        const { events, summary } = storyData;
+
+        if (!events || events.length === 0) {
+            return '<div class="empty-state">No timeline events found for this PR.</div>';
+        }
+
+        // Summary header
+        const summaryHtml = `
+            <div class="pr-story-summary">
+                <span>📝 ${summary.total_commits} commits</span>
+                <span>💬 ${summary.total_reviews} reviews</span>
+                <span>▶️ ${summary.total_check_runs} check runs</span>
+                <span>💭 ${summary.total_comments} comments</span>
+            </div>
+        `;
+
+        // Timeline events
+        const eventsHtml = events.map(event => this.renderTimelineEvent(event)).join('');
+
+        return `
+            ${summaryHtml}
+            <div class="pr-timeline">
+                ${eventsHtml}
+            </div>
+        `;
+    }
+
+    /**
+     * Render a single timeline event
+     */
+    renderTimelineEvent(event) {
+        const eventConfig = this.getEventConfig(event.event_type);
+        const icon = eventConfig.icon;
+        const label = eventConfig.label;
+
+        let descriptionHtml = '';
+        if (event.description) {
+            descriptionHtml = `<div class="timeline-event-description">${this.escapeHtml(event.description)}</div>`;
+        }
+
+        const timeStr = this.formatTimestamp(event.timestamp);
+
+        return `
+            <div class="timeline-event-item">
+                <div class="timeline-event-marker"></div>
+                <div class="timeline-event-content">
+                    <div class="timeline-event-header">
+                        <span class="timeline-event-icon">${icon}</span>
+                        <span class="timeline-event-title">${this.escapeHtml(label)}</span>
+                        <span class="timeline-event-time">${timeStr}</span>
+                    </div>
+                    ${descriptionHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Get event configuration (icon, label)
+     */
+    getEventConfig(eventType) {
+        const configs = {
+            pr_opened: { icon: '🔀', label: 'PR Opened' },
+            pr_closed: { icon: '❌', label: 'PR Closed' },
+            pr_merged: { icon: '🟣', label: 'Merged' },
+            pr_reopened: { icon: '🔄', label: 'Reopened' },
+            commit: { icon: '📝', label: 'Commit' },
+            review_approved: { icon: '✅', label: 'Approved' },
+            review_changes: { icon: '🔄', label: 'Changes Requested' },
+            review_comment: { icon: '💬', label: 'Review Comment' },
+            comment: { icon: '💬', label: 'Comment' },
+            review_requested: { icon: '👁️', label: 'Review Requested' },
+            ready_for_review: { icon: '👁️', label: 'Ready for Review' },
+            label_added: { icon: '🏷️', label: 'Label Added' },
+            label_removed: { icon: '🏷️', label: 'Label Removed' },
+            verified: { icon: '🛡️', label: 'Verified' },
+            approved_label: { icon: '✅', label: 'Approved' },
+            lgtm: { icon: '👍', label: 'LGTM' },
+            check_run: { icon: '▶️', label: 'Check Run' }
+        };
+
+        return configs[eventType] || { icon: '●', label: eventType };
+    }
+
+    /**
+     * Format timestamp for display
+     */
+    formatTimestamp(timestamp) {
+        try {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+
+            if (minutes < 1) return 'just now';
+            if (minutes < 60) return `${minutes}m ago`;
+            if (hours < 24) return `${hours}h ago`;
+            if (days < 7) return `${days}d ago`;
+
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        } catch {
+            return timestamp;
+        }
+    }
+
+    /**
+     * Format date for PR list
+     */
+    formatDate(timestamp) {
+        try {
+            const date = new Date(timestamp);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        } catch {
+            return timestamp;
+        }
+    }
+
+    /**
+     * Update pagination controls for a contributor category
+     */
+    updateContributorPagination(category) {
+        const pagination = this.contributorMetrics[category].pagination;
+        if (!pagination) {
+            return;
+        }
+
+        const categoryPrefix = this.getCategoryPrefix(category);
+
+        // Update page info
+        const pageInfo = document.getElementById(`${categoryPrefix}-page-info`);
+        if (pageInfo) {
+            pageInfo.textContent = `Page ${pagination.page} of ${pagination.total_pages}`;
+        }
+
+        // Update buttons
+        const prevBtn = document.getElementById(`${categoryPrefix}-prev`);
+        const nextBtn = document.getElementById(`${categoryPrefix}-next`);
+
+        if (prevBtn) {
+            prevBtn.disabled = !pagination.has_prev;
+        }
+
+        if (nextBtn) {
+            nextBtn.disabled = !pagination.has_next;
+        }
+    }
+
+    /**
+     * Get category prefix for element IDs
+     */
+    getCategoryPrefix(category) {
+        const prefixMap = {
+            pr_creators: 'prCreators',
+            pr_reviewers: 'prReviewers',
+            pr_approvers: 'prApprovers',
+            pr_lgtm: 'prLgtm'
+        };
+        return prefixMap[category] || category;
+    }
+
+    /**
+     * Show error for a specific contributor category
+     */
+    showContributorCategoryError(category, message) {
+        const tableBodyMap = {
+            pr_creators: this.prCreatorsTableBody,
+            pr_reviewers: this.prReviewersTableBody,
+            pr_approvers: this.prApproversTableBody,
+            pr_lgtm: this.prLgtmTableBody
+        };
+
+        const tableBody = tableBodyMap[category];
+        if (!tableBody) {
+            return;
+        }
+
+        const colspan = category === 'pr_creators' ? 5 : category === 'pr_reviewers' ? 4 : 3;
+        tableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; padding: 20px; color: var(--error-color);">Error: ${this.escapeHtml(message)}</td></tr>`;
+    }
+
+    /**
+     * Set up pagination controls for contributor metrics
+     */
+    setupContributorPagination() {
+        const categories = ['pr_creators', 'pr_reviewers', 'pr_approvers', 'pr_lgtm'];
+
+        categories.forEach(category => {
+            const categoryPrefix = this.getCategoryPrefix(category);
+
+            const prevBtn = document.getElementById(`${categoryPrefix}-prev`);
+            const nextBtn = document.getElementById(`${categoryPrefix}-next`);
+
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => {
+                    this.contributorMetrics[category].currentPage--;
+                    this.loadContributorCategory(category, this.getTimeFilters());
+                });
+            }
+
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    this.contributorMetrics[category].currentPage++;
+                    this.loadContributorCategory(category, this.getTimeFilters());
+                });
+            }
+        });
+    }
+
+    /**
+     * Set up sorting for contributor tables
+     */
+    setupContributorTableSorting(table, category) {
+        const headers = table.querySelectorAll('th.sortable');
+        headers.forEach(header => {
+            header.addEventListener('click', () => {
+                const column = header.dataset.column;
+                this.sortContributorTable(table, category, column);
+            });
+        });
+    }
+
+    /**
+     * Sort contributor table by column
+     */
+    sortContributorTable(table, category, column) {
+        const data = this.contributorMetrics[category].data;
+        if (!data || data.length === 0) {
+            return;
+        }
+
+        const headers = table.querySelectorAll('th.sortable');
+        const clickedHeader = Array.from(headers).find(h => h.dataset.column === column);
+
+        // Determine sort direction
+        let direction = 'asc';
+        if (clickedHeader.classList.contains('sort-asc')) {
+            direction = 'desc';
+        } else if (clickedHeader.classList.contains('sort-desc')) {
+            direction = 'asc';
+        }
+
+        // Clear all sort indicators
+        headers.forEach(h => {
+            h.classList.remove('sort-asc', 'sort-desc');
+        });
+
+        // Set new sort indicator
+        clickedHeader.classList.add(direction === 'asc' ? 'sort-asc' : 'sort-desc');
+
+        // Sort data
+        const sortedData = [...data].sort((a, b) => {
+            const aVal = a[column];
+            const bVal = b[column];
+
+            // Handle null/undefined
+            if (aVal === null || aVal === undefined) return 1;
+            if (bVal === null || bVal === undefined) return -1;
+
+            // Compare values
+            if (typeof aVal === 'number' && typeof bVal === 'number') {
+                return direction === 'asc' ? aVal - bVal : bVal - aVal;
+            } else {
+                const aStr = String(aVal).toLowerCase();
+                const bStr = String(bVal).toLowerCase();
+                return direction === 'asc'
+                    ? aStr.localeCompare(bStr)
+                    : bStr.localeCompare(aStr);
+            }
+        });
+
+        // Update data and re-render table
+        this.contributorMetrics[category].data = sortedData;
+        this.updateContributorTable(category);
     }
 }
 

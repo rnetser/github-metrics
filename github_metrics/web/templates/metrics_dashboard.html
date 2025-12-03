@@ -226,102 +226,6 @@
           </div>
         </div>
 
-        <div class="chart-container full-width" data-section="pr-contributors">
-          <div class="chart-header">
-            <h2>PR Contributors</h2>
-            <div class="chart-header-actions">
-              <button class="btn-icon collapse-btn" data-section="pr-contributors" title="Collapse">▼</button>
-            </div>
-          </div>
-          <div class="chart-content">
-            <div class="contributors-grid">
-            <!-- PR Creators -->
-            <div class="contributor-section" data-section="pr-creators">
-              <div class="contributor-header">
-                <h3>PR Creators</h3>
-                <div class="contributor-actions">
-                  <button class="btn-icon download-btn" data-section="prCreators" data-format="csv" title="Download as CSV" aria-label="Download PR creators data as CSV">⬇️ CSV</button>
-                  <button class="btn-icon download-btn" data-section="prCreators" data-format="json" title="Download as JSON" aria-label="Download PR creators data as JSON">⬇️ JSON</button>
-                </div>
-              </div>
-              <div class="table-wrapper">
-                <table id="prCreatorsTable">
-                  <thead>
-                    <tr>
-                      <th scope="col" class="sortable" data-column="user">User</th>
-                      <th scope="col" class="sortable" data-column="total_prs">Total PRs</th>
-                      <th scope="col" class="sortable" data-column="merged_prs">Merged</th>
-                      <th scope="col" class="sortable" data-column="closed_prs">Closed</th>
-                      <th scope="col" class="sortable" data-column="avg_commits_per_pr">Avg Commits</th>
-                    </tr>
-                  </thead>
-                  <tbody id="pr-creators-table-body">
-                    <tr class="loading-row">
-                      <td colspan="5">Loading...</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- PR Reviewers -->
-            <div class="contributor-section" data-section="pr-reviewers">
-              <div class="contributor-header">
-                <h3>PR Reviewers</h3>
-                <div class="contributor-actions">
-                  <button class="btn-icon download-btn" data-section="prReviewers" data-format="csv" title="Download as CSV" aria-label="Download PR reviewers data as CSV">⬇️ CSV</button>
-                  <button class="btn-icon download-btn" data-section="prReviewers" data-format="json" title="Download as JSON" aria-label="Download PR reviewers data as JSON">⬇️ JSON</button>
-                </div>
-              </div>
-              <div class="table-wrapper">
-                <table id="prReviewersTable">
-                  <thead>
-                    <tr>
-                      <th scope="col" class="sortable" data-column="user">User</th>
-                      <th scope="col" class="sortable" data-column="total_reviews">Total Reviews</th>
-                      <th scope="col" class="sortable" data-column="prs_reviewed">PRs Reviewed</th>
-                      <th scope="col" class="sortable" data-column="avg_reviews_per_pr">Avg/PR</th>
-                    </tr>
-                  </thead>
-                  <tbody id="pr-reviewers-table-body">
-                    <tr class="loading-row">
-                      <td colspan="4">Loading...</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- PR Approvers -->
-            <div class="contributor-section" data-section="pr-approvers">
-              <div class="contributor-header">
-                <h3>PR Approvers</h3>
-                <div class="contributor-actions">
-                  <button class="btn-icon download-btn" data-section="prApprovers" data-format="csv" title="Download as CSV" aria-label="Download PR approvers data as CSV">⬇️ CSV</button>
-                  <button class="btn-icon download-btn" data-section="prApprovers" data-format="json" title="Download as JSON" aria-label="Download PR approvers data as JSON">⬇️ JSON</button>
-                </div>
-              </div>
-              <div class="table-wrapper">
-                <table id="prApproversTable">
-                  <thead>
-                    <tr>
-                      <th scope="col" class="sortable" data-column="user">User</th>
-                      <th scope="col" class="sortable" data-column="total_approvals">Total Approvals</th>
-                      <th scope="col" class="sortable" data-column="prs_approved">PRs Approved</th>
-                    </tr>
-                  </thead>
-                  <tbody id="pr-approvers-table-body">
-                    <tr class="loading-row">
-                      <td colspan="3">Loading...</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-          </div>
-        </div>
-
         <div class="chart-container full-width" data-section="user-prs">
           <div class="chart-header">
             <h2>Pull Requests</h2>
@@ -478,11 +382,177 @@
                     </div>
                   </div>
                 </div>
+
+                <!-- PR Creators Section -->
+                <div class="chart-container full-width" data-section="pr-creators-section">
+                  <div class="chart-header">
+                    <h2>PR Creators</h2>
+                    <div class="chart-header-actions">
+                      <button class="btn-icon download-btn" data-section="prCreatorsMetrics" data-format="csv" title="Download as CSV" aria-label="Download PR creators metrics data as CSV">⬇️ CSV</button>
+                      <button class="btn-icon download-btn" data-section="prCreatorsMetrics" data-format="json" title="Download as JSON" aria-label="Download PR creators metrics data as JSON">⬇️ JSON</button>
+                      <button class="btn-icon collapse-btn" data-section="pr-creators-section" title="Collapse">▼</button>
+                    </div>
+                  </div>
+                  <div class="chart-content">
+                    <div class="table-wrapper">
+                      <table id="prCreatorsMetricsTable">
+                        <caption class="sr-only">PR creators metrics</caption>
+                        <thead>
+                          <tr>
+                            <th scope="col" class="sortable" data-column="user">User</th>
+                            <th scope="col" class="sortable" data-column="total_prs">Total PRs</th>
+                            <th scope="col" class="sortable" data-column="merged_prs">Merged PRs</th>
+                            <th scope="col" class="sortable" data-column="closed_prs">Closed PRs</th>
+                            <th scope="col" class="sortable" data-column="avg_commits_per_pr">Avg Commits/PR</th>
+                          </tr>
+                        </thead>
+                        <tbody id="pr-creators-metrics-body">
+                          <tr class="loading-row">
+                            <td colspan="5">Loading...</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="pagination-controls" id="prCreators-pagination">
+                      <button class="btn-secondary" id="prCreators-prev" disabled>Previous</button>
+                      <span class="pagination-info" id="prCreators-page-info">Page 1 of 1</span>
+                      <button class="btn-secondary" id="prCreators-next" disabled>Next</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- PR Reviewers Section -->
+                <div class="chart-container full-width" data-section="pr-reviewers-section">
+                  <div class="chart-header">
+                    <h2>PR Reviewers</h2>
+                    <div class="chart-header-actions">
+                      <button class="btn-icon download-btn" data-section="prReviewersMetrics" data-format="csv" title="Download as CSV" aria-label="Download PR reviewers metrics data as CSV">⬇️ CSV</button>
+                      <button class="btn-icon download-btn" data-section="prReviewersMetrics" data-format="json" title="Download as JSON" aria-label="Download PR reviewers metrics data as JSON">⬇️ JSON</button>
+                      <button class="btn-icon collapse-btn" data-section="pr-reviewers-section" title="Collapse">▼</button>
+                    </div>
+                  </div>
+                  <div class="chart-content">
+                    <div class="table-wrapper">
+                      <table id="prReviewersMetricsTable">
+                        <caption class="sr-only">PR reviewers metrics</caption>
+                        <thead>
+                          <tr>
+                            <th scope="col" class="sortable" data-column="user">User</th>
+                            <th scope="col" class="sortable" data-column="total_reviews">Total Reviews</th>
+                            <th scope="col" class="sortable" data-column="prs_reviewed">PRs Reviewed</th>
+                            <th scope="col" class="sortable" data-column="avg_reviews_per_pr">Avg Reviews/PR</th>
+                          </tr>
+                        </thead>
+                        <tbody id="pr-reviewers-metrics-body">
+                          <tr class="loading-row">
+                            <td colspan="4">Loading...</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="pagination-controls" id="prReviewers-pagination">
+                      <button class="btn-secondary" id="prReviewers-prev" disabled>Previous</button>
+                      <span class="pagination-info" id="prReviewers-page-info">Page 1 of 1</span>
+                      <button class="btn-secondary" id="prReviewers-next" disabled>Next</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- PR Approvers Section -->
+                <div class="chart-container full-width" data-section="pr-approvers-section">
+                  <div class="chart-header">
+                    <h2>PR Approvers</h2>
+                    <div class="chart-header-actions">
+                      <button class="btn-icon download-btn" data-section="prApproversMetrics" data-format="csv" title="Download as CSV" aria-label="Download PR approvers metrics data as CSV">⬇️ CSV</button>
+                      <button class="btn-icon download-btn" data-section="prApproversMetrics" data-format="json" title="Download as JSON" aria-label="Download PR approvers metrics data as JSON">⬇️ JSON</button>
+                      <button class="btn-icon collapse-btn" data-section="pr-approvers-section" title="Collapse">▼</button>
+                    </div>
+                  </div>
+                  <div class="chart-content">
+                    <div class="table-wrapper">
+                      <table id="prApproversMetricsTable">
+                        <caption class="sr-only">PR approvers metrics</caption>
+                        <thead>
+                          <tr>
+                            <th scope="col" class="sortable" data-column="user">User</th>
+                            <th scope="col" class="sortable" data-column="total_approvals">Total Approvals</th>
+                            <th scope="col" class="sortable" data-column="prs_approved">PRs Approved</th>
+                          </tr>
+                        </thead>
+                        <tbody id="pr-approvers-metrics-body">
+                          <tr class="loading-row">
+                            <td colspan="3">Loading...</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="pagination-controls" id="prApprovers-pagination">
+                      <button class="btn-secondary" id="prApprovers-prev" disabled>Previous</button>
+                      <span class="pagination-info" id="prApprovers-page-info">Page 1 of 1</span>
+                      <button class="btn-secondary" id="prApprovers-next" disabled>Next</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- PR LGTM Section -->
+                <div class="chart-container full-width" data-section="pr-lgtm-section">
+                  <div class="chart-header">
+                    <h2>PR LGTM</h2>
+                    <div class="chart-header-actions">
+                      <button class="btn-icon download-btn" data-section="prLgtmMetrics" data-format="csv" title="Download as CSV" aria-label="Download PR LGTM metrics data as CSV">⬇️ CSV</button>
+                      <button class="btn-icon download-btn" data-section="prLgtmMetrics" data-format="json" title="Download as JSON" aria-label="Download PR LGTM metrics data as JSON">⬇️ JSON</button>
+                      <button class="btn-icon collapse-btn" data-section="pr-lgtm-section" title="Collapse">▼</button>
+                    </div>
+                  </div>
+                  <div class="chart-content">
+                    <div class="table-wrapper">
+                      <table id="prLgtmMetricsTable">
+                        <caption class="sr-only">PR LGTM metrics</caption>
+                        <thead>
+                          <tr>
+                            <th scope="col" class="sortable" data-column="user">User</th>
+                            <th scope="col" class="sortable" data-column="total_lgtm">Total LGTM</th>
+                            <th scope="col" class="sortable" data-column="prs_lgtm">PRs LGTM</th>
+                          </tr>
+                        </thead>
+                        <tbody id="pr-lgtm-metrics-body">
+                          <tr class="loading-row">
+                            <td colspan="3">Loading...</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="pagination-controls" id="prLgtm-pagination">
+                      <button class="btn-secondary" id="prLgtm-prev" disabled>Previous</button>
+                      <span class="pagination-info" id="prLgtm-page-info">Page 1 of 1</span>
+                      <button class="btn-secondary" id="prLgtm-next" disabled>Next</button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </main>
+    </div>
+
+    <!-- User PRs Modal -->
+    <div id="userPrsModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="userPrsModalTitle">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="userPrsModalTitle">PRs by <span id="userPrsUsername"></span></h2>
+          <button class="close-modal" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body" id="userPrsModalBody">
+          <div class="loading" style="display: none;" id="userPrsLoading">
+            <div class="spinner"></div>
+            <p>Loading PRs...</p>
+          </div>
+          <div class="user-prs-list" id="userPrsList">
+            <!-- PR list will be inserted here -->
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Load JavaScript modules in correct order -->
