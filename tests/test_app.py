@@ -1942,4 +1942,6 @@ class TestNoCacheMiddleware:
             # Restore original value
             if original_value is not None:
                 os.environ["METRICS_SERVER_DEBUG"] = original_value
+            else:
+                os.environ.pop("METRICS_SERVER_DEBUG", None)
             _reset_config_for_testing()
