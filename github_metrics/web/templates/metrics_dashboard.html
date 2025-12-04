@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GitHub Metrics Dashboard</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23007bff'/%3E%3Cpath d='M30 35 L50 50 L30 65 M50 50 L70 50' stroke='white' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E" />
-    <link rel="stylesheet" href="/static/css/metrics_dashboard.css" />
+    <link rel="stylesheet" href="/static/css/metrics_dashboard.css?v={{ cache_bust }}" />
   </head>
   <body>
     <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle navigation menu">☰</button>
@@ -413,10 +413,8 @@
                         </tbody>
                       </table>
                     </div>
-                    <div class="pagination-controls" id="prCreators-pagination">
-                      <button class="btn-secondary" id="prCreators-prev" disabled>Previous</button>
-                      <span class="pagination-info" id="prCreators-page-info">Page 1 of 1</span>
-                      <button class="btn-secondary" id="prCreators-next" disabled>Next</button>
+                    <div id="prCreators-pagination">
+                      <!-- Pagination component will be rendered here -->
                     </div>
                   </div>
                 </div>
@@ -450,10 +448,8 @@
                         </tbody>
                       </table>
                     </div>
-                    <div class="pagination-controls" id="prReviewers-pagination">
-                      <button class="btn-secondary" id="prReviewers-prev" disabled>Previous</button>
-                      <span class="pagination-info" id="prReviewers-page-info">Page 1 of 1</span>
-                      <button class="btn-secondary" id="prReviewers-next" disabled>Next</button>
+                    <div id="prReviewers-pagination">
+                      <!-- Pagination component will be rendered here -->
                     </div>
                   </div>
                 </div>
@@ -486,10 +482,8 @@
                         </tbody>
                       </table>
                     </div>
-                    <div class="pagination-controls" id="prApprovers-pagination">
-                      <button class="btn-secondary" id="prApprovers-prev" disabled>Previous</button>
-                      <span class="pagination-info" id="prApprovers-page-info">Page 1 of 1</span>
-                      <button class="btn-secondary" id="prApprovers-next" disabled>Next</button>
+                    <div id="prApprovers-pagination">
+                      <!-- Pagination component will be rendered here -->
                     </div>
                   </div>
                 </div>
@@ -522,10 +516,8 @@
                         </tbody>
                       </table>
                     </div>
-                    <div class="pagination-controls" id="prLgtm-pagination">
-                      <button class="btn-secondary" id="prLgtm-prev" disabled>Previous</button>
-                      <span class="pagination-info" id="prLgtm-page-info">Page 1 of 1</span>
-                      <button class="btn-secondary" id="prLgtm-next" disabled>Next</button>
+                    <div id="prLgtm-pagination">
+                      <!-- Pagination component will be rendered here -->
                     </div>
                   </div>
                 </div>
@@ -556,12 +548,12 @@
     </div>
 
     <!-- Load JavaScript modules in correct order -->
-    <script type="module" src="/static/js/metrics/utils.js"></script>
-    <script type="module" src="/static/js/metrics/api-client.js"></script>
-    <script type="module" src="/static/js/metrics/combo-box.js"></script>
-    <script type="module" src="/static/js/metrics/pr-story.js"></script>
-    <script type="module" src="/static/js/metrics/turnaround.js"></script>
-    <script type="module" src="/static/js/metrics/navigation.js"></script>
-    <script type="module" src="/static/js/metrics/dashboard.js"></script>
+    <script type="module" src="/static/js/metrics/utils.js?v={{ cache_bust }}"></script>
+    <script type="module" src="/static/js/metrics/api-client.js?v={{ cache_bust }}"></script>
+    <script type="module" src="/static/js/metrics/combo-box.js?v={{ cache_bust }}"></script>
+    <script type="module" src="/static/js/metrics/pr-story.js?v={{ cache_bust }}"></script>
+    <script type="module" src="/static/js/metrics/turnaround.js?v={{ cache_bust }}"></script>
+    <script type="module" src="/static/js/metrics/navigation.js?v={{ cache_bust }}"></script>
+    <script type="module" src="/static/js/metrics/dashboard.js?v={{ cache_bust }}"></script>
   </body>
 </html>

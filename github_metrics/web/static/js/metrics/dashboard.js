@@ -12,6 +12,12 @@
  * - Manual refresh
  */
 
+import { initializeCollapsibleSections } from '../components/collapsible-section.js';
+import { SortableTable } from '../components/sortable-table.js';
+import { DownloadButtons } from '../components/download-buttons.js';
+import { Modal } from '../components/modal.js';
+import { Pagination } from '../components/pagination.js';
+
 // Dashboard Controller
 class MetricsDashboard {
     // Large download threshold - warn user before downloading large datasets
@@ -42,29 +48,19 @@ class MetricsDashboard {
         this.repositoryComboBox = null;  // ComboBox instance for repository filter
         this.userComboBox = null;  // ComboBox instance for user filter
 
-        // Pagination state for each section
-        this.pagination = {
-            topRepositories: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
-            recentEvents: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
-            userPrs: { page: 1, pageSize: 10, total: 0, totalPages: 0 }
-            // Note: prCreators, prReviewers, prApprovers removed from Overview page
+        // Pagination components for each section
+        this.paginationComponents = {
+            topRepositories: null,
+            recentEvents: null,
+            userPrs: null
         };
 
-        // Sort state for each table
-        this.tableSortState = {
-            topRepositories: { column: null, direction: 'asc' },
-            recentEvents: { column: null, direction: 'asc' },
-            userPrs: { column: null, direction: 'asc' }
-            // Note: prCreators, prReviewers, prApprovers removed from Overview page
+        // SortableTable instances for each section
+        this.sortableTables = {
+            topRepositories: null,
+            recentEvents: null,
+            userPrs: null
         };
-
-        // Load saved page sizes from localStorage
-        Object.keys(this.pagination).forEach(section => {
-            const saved = localStorage.getItem(`pageSize_${section}`);
-            if (saved) {
-                this.pagination[section].pageSize = parseInt(saved, 10);
-            }
-        });
 
         // Note: Dashboard self-initializes asynchronously.
         // Callers should not assume immediate readiness after construction.
@@ -96,6 +92,12 @@ class MetricsDashboard {
 
         // 5. Initialize ComboBox components
         this.initializeComboBoxes();
+
+        // 5b. Initialize collapsible sections (all sections with collapse buttons)
+        this.collapsibleSections = initializeCollapsibleSections();
+
+        // 5c. Initialize pagination components
+        this.initializePaginationComponents();
 
         // 6. Populate date inputs with default 7d range logic so they are not empty
         const { startTime, endTime } = this.getTimeRangeDates(this.timeRange);
@@ -489,6 +491,11 @@ class MetricsDashboard {
                         repo.repository && repo.repository.toLowerCase().includes(this.repositoryFilter))
                     : data.topRepositories;
                 this.updateRepositoryTable(topRepos);
+
+                // Update SortableTable instance with new data
+                if (this.sortableTables.topRepositories) {
+                    this.sortableTables.topRepositories.update(topRepos);
+                }
             }
 
             // Update Recent Events Table with filtered data
@@ -498,6 +505,11 @@ class MetricsDashboard {
                     ? { ...data.webhooks, data: filteredWebhooks }
                     : filteredWebhooks;
                 this.updateRecentEventsTable(webhooksForTable);
+
+                // Update SortableTable instance with new data
+                if (this.sortableTables.recentEvents) {
+                    this.sortableTables.recentEvents.update(filteredWebhooks);
+                }
             }
 
             // Update Contributors Tables with filtered data
@@ -520,6 +532,12 @@ class MetricsDashboard {
             // Update User PRs Table with filtered data
             if (filteredUserPrs) {
                 this.updateUserPRsTable(filteredUserPrs);
+
+                // Update SortableTable instance with new data
+                const userPrsData = filteredUserPrs.data || filteredUserPrs;
+                if (this.sortableTables.userPrs && Array.isArray(userPrsData)) {
+                    this.sortableTables.userPrs.update(userPrsData);
+                }
             }
 
             console.log('[Dashboard] Tables updated');
@@ -544,16 +562,6 @@ class MetricsDashboard {
         const repositories = Array.isArray(reposData) ? reposData : (reposData.data || reposData.repositories || []);
         const pagination = Array.isArray(reposData) ? null : reposData.pagination;
 
-        // Update pagination state if available
-        if (pagination) {
-            this.pagination.topRepositories = {
-                page: pagination.page,
-                pageSize: pagination.page_size,
-                total: pagination.total,
-                totalPages: pagination.total_pages
-            };
-        }
-
         if (!repositories || !Array.isArray(repositories) || repositories.length === 0) {
             tableBody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No repository data available</td></tr>';
             return;
@@ -573,15 +581,13 @@ class MetricsDashboard {
 
         tableBody.innerHTML = rows;
 
-        // Add pagination controls
-        const container = document.querySelector('[data-section="top-repositories"] .chart-content');
-        const existingControls = container?.querySelector('.pagination-controls');
-        if (existingControls) {
-            existingControls.remove();
-        }
-
-        if (container && pagination) {
-            container.insertAdjacentHTML('beforeend', this.createPaginationControls('top-repositories'));
+        // Update pagination component if available
+        if (pagination && this.paginationComponents.topRepositories) {
+            this.paginationComponents.topRepositories.update({
+                total: pagination.total,
+                page: pagination.page,
+                pageSize: pagination.page_size
+            });
         }
     }
 
@@ -600,16 +606,6 @@ class MetricsDashboard {
         // Handle both array format and paginated response format
         const events = Array.isArray(eventsData) ? eventsData : (eventsData.data || eventsData.events || []);
         const pagination = Array.isArray(eventsData) ? null : eventsData.pagination;
-
-        // Update pagination state if available
-        if (pagination) {
-            this.pagination.recentEvents = {
-                page: pagination.page,
-                pageSize: pagination.page_size,
-                total: pagination.total,
-                totalPages: pagination.total_pages
-            };
-        }
 
         if (!events || !Array.isArray(events) || events.length === 0) {
             tableBody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No recent events</td></tr>';
@@ -634,15 +630,13 @@ class MetricsDashboard {
 
         tableBody.innerHTML = rows;
 
-        // Add pagination controls
-        const container = document.querySelector('[data-section="recent-events"] .chart-content');
-        const existingControls = container?.querySelector('.pagination-controls');
-        if (existingControls) {
-            existingControls.remove();
-        }
-
-        if (container && pagination) {
-            container.insertAdjacentHTML('beforeend', this.createPaginationControls('recent-events'));
+        // Update pagination component if available
+        if (pagination && this.paginationComponents.recentEvents) {
+            this.paginationComponents.recentEvents.update({
+                total: pagination.total,
+                page: pagination.page,
+                pageSize: pagination.page_size
+            });
         }
     }
 
@@ -734,6 +728,13 @@ class MetricsDashboard {
         // Clickable usernames - set ComboBox value and trigger filter
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('clickable-username')) {
+                // Check if this is from turnaround tables (has data-username)
+                // If so, skip - let turnaround.js handler take care of it
+                if (e.target.dataset.username) {
+                    return;
+                }
+
+                // Handle main dashboard clickable usernames (use data-user)
                 const username = e.target.dataset.user;
                 if (this.userComboBox) {
                     this.userComboBox.setValue(username);
@@ -754,70 +755,51 @@ class MetricsDashboard {
             }
         });
 
-        // Pagination listeners
-        this.setupPaginationListeners();
+        // Initialize SortableTable instances
+        this.initializeSortableTables();
 
-        // Sort listeners
-        this.setupSortListeners();
-
-        // Collapse buttons
-        this.setupCollapseButtons();
-
-        // Download buttons
-        this.setupDownloadListeners();
+        // Download buttons (delegate to DownloadButtons component)
+        this.setupDownloadButtons();
 
         console.log('[Dashboard] Event listeners set up');
     }
 
     /**
-     * Set up download button listeners.
+     * Set up download buttons using DownloadButtons component.
      */
-    setupDownloadListeners() {
-        // Only set up once during initialization
-        if (this.downloadListenerInitialized) return;
-        this.downloadListenerInitialized = true;
+    setupDownloadButtons() {
+        // Initialize download buttons for each section
+        this.downloadButtons = {};
 
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('download-btn')) {
-                const section = e.target.dataset.section;
-                const format = e.target.dataset.format;
-                this.handleDownload(section, format);
-            }
-        });
-    }
-
-    /**
-     * Handle download button click.
-     * @param {string} section - Section identifier
-     * @param {string} format - Download format ('csv' or 'json')
-     */
-    handleDownload(section, format) {
-        const data = this.getTableData(section);
-
-        if (!data || data.length === 0) {
-            const sectionName = this.getSectionDisplayName(section);
-            const reason = this.currentData ? 'No matching data found with current filters' : 'Data not loaded yet';
-            console.warn(`[Dashboard] No data available for download: ${section}`);
-            this.showError(`No data available to download for ${sectionName}. ${reason}`);
-            return;
+        // Top Repositories
+        const topReposContainer = document.querySelector('[data-section="top-repositories"] .table-controls');
+        if (topReposContainer) {
+            this.downloadButtons.topRepositories = new DownloadButtons({
+                container: topReposContainer,
+                section: 'top_repositories',
+                getData: () => this.getTableData('topRepositories')
+            });
         }
 
-        // Generate filename with section name and timestamp
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-        const sectionName = this.getSectionDisplayName(section);
-        const filename = `github_metrics_${sectionName}_${timestamp}.${format}`;
+        // Recent Events
+        const recentEventsContainer = document.querySelector('[data-section="recent-events"] .table-controls');
+        if (recentEventsContainer) {
+            this.downloadButtons.recentEvents = new DownloadButtons({
+                container: recentEventsContainer,
+                section: 'recent_events',
+                getData: () => this.getTableData('recentEvents')
+            });
+        }
 
-        this.downloadData(data, filename, format);
-        console.log(`[Dashboard] Downloaded ${sectionName} data as ${format}`);
-    }
-
-    /**
-     * Get display name for section.
-     * @param {string} section - Section identifier
-     * @returns {string} Display name
-     */
-    getSectionDisplayName(section) {
-        return MetricsDashboard.SECTION_DISPLAY_NAMES[section] || section;
+        // User PRs
+        const userPrsContainer = document.querySelector('[data-section="user-prs"] .table-controls');
+        if (userPrsContainer) {
+            this.downloadButtons.userPrs = new DownloadButtons({
+                container: userPrsContainer,
+                section: 'pull_requests',
+                getData: () => this.getTableData('userPrs')
+            });
+        }
     }
 
     /**
@@ -854,79 +836,62 @@ class MetricsDashboard {
     }
 
     /**
-     * Set up collapse button listeners and restore collapsed state.
+     * Initialize pagination components for each table section.
      */
-    setupCollapseButtons() {
-        // Use event delegation to handle collapse buttons on ALL pages
-        document.addEventListener('click', (e) => {
-            const collapseBtn = e.target.closest('.collapse-btn');
-            if (collapseBtn) {
-                const sectionId = collapseBtn.dataset.section;
-                this.toggleSection(sectionId);
-            }
-        });
+    initializePaginationComponents() {
+        const sections = [
+            { key: 'topRepositories', containerId: 'top-repositories-pagination' },
+            { key: 'recentEvents', containerId: 'recent-events-pagination' },
+            { key: 'userPrs', containerId: 'user-prs-pagination' }
+        ];
 
-        // Restore collapsed state from localStorage
-        this.restoreCollapsedSections();
-    }
-
-    /**
-     * Toggle a section's collapsed state.
-     * @param {string} sectionId - Section identifier
-     */
-    toggleSection(sectionId) {
-        const section = document.querySelector(`[data-section="${sectionId}"]`);
-        if (!section) {
-            console.warn(`[Dashboard] Section not found: ${sectionId}`);
-            return;
-        }
-
-        section.classList.toggle('collapsed');
-
-        // Update button icon
-        const btn = section.querySelector(`.collapse-btn[data-section="${sectionId}"]`);
-        if (btn) {
-            btn.textContent = section.classList.contains('collapsed') ? '▲' : '▼';
-            btn.title = section.classList.contains('collapsed') ? 'Expand' : 'Collapse';
-        }
-
-        // Save state
-        this.saveCollapsedState(sectionId, section.classList.contains('collapsed'));
-
-        console.log(`[Dashboard] Section ${sectionId} ${section.classList.contains('collapsed') ? 'collapsed' : 'expanded'}`);
-    }
-
-    /**
-     * Save collapsed state to localStorage.
-     * @param {string} sectionId - Section identifier
-     * @param {boolean} isCollapsed - Whether section is collapsed
-     */
-    saveCollapsedState(sectionId, isCollapsed) {
-        const state = JSON.parse(localStorage.getItem('collapsedSections') || '{}');
-        state[sectionId] = isCollapsed;
-        localStorage.setItem('collapsedSections', JSON.stringify(state));
-    }
-
-    /**
-     * Restore collapsed sections from localStorage.
-     */
-    restoreCollapsedSections() {
-        const state = JSON.parse(localStorage.getItem('collapsedSections') || '{}');
-        Object.keys(state).forEach(sectionId => {
-            if (state[sectionId]) {
-                const section = document.querySelector(`[data-section="${sectionId}"]`);
-                if (section) {
-                    section.classList.add('collapsed');
-                    const btn = section.querySelector(`.collapse-btn[data-section="${sectionId}"]`);
-                    if (btn) {
-                        btn.textContent = '▲';
-                        btn.title = 'Expand';
-                    }
+        sections.forEach(({ key, containerId }) => {
+            // Create pagination container if it doesn't exist
+            let container = document.getElementById(containerId);
+            if (!container) {
+                // Find the chart-content div for this section
+                const sectionDataAttr = this.camelToKebab(key);
+                const chartContent = document.querySelector(`[data-section="${sectionDataAttr}"] .chart-content`);
+                if (chartContent) {
+                    container = document.createElement('div');
+                    container.id = containerId;
+                    chartContent.appendChild(container);
                 }
             }
+
+            if (container) {
+                // Load saved page size from localStorage
+                const savedPageSize = localStorage.getItem(`pageSize_${key}`);
+                const pageSize = savedPageSize ? parseInt(savedPageSize, 10) : 10;
+
+                this.paginationComponents[key] = new Pagination({
+                    container: container,
+                    pageSize: pageSize,
+                    pageSizeOptions: [10, 25, 50, 100],
+                    onPageChange: (page, pageSize) => {
+                        this.loadSectionData(key);
+                    },
+                    onPageSizeChange: (pageSize) => {
+                        localStorage.setItem(`pageSize_${key}`, pageSize);
+                        this.loadSectionData(key);
+                    }
+                });
+                console.log(`[Dashboard] Pagination initialized for ${key}`);
+            } else {
+                console.warn(`[Dashboard] Pagination container not found for ${key}`);
+            }
         });
-        console.log('[Dashboard] Collapsed sections restored from localStorage');
     }
+
+    /**
+     * Convert camelCase to kebab-case
+     * @param {string} str - camelCase string
+     * @returns {string} kebab-case string
+     */
+    camelToKebab(str) {
+        return str.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+    }
+
 
     /**
      * Initialize theme from localStorage and apply it.
@@ -1280,197 +1245,21 @@ class MetricsDashboard {
         // Could implement toast notification here
     }
 
-    /**
-     * Escape a CSV value by wrapping in quotes if needed and escaping internal quotes.
-     * @param {*} value - Value to escape
-     * @return {string} - Escaped CSV value
-     */
-    escapeCsvValue(value) {
-        // Handle null/undefined/empty
-        if (value === null || value === undefined || value === '') {
-            return '';
-        }
-
-        // Convert to string
-        const stringValue = String(value);
-
-        // Check if value needs escaping (contains comma, quote, or newline)
-        const needsEscaping = /[",\n\r]/.test(stringValue);
-
-        if (needsEscaping) {
-            // Escape quotes by doubling them
-            const escapedValue = stringValue.replace(/"/g, '""');
-            // Wrap in quotes
-            return `"${escapedValue}"`;
-        }
-
-        return stringValue;
-    }
-
-    /**
-     * Download data as CSV or JSON file.
-     * @param {Array} data - Data array to download
-     * @param {string} filename - Output filename
-     * @param {string} format - Format ('csv' or 'json')
-     */
-    downloadData(data, filename, format) {
-        // Warn for large downloads
-        if (data.length > MetricsDashboard.LARGE_DOWNLOAD_THRESHOLD) {
-            if (!window.confirm(`This download contains ${data.length.toLocaleString()} rows. Continue?`)) {
-                return;
-            }
-        }
-
-        let content, mimeType;
-
-        if (format === 'csv') {
-            // Convert to CSV
-            if (!data.length) return;
-            const headers = Object.keys(data[0]).map(h => this.escapeCsvValue(h)).join(',');
-            const rows = data.map(row =>
-                Object.values(row).map(v => this.escapeCsvValue(v)).join(',')
-            );
-            content = [headers, ...rows].join('\n');
-            mimeType = 'text/csv';
-        } else {
-            // JSON format
-            content = JSON.stringify(data, null, 2);
-            mimeType = 'application/json';
-        }
-
-        const blob = new Blob([content], { type: mimeType });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.click();
-        // Defer URL cleanup to ensure download starts in all browsers
-        setTimeout(() => {
-            URL.revokeObjectURL(url);
-        }, 100);
-    }
 
 
-    /**
-     * Convert kebab-case to camelCase for pagination state keys
-     * @param {string} kebabCase - kebab-case identifier
-     * @returns {string} camelCase identifier
-     */
-    toCamelCase(kebabCase) {
-        return kebabCase.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
-    }
-
-    /**
-     * Create pagination controls HTML
-     * @param {string} section - Section identifier (kebab-case from HTML)
-     * @returns {string} Pagination HTML
-     */
-    createPaginationControls(section) {
-        // Convert kebab-case to camelCase for pagination state lookup
-        const stateKey = this.toCamelCase(section);
-        const state = this.pagination[stateKey];
-        if (!state) {
-            console.warn(`[Dashboard] No pagination state for section: ${section} (${stateKey})`);
-            return '';
-        }
-        const { page, pageSize, total, totalPages } = state;
-
-        const hasNext = page < totalPages;
-        const hasPrev = page > 1;
-
-        return `
-            <div class="pagination-controls">
-                <div class="pagination-size">
-                    <label>Show</label>
-                    <select class="page-size-select" data-section="${section}">
-                        <option value="10" ${pageSize === 10 ? 'selected' : ''}>10</option>
-                        <option value="25" ${pageSize === 25 ? 'selected' : ''}>25</option>
-                        <option value="50" ${pageSize === 50 ? 'selected' : ''}>50</option>
-                        <option value="100" ${pageSize === 100 ? 'selected' : ''}>100</option>
-                    </select>
-                    <label>per page</label>
-                </div>
-                <div class="pagination-nav">
-                    <button class="btn-pagination" data-section="${section}" data-action="prev"
-                            ${!hasPrev ? 'disabled' : ''}>← Prev</button>
-                    <span class="pagination-info">Page ${page} of ${totalPages || 1}</span>
-                    <button class="btn-pagination" data-section="${section}" data-action="next"
-                            ${!hasNext ? 'disabled' : ''}>Next →</button>
-                </div>
-                <div class="pagination-total">
-                    <span>Total: ${total} items</span>
-                </div>
-            </div>
-        `;
-    }
-
-    /**
-     * Handle page size change
-     * @param {string} section - Section identifier
-     * @param {number} newSize - New page size
-     */
-    async changePageSize(section, newSize) {
-        this.pagination[section].pageSize = newSize;
-        this.pagination[section].page = 1; // Reset to page 1
-        localStorage.setItem(`pageSize_${section}`, newSize);
-
-        await this.loadSectionData(section);
-    }
-
-    /**
-     * Handle page navigation
-     * @param {string} section - Section identifier
-     * @param {string} action - 'next' or 'prev'
-     */
-    async navigatePage(section, action) {
-        const state = this.pagination[section];
-
-        if (action === 'next' && state.page < state.totalPages) {
-            state.page++;
-        } else if (action === 'prev' && state.page > 1) {
-            state.page--;
-        }
-
-        await this.loadSectionData(section);
-    }
-
-    /**
-     * Set up pagination event listeners
-     */
-    setupPaginationListeners() {
-        // Page size selectors - debounced to prevent rapid consecutive API calls
-        const debouncedPageSizeChange = window.MetricsUtils?.debounce((section, newSize) => {
-            this.changePageSize(section, newSize);
-        }, 300) || ((section, newSize) => this.changePageSize(section, newSize));
-
-        document.addEventListener('change', (e) => {
-            if (e.target.classList.contains('page-size-select')) {
-                const section = e.target.dataset.section; // kebab-case from HTML
-                const stateKey = this.toCamelCase(section); // Convert to camelCase
-                const newSize = parseInt(e.target.value, 10);
-                debouncedPageSizeChange(stateKey, newSize);
-            }
-        });
-
-        // Navigation buttons
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('btn-pagination')) {
-                const section = e.target.dataset.section; // kebab-case from HTML
-                const stateKey = this.toCamelCase(section); // Convert to camelCase
-                const action = e.target.dataset.action;
-                if (!e.target.disabled) {
-                    this.navigatePage(stateKey, action);
-                }
-            }
-        });
-    }
 
     /**
      * Load data for a specific section with pagination
      * @param {string} section - Section identifier
      */
     async loadSectionData(section) {
-        const state = this.pagination[section];
+        const paginationComponent = this.paginationComponents[section];
+        if (!paginationComponent) {
+            console.warn(`[Dashboard] No pagination component for section: ${section}`);
+            return;
+        }
+
+        const state = paginationComponent.state;
         const { startTime, endTime } = this.getTimeRangeDates(this.timeRange);
 
         this.showLoading(true);
@@ -1534,15 +1323,6 @@ class MetricsDashboard {
         const prs = Array.isArray(prsData) ? prsData : (prsData.data || []);
         const pagination = Array.isArray(prsData) ? null : prsData.pagination;
 
-        if (pagination) {
-            this.pagination.userPrs = {
-                page: pagination.page,
-                pageSize: pagination.page_size,
-                total: pagination.total,
-                totalPages: pagination.total_pages
-            };
-        }
-
         if (!prs || prs.length === 0) {
             tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No pull requests found</td></tr>';
         } else {
@@ -1580,15 +1360,13 @@ class MetricsDashboard {
             tableBody.innerHTML = rows;
         }
 
-        // Add pagination controls
-        const container = document.querySelector('[data-section="user-prs"] .chart-content');
-        const existingControls = container?.querySelector('.pagination-controls');
-        if (existingControls) {
-            existingControls.remove();
-        }
-
-        if (container && pagination) {
-            container.insertAdjacentHTML('beforeend', this.createPaginationControls('user-prs'));
+        // Update pagination component if available
+        if (pagination && this.paginationComponents.userPrs) {
+            this.paginationComponents.userPrs.update({
+                total: pagination.total,
+                page: pagination.page,
+                pageSize: pagination.page_size
+            });
         }
     }
 
@@ -1606,6 +1384,12 @@ class MetricsDashboard {
         if (this.userComboBox) {
             this.userComboBox.destroy();
             this.userComboBox = null;
+        }
+
+        // Destroy collapsible sections
+        if (this.collapsibleSections) {
+            this.collapsibleSections.forEach(section => section.destroy());
+            this.collapsibleSections = null;
         }
 
         console.log('[Dashboard] Dashboard destroyed');
@@ -1649,98 +1433,94 @@ class MetricsDashboard {
     }
 
     /**
-     * Set up sort event listeners for table headers.
+     * Initialize SortableTable instances for each table section.
      */
-    setupSortListeners() {
-        document.addEventListener('click', (e) => {
-            const header = e.target.closest('th.sortable');
-            if (header) {
-                const tableId = header.closest('table').id;
-                const column = header.dataset.column;
-                const section = this.getTableSection(tableId);
-
-                if (section && column) {
-                    this.handleTableSort(section, column);
+    initializeSortableTables() {
+        // Map table IDs to sections and column configurations
+        const tableConfigs = {
+            topRepositories: {
+                tableId: 'topRepositoriesTable',
+                columns: {
+                    repository: { type: 'string' },
+                    total_events: { type: 'number' },
+                    percentage: { type: 'number' }
+                }
+            },
+            recentEvents: {
+                tableId: 'recentEventsTable',
+                columns: {
+                    created_at: { type: 'date' },
+                    repository: { type: 'string' },
+                    event_type: { type: 'string' },
+                    status: { type: 'string' }
+                }
+            },
+            userPrs: {
+                tableId: 'userPrsTable',
+                columns: {
+                    number: { type: 'number' },
+                    title: { type: 'string' },
+                    owner: { type: 'string' },
+                    repository: { type: 'string' },
+                    state: { type: 'string' },
+                    created_at: { type: 'date' },
+                    updated_at: { type: 'date' },
+                    commits_count: { type: 'number' }
                 }
             }
+        };
+
+        Object.keys(tableConfigs).forEach(section => {
+            const config = tableConfigs[section];
+            const table = document.getElementById(config.tableId);
+
+            if (!table) {
+                console.warn(`[Dashboard] Table not found: ${config.tableId}`);
+                return;
+            }
+
+            // Initialize SortableTable instance
+            this.sortableTables[section] = new SortableTable({
+                table: table,
+                data: this.getTableData(section),
+                columns: config.columns,
+                onSort: (sortedData, column, direction) => {
+                    console.log(`[Dashboard] Table ${section} sorted by ${column} ${direction}`);
+                    this.handleTableSorted(section, sortedData);
+                }
+            });
+
+            console.log(`[Dashboard] SortableTable initialized for ${section}`);
         });
     }
 
     /**
-     * Map table ID to section name.
-     * @param {string} tableId - Table element ID
-     * @returns {string|null} Section identifier
-     */
-    getTableSection(tableId) {
-        const tableToSection = {
-            'topRepositoriesTable': 'topRepositories',
-            'recentEventsTable': 'recentEvents',
-            'userPrsTable': 'userPrs'
-            // Note: PR contributor tables (prCreators, prReviewers, prApprovers) removed from Overview page
-            // They only exist in Contributors page now, managed by turnaround.js
-        };
-        return tableToSection[tableId] || null;
-    }
-
-    /**
-     * Handle table header click for sorting.
+     * Handle table sorted callback - update the appropriate table with sorted data.
      * @param {string} section - Section identifier
-     * @param {string} column - Column name to sort by
+     * @param {Array} sortedData - Sorted data array
      */
-    handleTableSort(section, column) {
-        const state = this.tableSortState[section];
-
-        // Toggle direction if same column, otherwise reset to ascending
-        if (state.column === column) {
-            state.direction = state.direction === 'asc' ? 'desc' : 'asc';
-        } else {
-            state.column = column;
-            state.direction = 'asc';
-        }
-
-        console.log(`[Dashboard] Sorting ${section} by ${column} ${state.direction}`);
-
-        // Re-render the table with sorted data
-        this.sortAndRenderTable(section);
-    }
-
-    /**
-     * Sort table data and re-render.
-     * @param {string} section - Section identifier
-     */
-    sortAndRenderTable(section) {
-        const state = this.tableSortState[section];
-
-        if (!state.column) {
-            return; // No column selected
-        }
-
-        // Get the data for this section
-        let data = this.getTableData(section);
-
-        if (!data || !Array.isArray(data) || data.length === 0) {
-            return;
-        }
-
-        // Sort the data
-        const sortedData = this.sortTableData(data, state.column, state.direction);
-
-        // Update the appropriate table
+    handleTableSorted(section, sortedData) {
+        // Update the appropriate table with sorted data
         switch (section) {
             case 'topRepositories':
                 this.updateRepositoryTable(sortedData);
-                this.updateSortIndicators('topRepositoriesTable', state.column, state.direction);
                 break;
             case 'recentEvents':
                 this.updateRecentEventsTable(sortedData);
-                this.updateSortIndicators('recentEventsTable', state.column, state.direction);
                 break;
-            case 'userPrs':
-                this.updateUserPRsTable({ data: sortedData, pagination: this.pagination.userPrs });
-                this.updateSortIndicators('userPrsTable', state.column, state.direction);
+            case 'userPrs': {
+                const paginationState = this.paginationComponents.userPrs?.state || { page: 1, pageSize: 10, total: 0 };
+                this.updateUserPRsTable({
+                    data: sortedData,
+                    pagination: {
+                        page: paginationState.page,
+                        page_size: paginationState.pageSize,
+                        total: paginationState.total,
+                        total_pages: Math.ceil(paginationState.total / paginationState.pageSize) || 1
+                    }
+                });
                 break;
-            // Note: PR contributor tables (prCreators, prReviewers, prApprovers) removed from Overview page
-            // They only exist in Contributors page now, managed by turnaround.js
+            }
         }
     }
 
@@ -1761,81 +1541,6 @@ class MetricsDashboard {
             default:
                 // Note: prCreators, prReviewers, prApprovers removed from Overview page
                 return [];
-        }
-    }
-
-    /**
-     * Sort table data by column and direction.
-     * @param {Array} data - Array of data objects
-     * @param {string} column - Column name
-     * @param {string} direction - 'asc' or 'desc'
-     * @returns {Array} Sorted data
-     */
-    sortTableData(data, column, direction) {
-        const sorted = [...data].sort((a, b) => {
-            let aVal = a[column];
-            let bVal = b[column];
-
-            // Handle null/undefined - sort to end
-            if (aVal == null && bVal == null) return 0;
-            if (aVal == null) return 1;
-            if (bVal == null) return -1;
-
-            // Check for ISO date strings FIRST (before number check)
-            // ISO dates look like: "2025-11-27T10:30:00" or "2025-11-27T10:30:00.000Z"
-            const isoDateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
-            if (typeof aVal === 'string' && typeof bVal === 'string' &&
-                isoDateRegex.test(aVal) && isoDateRegex.test(bVal)) {
-                const aDate = new Date(aVal);
-                const bDate = new Date(bVal);
-                if (!isNaN(aDate.getTime()) && !isNaN(bDate.getTime())) {
-                    return direction === 'asc' ? aDate - bDate : bDate - aDate;
-                }
-            }
-
-            // Try to parse as number (only if both are purely numeric)
-            const aNum = parseFloat(aVal);
-            const bNum = parseFloat(bVal);
-            const aIsNum = !isNaN(aNum) && isFinite(aVal) && String(aVal).trim() === String(aNum);
-            const bIsNum = !isNaN(bNum) && isFinite(bVal) && String(bVal).trim() === String(bNum);
-
-            if (aIsNum && bIsNum) {
-                // Numeric comparison
-                return direction === 'asc' ? aNum - bNum : bNum - aNum;
-            }
-
-            // String comparison (case-insensitive)
-            const aStr = String(aVal).toLowerCase();
-            const bStr = String(bVal).toLowerCase();
-
-            if (direction === 'asc') {
-                return aStr.localeCompare(bStr);
-            }
-            return bStr.localeCompare(aStr);
-        });
-
-        return sorted;
-    }
-
-    /**
-     * Update sort indicators on table headers.
-     * @param {string} tableId - Table element ID
-     * @param {string} column - Currently sorted column
-     * @param {string} direction - Sort direction ('asc' or 'desc')
-     */
-    updateSortIndicators(tableId, column, direction) {
-        const table = document.getElementById(tableId);
-        if (!table) return;
-
-        // Remove existing sort classes
-        table.querySelectorAll('th.sortable').forEach(th => {
-            th.classList.remove('sort-asc', 'sort-desc');
-        });
-
-        // Add sort class to current column
-        const currentHeader = table.querySelector(`th.sortable[data-column="${column}"]`);
-        if (currentHeader) {
-            currentHeader.classList.add(`sort-${direction}`);
         }
     }
 }

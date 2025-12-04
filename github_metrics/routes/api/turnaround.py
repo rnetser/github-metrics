@@ -11,6 +11,7 @@ from simple_logger.logger import get_logger
 
 from github_metrics.database import DatabaseManager
 from github_metrics.utils.datetime_utils import parse_datetime_string
+from github_metrics.utils.query_builders import QueryParams, build_repository_filter, build_time_filter
 
 # Module-level logger
 LOGGER = get_logger(name="github_metrics.routes.api.turnaround")
@@ -120,35 +121,19 @@ async def get_review_turnaround(
 
     # Build base parameters (time + repository filters)
     # These are used by ALL queries
-    time_filter = ""
-    base_params: list[Any] = []
-    base_param_count = 0
-
-    if start_datetime:
-        base_param_count += 1
-        time_filter += " AND created_at >= $" + str(base_param_count)
-        base_params.append(start_datetime)
-
-    if end_datetime:
-        base_param_count += 1
-        time_filter += " AND created_at <= $" + str(base_param_count)
-        base_params.append(end_datetime)
-
-    # Add repository filter if provided
-    repository_filter = ""
-    if repository:
-        base_param_count += 1
-        repository_filter = " AND repository = $" + str(base_param_count)
-        base_params.append(repository)
+    base_params = QueryParams()
+    time_filter = build_time_filter(base_params, start_datetime, end_datetime)
+    repository_filter = build_repository_filter(base_params, repository)
 
     # Build reviewer parameters (base params + user filter)
     # These are used only by queries that filter by reviewer
-    reviewer_params = base_params.copy()
+    reviewer_params = QueryParams()
+    reviewer_params._params = base_params.get_params().copy()
+    reviewer_params._count = base_params.get_count()
+
     user_filter_reviewer = ""
     if user:
-        reviewer_param_count = base_param_count + 1
-        user_filter_reviewer = " AND sender = $" + str(reviewer_param_count)
-        reviewer_params.append(user)
+        user_filter_reviewer = f" AND sender = {reviewer_params.add(user)}"
 
     # Query 1: Time to first review per PR (for overall summary)
     # Find the first 'pull_request_review' event for each PR after it was opened
@@ -383,6 +368,10 @@ async def get_review_turnaround(
     )
 
     try:
+        # Get actual parameter lists
+        base_param_list = base_params.get_params()
+        reviewer_param_list = reviewer_params.get_params()
+
         # Execute all queries in parallel
         # Note: Some queries use reviewer_params (with user filter), others use base_params
         (
@@ -392,11 +381,11 @@ async def get_review_turnaround(
             by_repo_rows,
             by_reviewer_rows,
         ) = await asyncio.gather(
-            db_manager.fetch(time_to_first_review_query, *reviewer_params),  # Uses user filter
-            db_manager.fetch(time_to_approval_query, *base_params),  # No user filter
-            db_manager.fetchrow(pr_lifecycle_query, *base_params),  # No user filter
-            db_manager.fetch(by_repository_query, *reviewer_params),  # Uses user filter
-            db_manager.fetch(by_reviewer_query, *reviewer_params),  # Uses user filter
+            db_manager.fetch(time_to_first_review_query, *reviewer_param_list),  # Uses user filter
+            db_manager.fetch(time_to_approval_query, *base_param_list),  # No user filter
+            db_manager.fetchrow(pr_lifecycle_query, *base_param_list),  # No user filter
+            db_manager.fetch(by_repository_query, *reviewer_param_list),  # Uses user filter
+            db_manager.fetch(by_reviewer_query, *reviewer_param_list),  # Uses user filter
         )
 
         # Calculate overall averages

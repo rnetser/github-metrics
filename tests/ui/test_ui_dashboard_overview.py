@@ -511,7 +511,7 @@ class TestDashboardStaticAssets:
         await page_with_js_coverage.goto(DASHBOARD_URL, timeout=TIMEOUT)
 
         # Check CSS link exists
-        css_link = page_with_js_coverage.locator('link[href="/static/css/metrics_dashboard.css"]')
+        css_link = page_with_js_coverage.locator('link[href^="/static/css/metrics_dashboard.css"]')
         await expect(css_link).to_be_attached()
 
     async def test_javascript_modules_load(self, page_with_js_coverage: Page) -> None:
