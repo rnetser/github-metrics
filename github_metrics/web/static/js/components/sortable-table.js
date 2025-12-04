@@ -80,23 +80,39 @@ export class SortableTable {
     }
 
     /**
-     * Bind click events to sortable headers.
+     * Bind click and keyboard events to sortable headers.
      */
     bindEvents() {
         if (!this.table) return;
 
         const headers = this.table.querySelectorAll('th.sortable');
         headers.forEach(header => {
-            const boundHandler = () => {
+            // Make header keyboard-activatable for accessibility
+            header.setAttribute('role', 'button');
+            header.tabIndex = 0;
+
+            const clickHandler = () => {
                 const column = header.dataset.column;
                 if (column) {
                     this.handleSort(column);
                 }
             };
 
-            // Store bound handler for later removal
-            this.boundHandlers.set(header, boundHandler);
-            header.addEventListener('click', boundHandler);
+            const keydownHandler = (e) => {
+                // Trigger sort on Enter or Space key
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    const column = header.dataset.column;
+                    if (column) {
+                        this.handleSort(column);
+                    }
+                }
+            };
+
+            // Store both handlers for later removal
+            this.boundHandlers.set(header, { clickHandler, keydownHandler });
+            header.addEventListener('click', clickHandler);
+            header.addEventListener('keydown', keydownHandler);
         });
     }
 
@@ -168,8 +184,8 @@ export class SortableTable {
      */
     compareDates(aVal, bVal, direction) {
         // Check for ISO date strings FIRST (before number check)
-        // ISO dates look like: "2024-01-15", "2025-11-27T10:30:00" or "2025-11-27T10:30:00.000Z"
-        const isoDateRegex = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?/;
+        // ISO dates look like: "2024-01-15", "2025-11-27T10:30:00", or "2025-11-27T10:30:00.000Z"
+        const isoDateRegex = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d{3})?)?(Z|[+-]\d{2}:\d{2})?)?/;
         if (typeof aVal === 'string' && typeof bVal === 'string' &&
             isoDateRegex.test(aVal) && isoDateRegex.test(bVal)) {
             const aDate = new Date(aVal);
@@ -277,8 +293,9 @@ export class SortableTable {
         if (!this.table) return;
 
         // Remove all bound event listeners
-        this.boundHandlers.forEach((handler, header) => {
-            header.removeEventListener('click', handler);
+        this.boundHandlers.forEach((handlers, header) => {
+            header.removeEventListener('click', handlers.clickHandler);
+            header.removeEventListener('keydown', handlers.keydownHandler);
         });
 
         // Clear stored references

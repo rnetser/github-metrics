@@ -570,18 +570,16 @@ class MetricsDashboard {
         // Note: topRepositories comes from summary.top_repositories which is NOT paginated
         // Only update pagination if we have pagination metadata (from fetchRepositories API)
         if (pagination && this.paginationComponents.topRepositories) {
+            // Paginated data - show pagination controls
+            this.paginationComponents.topRepositories.show();
             this.paginationComponents.topRepositories.update({
                 total: pagination.total,
                 page: pagination.page,
                 pageSize: pagination.page_size
             });
-        } else if (!pagination && repositories.length > 0 && this.paginationComponents.topRepositories) {
-            // For non-paginated top repositories (from summary), show count without pagination controls
-            this.paginationComponents.topRepositories.update({
-                total: repositories.length,
-                page: 1,
-                pageSize: repositories.length
-            });
+        } else if (!pagination && this.paginationComponents.topRepositories) {
+            // Non-paginated top repositories (from summary) - hide pagination controls
+            this.paginationComponents.topRepositories.hide();
         }
     }
 

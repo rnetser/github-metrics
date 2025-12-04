@@ -35,7 +35,7 @@ export class Pagination {
             selectChange: null,
             prevClick: null,
             nextClick: null,
-            pageKeypress: null,
+            pageKeydown: null,
             pageBlur: null
         };
 
@@ -45,7 +45,14 @@ export class Pagination {
 
     update(state) {
         this.state = { ...this.state, ...state };
-        this.state.totalPages = Math.ceil(this.state.total / this.state.pageSize) || 1;
+        // Prefer caller-provided totalPages, otherwise compute from total/pageSize
+        if (!state.totalPages) {
+            if (this.state.total === 0) {
+                this.state.totalPages = 0;
+            } else {
+                this.state.totalPages = Math.ceil(this.state.total / this.state.pageSize);
+            }
+        }
         this.updateDisplay();
     }
 
@@ -97,8 +104,16 @@ export class Pagination {
         if (nextBtn) nextBtn.disabled = page >= totalPages;
 
         if (pageInput) {
-            pageInput.value = page;
-            pageInput.max = totalPages;
+            // Handle empty dataset (totalPages = 0)
+            if (totalPages === 0) {
+                pageInput.value = 0;
+                pageInput.max = 0;
+                pageInput.disabled = true;
+            } else {
+                pageInput.value = page;
+                pageInput.max = totalPages;
+                pageInput.disabled = false;
+            }
         }
     }
 
@@ -169,8 +184,9 @@ export class Pagination {
                 pageInput.setCustomValidity('');
             };
 
-            this.boundHandlers.pageKeypress = (e) => {
+            this.boundHandlers.pageKeydown = (e) => {
                 if (e.key === 'Enter') {
+                    e.preventDefault();
                     handlePageNavigation();
                 }
             };
@@ -178,8 +194,28 @@ export class Pagination {
                 handlePageNavigation();
             };
 
-            pageInput.addEventListener('keypress', this.boundHandlers.pageKeypress);
+            pageInput.addEventListener('keydown', this.boundHandlers.pageKeydown);
             pageInput.addEventListener('blur', this.boundHandlers.pageBlur);
+        }
+    }
+
+    /**
+     * Hide pagination controls (for non-paginated data).
+     */
+    hide() {
+        const controls = this.container.querySelector('.pagination-controls');
+        if (controls) {
+            controls.style.display = 'none';
+        }
+    }
+
+    /**
+     * Show pagination controls (reverse of hide()).
+     */
+    show() {
+        const controls = this.container.querySelector('.pagination-controls');
+        if (controls) {
+            controls.style.display = '';
         }
     }
 
@@ -205,8 +241,8 @@ export class Pagination {
             nextBtn.removeEventListener('click', this.boundHandlers.nextClick);
         }
         if (pageInput) {
-            if (this.boundHandlers.pageKeypress) {
-                pageInput.removeEventListener('keypress', this.boundHandlers.pageKeypress);
+            if (this.boundHandlers.pageKeydown) {
+                pageInput.removeEventListener('keydown', this.boundHandlers.pageKeydown);
             }
             if (this.boundHandlers.pageBlur) {
                 pageInput.removeEventListener('blur', this.boundHandlers.pageBlur);

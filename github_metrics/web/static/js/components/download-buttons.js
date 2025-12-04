@@ -157,8 +157,13 @@ export class DownloadButtons {
         const headers = Object.keys(data[0]);
         const csvRows = [];
 
-        // Add header row
-        csvRows.push(headers.join(','));
+        // Add header row with sanitization
+        const sanitizedHeaders = headers.map(header => {
+            const sanitized = this.sanitizeCSVValue(header);
+            const needsQuotes = sanitized.includes(',') || sanitized !== header;
+            return needsQuotes ? `"${sanitized}"` : sanitized;
+        });
+        csvRows.push(sanitizedHeaders.join(','));
 
         // Add data rows
         data.forEach(row => {

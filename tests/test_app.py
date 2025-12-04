@@ -1165,8 +1165,8 @@ class TestContributorsEndpoint:
 
             client = TestClient(app)
             # CancelledError is re-raised and handled by FastAPI/ASGI server
-            # TestClient wraps it in concurrent.futures.CancelledError
-            with pytest.raises(concurrent.futures.CancelledError):
+            # TestClient may wrap it in concurrent.futures.CancelledError (detect cancellation, not specific type)
+            with pytest.raises((asyncio.CancelledError, concurrent.futures.CancelledError)):
                 client.get("/api/metrics/contributors")
 
 
@@ -1888,8 +1888,8 @@ class TestReviewTurnaroundEndpoint:
 
             client = TestClient(app)
             # CancelledError is re-raised and handled by FastAPI/ASGI server
-            # TestClient wraps it in concurrent.futures.CancelledError
-            with pytest.raises(concurrent.futures.CancelledError):
+            # TestClient may wrap it in concurrent.futures.CancelledError (detect cancellation, not specific type)
+            with pytest.raises((asyncio.CancelledError, concurrent.futures.CancelledError)):
                 client.get("/api/metrics/turnaround")
 
 

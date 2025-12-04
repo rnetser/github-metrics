@@ -79,10 +79,14 @@ class TestFormatPaginationMetadata:
         }
 
     def test_format_pagination_metadata_negative_total(self) -> None:
-        """Test pagination metadata with negative total (edge case)."""
+        """Test pagination metadata with negative total (edge case).
+
+        Negative total is passed through unchanged, but navigation metadata
+        (total_pages, has_next, has_prev) is normalized to prevent invalid navigation.
+        """
         result = format_pagination_metadata(total=-5, page=1, page_size=10)
 
-        # Negative total should be treated as 0
+        # Negative total is passed through, but navigation metadata is normalized
         assert result == {
             "total": -5,
             "page": 1,

@@ -52,6 +52,9 @@ async def get_review_turnaround(
       Default: No time filter (up to current time)
     - `repository` (str, optional): Filter by repository (org/repo format)
     - `user` (str, optional): Filter by reviewer username
+      Note: The user filter only affects reviewer-centric metrics (time_to_first_review,
+      by_repository breakdown, by_reviewer stats). Approval and lifecycle metrics remain
+      global for the given time/repository filters since they track PR completion states.
 
     **Return Structure:**
     ```json
@@ -131,7 +134,7 @@ async def get_review_turnaround(
 
     user_filter_reviewer = ""
     if user:
-        user_filter_reviewer = f" AND sender = {reviewer_params.add(user)}"
+        user_filter_reviewer = f" AND w.sender = {reviewer_params.add(user)}"
 
     # Query 1: Time to first review per PR (for overall summary)
     # Find the first 'pull_request_review' event for each PR after it was opened
