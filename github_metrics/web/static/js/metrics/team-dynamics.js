@@ -235,19 +235,13 @@ class TeamDynamics {
             const filters = this.getTimeFilters();
             console.log('[TeamDynamics] Using filters:', filters);
 
-            // Get current page and page size for each table
+            // Get current page and page size from workload table
+            // Note: Backend API accepts single page/page_size that applies to all three tables
+            // (workload, review efficiency, and bottlenecks share the same pagination)
             const workloadPage = this.paginationState.workload.currentPage;
             const workloadPageSize = this.paginationState.workload.paginationComponent?.state.pageSize || 25;
 
-            const reviewEfficiencyPage = this.paginationState.reviewEfficiency.currentPage;
-            const reviewEfficiencyPageSize = this.paginationState.reviewEfficiency.paginationComponent?.state.pageSize || 25;
-
-            const bottlenecksPage = this.paginationState.bottlenecks.currentPage;
-            const bottlenecksPageSize = this.paginationState.bottlenecks.paginationComponent?.state.pageSize || 25;
-
             // Fetch data from API with filters and pagination
-            // Note: Backend expects single page/page_size that applies to all tables
-            // We'll use workload pagination as the primary pagination for now
             const response = await apiClient.fetchTeamDynamics(
                 filters.start_time,
                 filters.end_time,
@@ -345,7 +339,7 @@ class TeamDynamics {
             this.kpiTopContributor.textContent = summary.top_contributor?.user || 'N/A';
         }
         if (this.kpiWorkloadGini) {
-            this.kpiWorkloadGini.textContent = summary.workload_gini
+            this.kpiWorkloadGini.textContent = summary.workload_gini != null
                 ? `${(summary.workload_gini * 100).toFixed(1)}%`
                 : 'N/A';
         }
@@ -1228,6 +1222,8 @@ class TeamDynamics {
         }
 
         // Review efficiency table pagination
+        // Note: All three tables (workload, review efficiency, bottlenecks) share the same
+        // pagination because the backend API uses a single page/page_size parameter
         const reviewEfficiencyPaginationContainer = document.getElementById('reviewEfficiencyTable-pagination');
         if (reviewEfficiencyPaginationContainer) {
             this.paginationState.reviewEfficiency.paginationComponent = new Pagination({
@@ -1252,6 +1248,8 @@ class TeamDynamics {
         }
 
         // Bottlenecks table pagination
+        // Note: All three tables (workload, review efficiency, bottlenecks) share the same
+        // pagination because the backend API uses a single page/page_size parameter
         const bottlenecksPaginationContainer = document.getElementById('approversTable-pagination');
         if (bottlenecksPaginationContainer) {
             this.paginationState.bottlenecks.paginationComponent = new Pagination({

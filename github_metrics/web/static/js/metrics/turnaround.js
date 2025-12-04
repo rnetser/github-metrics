@@ -1290,6 +1290,13 @@ class TurnaroundMetrics {
                     this.loadContributorCategory(category, this.getTimeFilters());
                 }
             });
+
+            // Initialize with empty state - will be updated when data loads
+            this.contributorMetrics[category].paginationComponent.update({
+                total: 0,
+                page: 1,
+                pageSize: 10
+            });
         });
     }
 }

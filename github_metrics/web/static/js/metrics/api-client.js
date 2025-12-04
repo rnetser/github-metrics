@@ -473,8 +473,8 @@ class MetricsAPIClient {
      *         summary: {
      *             avg_review_time_hours: 4.2,
      *             median_review_time_hours: 2.8,
-     *             fastest_reviewer: 'user2',
-     *             slowest_reviewer: 'user3'
+     *             fastest_reviewer: { user: 'user2', avg_hours: 1.5 },
+     *             slowest_reviewer: { user: 'user3', avg_hours: 12.5 }
      *         },
      *         by_reviewer: [
      *             {
