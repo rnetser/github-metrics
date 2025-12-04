@@ -63,9 +63,11 @@ class TurnaroundMetrics {
         this.userPrsPagination = {
             username: null,
             category: null,
-            allPrs: [], // Store all PRs
+            currentPagePrs: [], // Store current page PRs only
             currentPage: 1,
             pageSize: 10,
+            totalItems: 0,
+            totalPages: 0,
             paginationComponent: null
         };
 
@@ -857,72 +859,49 @@ class TurnaroundMetrics {
     }
 
     /**
-     * Load all user PRs from the API
+     * Load user PRs from the API (server-side pagination)
      */
     async loadUserPrsPage() {
-        const { username, category } = this.userPrsPagination;
+        const { username, category, currentPage, pageSize } = this.userPrsPagination;
 
         try {
             const filters = this.getTimeFilters();
 
-            // First, fetch with minimal page size to get total count
-            const countParams = {
+            // Fetch current page from API
+            const params = {
                 user: username,
                 role: category,
-                page: 1,
-                page_size: 1
+                page: currentPage,
+                page_size: pageSize
             };
 
             if (filters.repository) {
-                countParams.repository = filters.repository;
+                params.repository = filters.repository;
             }
 
-            const countData = await apiClient.fetchUserPRs(
+            const data = await apiClient.fetchUserPRs(
                 filters.start_time,
                 filters.end_time,
-                countParams
+                params
             );
 
-            if (countData.error) {
-                throw new Error(countData.detail || countData.error);
+            if (data.error) {
+                throw new Error(data.detail || data.error);
             }
 
-            const totalItems = countData.pagination?.total || 0;
+            // Store pagination metadata
+            this.userPrsPagination.totalItems = data.pagination?.total || 0;
+            this.userPrsPagination.totalPages = data.pagination?.total_pages || 0;
+            this.userPrsPagination.currentPagePrs = data.data || [];
 
             // Update title with PR count and role description
             const roleText = this.getRoleDescription(category);
-            this.userPrsModal.setTitle(`PRs ${roleText} ${username} (${totalItems})`);
+            this.userPrsModal.setTitle(`PRs ${roleText} ${username} (${this.userPrsPagination.totalItems})`);
 
-            if (totalItems === 0) {
+            if (this.userPrsPagination.totalItems === 0) {
                 this.userPrsModal.setBody('<div class="empty-state">No PRs found for this user in the selected time range.</div>');
                 return;
             }
-
-            // Now fetch all PRs using the total count
-            const allParams = {
-                user: username,
-                role: category,
-                page: 1,
-                page_size: totalItems
-            };
-
-            if (filters.repository) {
-                allParams.repository = filters.repository;
-            }
-
-            const allData = await apiClient.fetchUserPRs(
-                filters.start_time,
-                filters.end_time,
-                allParams
-            );
-
-            if (allData.error) {
-                throw new Error(allData.detail || allData.error);
-            }
-
-            // Store all PRs in state
-            this.userPrsPagination.allPrs = allData.data || [];
-            this.userPrsPagination.currentPage = 1;
 
             // Render PRs with pagination
             this.renderUserPrsWithPagination();
@@ -934,13 +913,13 @@ class TurnaroundMetrics {
     }
 
     /**
-     * Render all user PRs without pagination
+     * Render user PRs with server-side pagination
      */
     renderUserPrsWithPagination() {
-        const { allPrs } = this.userPrsPagination;
+        const { currentPagePrs, totalItems, currentPage, pageSize } = this.userPrsPagination;
 
-        // Render all PRs (no pagination)
-        const prsListHtml = this.renderUserPrsListHtml(allPrs);
+        // Render current page PRs with pagination controls
+        const prsListHtml = this.renderUserPrsListHtml(currentPagePrs);
         this.userPrsModal.setBody(prsListHtml);
 
         // Set up delegated click listener for PR items
@@ -966,6 +945,33 @@ class TurnaroundMetrics {
 
             // Add delegated click listener
             listPanel.addEventListener('click', this._prItemClickHandler);
+        }
+
+        // Initialize or update pagination component
+        const paginationContainer = document.querySelector('#userPrsModal .user-prs-pagination');
+        if (paginationContainer && totalItems > 0) {
+            // Destroy existing pagination component if it exists
+            if (this.userPrsPagination.paginationComponent) {
+                this.userPrsPagination.paginationComponent.destroy();
+            }
+
+            // Create new pagination component
+            this.userPrsPagination.paginationComponent = new Pagination({
+                container: paginationContainer,
+                pageSize: pageSize,
+                total: totalItems,
+                page: currentPage,
+                pageSizeOptions: [10, 25, 50, 100],
+                onPageChange: (page) => {
+                    this.userPrsPagination.currentPage = page;
+                    this.loadUserPrsPage();
+                },
+                onPageSizeChange: (newPageSize) => {
+                    this.userPrsPagination.pageSize = newPageSize;
+                    this.userPrsPagination.currentPage = 1;
+                    this.loadUserPrsPage();
+                }
+            });
         }
     }
 
@@ -1012,13 +1018,14 @@ class TurnaroundMetrics {
             `;
         }).join('');
 
-        // Build the two-panel layout without pagination controls
+        // Build the two-panel layout with pagination controls
         return `
             <div class="user-prs-container">
                 <div class="user-prs-list-panel">
                     <div class="user-prs-list-content">
                         ${listPanelHtml}
                     </div>
+                    <div class="user-prs-pagination"></div>
                 </div>
                 <div class="user-prs-story-panel">
                     <div class="empty-state">Select a PR to view its timeline</div>

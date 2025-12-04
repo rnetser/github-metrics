@@ -235,12 +235,26 @@ class TeamDynamics {
             const filters = this.getTimeFilters();
             console.log('[TeamDynamics] Using filters:', filters);
 
-            // Fetch data from API with filters
+            // Get current page and page size for each table
+            const workloadPage = this.paginationState.workload.currentPage;
+            const workloadPageSize = this.paginationState.workload.paginationComponent?.state.pageSize || 25;
+
+            const reviewEfficiencyPage = this.paginationState.reviewEfficiency.currentPage;
+            const reviewEfficiencyPageSize = this.paginationState.reviewEfficiency.paginationComponent?.state.pageSize || 25;
+
+            const bottlenecksPage = this.paginationState.bottlenecks.currentPage;
+            const bottlenecksPageSize = this.paginationState.bottlenecks.paginationComponent?.state.pageSize || 25;
+
+            // Fetch data from API with filters and pagination
+            // Note: Backend expects single page/page_size that applies to all tables
+            // We'll use workload pagination as the primary pagination for now
             const response = await apiClient.fetchTeamDynamics(
                 filters.start_time,
                 filters.end_time,
                 filters.repository,
-                filters.user
+                filters.user,
+                workloadPage,
+                workloadPageSize
             );
 
             // Check for errors
@@ -341,14 +355,25 @@ class TeamDynamics {
             this.sortableTables.workload.update(workloadData.by_contributor || []);
         }
 
-        // Update table with pagination
+        // Update table directly with server-side paginated data
+        this.updateWorkloadTable(workloadData.by_contributor || []);
+
+        // Update pagination component with server-side pagination metadata
         const paginationComponent = this.paginationState.workload.paginationComponent;
-        if (paginationComponent) {
-            const pageSize = paginationComponent.state.pageSize;
-            this.renderPaginatedTable('workload', 1, pageSize);
-        } else {
-            // Fallback if pagination not initialized
-            this.updateWorkloadTable(workloadData.by_contributor || []);
+        const pagination = workloadData.pagination;
+        if (paginationComponent && pagination) {
+            paginationComponent.update({
+                total: pagination.total,
+                page: pagination.page,
+                pageSize: pagination.page_size
+            });
+
+            // Show/hide pagination based on total items
+            if (pagination.total > pagination.page_size) {
+                paginationComponent.show();
+            } else {
+                paginationComponent.hide();
+            }
         }
     }
 
@@ -381,14 +406,25 @@ class TeamDynamics {
             this.sortableTables.reviewEfficiency.update(reviewEfficiencyData.by_reviewer || []);
         }
 
-        // Update table with pagination
+        // Update table directly with server-side paginated data
+        this.updateReviewEfficiencyTable(reviewEfficiencyData.by_reviewer || []);
+
+        // Update pagination component with server-side pagination metadata
         const paginationComponent = this.paginationState.reviewEfficiency.paginationComponent;
-        if (paginationComponent) {
-            const pageSize = paginationComponent.state.pageSize;
-            this.renderPaginatedTable('reviewEfficiency', 1, pageSize);
-        } else {
-            // Fallback if pagination not initialized
-            this.updateReviewEfficiencyTable(reviewEfficiencyData.by_reviewer || []);
+        const pagination = reviewEfficiencyData.pagination;
+        if (paginationComponent && pagination) {
+            paginationComponent.update({
+                total: pagination.total,
+                page: pagination.page,
+                pageSize: pagination.page_size
+            });
+
+            // Show/hide pagination based on total items
+            if (pagination.total > pagination.page_size) {
+                paginationComponent.show();
+            } else {
+                paginationComponent.hide();
+            }
         }
     }
 
@@ -409,14 +445,25 @@ class TeamDynamics {
             this.sortableTables.bottlenecks.update(bottlenecksData.by_approver || []);
         }
 
-        // Update table with pagination
+        // Update table directly with server-side paginated data
+        this.updateBottlenecksTable(bottlenecksData.by_approver || []);
+
+        // Update pagination component with server-side pagination metadata
         const paginationComponent = this.paginationState.bottlenecks.paginationComponent;
-        if (paginationComponent) {
-            const pageSize = paginationComponent.state.pageSize;
-            this.renderPaginatedTable('bottlenecks', 1, pageSize);
-        } else {
-            // Fallback if pagination not initialized
-            this.updateBottlenecksTable(bottlenecksData.by_approver || []);
+        const pagination = bottlenecksData.pagination;
+        if (paginationComponent && pagination) {
+            paginationComponent.update({
+                total: pagination.total,
+                page: pagination.page,
+                pageSize: pagination.page_size
+            });
+
+            // Show/hide pagination based on total items
+            if (pagination.total > pagination.page_size) {
+                paginationComponent.show();
+            } else {
+                paginationComponent.hide();
+            }
         }
     }
 
@@ -1166,12 +1213,14 @@ class TeamDynamics {
                 onPageChange: (page, pageSize) => {
                     console.log(`[TeamDynamics] Workload table page changed: ${page}, size: ${pageSize}`);
                     this.paginationState.workload.currentPage = page;
-                    this.renderPaginatedTable('workload', page, pageSize);
+                    // Reload metrics from API with new page number
+                    this.loadMetrics();
                 },
                 onPageSizeChange: (pageSize) => {
                     console.log(`[TeamDynamics] Workload table page size changed: ${pageSize}`);
                     this.paginationState.workload.currentPage = 1;
-                    this.renderPaginatedTable('workload', 1, pageSize);
+                    // Reload metrics from API with new page size
+                    this.loadMetrics();
                 }
             });
             // Initially hide pagination until data is loaded
@@ -1188,12 +1237,14 @@ class TeamDynamics {
                 onPageChange: (page, pageSize) => {
                     console.log(`[TeamDynamics] Review efficiency table page changed: ${page}, size: ${pageSize}`);
                     this.paginationState.reviewEfficiency.currentPage = page;
-                    this.renderPaginatedTable('reviewEfficiency', page, pageSize);
+                    // Reload metrics from API with new page number
+                    this.loadMetrics();
                 },
                 onPageSizeChange: (pageSize) => {
                     console.log(`[TeamDynamics] Review efficiency table page size changed: ${pageSize}`);
                     this.paginationState.reviewEfficiency.currentPage = 1;
-                    this.renderPaginatedTable('reviewEfficiency', 1, pageSize);
+                    // Reload metrics from API with new page size
+                    this.loadMetrics();
                 }
             });
             // Initially hide pagination until data is loaded
@@ -1210,12 +1261,14 @@ class TeamDynamics {
                 onPageChange: (page, pageSize) => {
                     console.log(`[TeamDynamics] Bottlenecks table page changed: ${page}, size: ${pageSize}`);
                     this.paginationState.bottlenecks.currentPage = page;
-                    this.renderPaginatedTable('bottlenecks', page, pageSize);
+                    // Reload metrics from API with new page number
+                    this.loadMetrics();
                 },
                 onPageSizeChange: (pageSize) => {
                     console.log(`[TeamDynamics] Bottlenecks table page size changed: ${pageSize}`);
                     this.paginationState.bottlenecks.currentPage = 1;
-                    this.renderPaginatedTable('bottlenecks', 1, pageSize);
+                    // Reload metrics from API with new page size
+                    this.loadMetrics();
                 }
             });
             // Initially hide pagination until data is loaded
@@ -1223,48 +1276,6 @@ class TeamDynamics {
         }
     }
 
-    /**
-     * Render a paginated table with client-side pagination
-     */
-    renderPaginatedTable(tableKey, page, pageSize) {
-        // Get all data for this table
-        const allData = this.getTableData(tableKey);
-
-        if (!allData || allData.length === 0) {
-            return;
-        }
-
-        // Calculate pagination
-        const startIndex = (page - 1) * pageSize;
-        const endIndex = startIndex + pageSize;
-        const pageData = allData.slice(startIndex, endIndex);
-
-        // Update table with page data
-        if (tableKey === 'workload') {
-            this.updateWorkloadTable(pageData);
-        } else if (tableKey === 'reviewEfficiency') {
-            this.updateReviewEfficiencyTable(pageData);
-        } else if (tableKey === 'bottlenecks') {
-            this.updateBottlenecksTable(pageData);
-        }
-
-        // Update pagination component
-        const paginationComponent = this.paginationState[tableKey].paginationComponent;
-        if (paginationComponent) {
-            paginationComponent.update({
-                total: allData.length,
-                page: page,
-                pageSize: pageSize
-            });
-
-            // Show/hide pagination based on data size
-            if (allData.length > pageSize) {
-                paginationComponent.show();
-            } else {
-                paginationComponent.hide();
-            }
-        }
-    }
 
     /**
      * Escape HTML to prevent XSS

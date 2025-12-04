@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from math import ceil
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
@@ -62,6 +63,8 @@ async def get_team_dynamics(
     end_time: str | None = Query(default=None, description="End time in ISO 8601 format (e.g., 2024-01-31T23:59:59Z)"),
     repository: str | None = Query(default=None, description="Filter by repository (org/repo format)"),
     user: str | None = Query(default=None, description="Filter by user (username)"),
+    page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(default=25, ge=1, description="Items per page"),
 ) -> dict[str, Any]:
     """Get team dynamics and workload distribution metrics.
 
@@ -83,6 +86,8 @@ async def get_team_dynamics(
       Default: No time filter (up to current time)
     - `repository` (str, optional): Filter by repository (org/repo format)
     - `user` (str, optional): Filter by user (username)
+    - `page` (int, optional): Page number for pagination (1-indexed, default: 1)
+    - `page_size` (int, optional): Number of items per page (default: 25)
 
     **Return Structure:**
     ```json
@@ -101,7 +106,13 @@ async def get_team_dynamics(
             "prs_reviewed": 120,
             "prs_approved": 85
           }
-        ]
+        ],
+        "pagination": {
+          "page": 1,
+          "page_size": 25,
+          "total": 15,
+          "total_pages": 1
+        }
       },
       "review_efficiency": {
         "summary": {
@@ -117,7 +128,13 @@ async def get_team_dynamics(
             "median_review_time_hours": 0.8,
             "total_reviews": 150
           }
-        ]
+        ],
+        "pagination": {
+          "page": 1,
+          "page_size": 25,
+          "total": 15,
+          "total_pages": 1
+        }
       },
       "bottlenecks": {
         "alerts": [
@@ -134,7 +151,13 @@ async def get_team_dynamics(
             "avg_approval_hours": 48.5,
             "total_approvals": 25
           }
-        ]
+        ],
+        "pagination": {
+          "page": 1,
+          "page_size": 25,
+          "total": 15,
+          "total_pages": 1
+        }
       }
     }
     ```
@@ -387,7 +410,7 @@ async def get_team_dynamics(
         )
 
         # Process workload data
-        workload_data = [
+        workload_data_full = [
             {
                 "user": row["user"],
                 "prs_created": row["prs_created"],
@@ -397,18 +420,18 @@ async def get_team_dynamics(
             for row in workload_rows
         ]
 
-        # Calculate workload summary
-        total_contributors = len(workload_data)
-        total_prs = sum(row["prs_created"] for row in workload_data)
+        # Calculate workload summary (using full dataset)
+        total_contributors = len(workload_data_full)
+        total_prs = sum(row["prs_created"] for row in workload_data_full)
         avg_prs = round(total_prs / total_contributors, 1) if total_contributors > 0 else 0.0
 
         top_contributor = None
-        if workload_data:
-            top = max(workload_data, key=lambda x: x["prs_created"])
+        if workload_data_full:
+            top = max(workload_data_full, key=lambda x: x["prs_created"])
             top_contributor = {"user": top["user"], "total_prs": top["prs_created"]}
 
         # Calculate Gini coefficient for workload inequality
-        pr_counts = [row["prs_created"] for row in workload_data]
+        pr_counts = [row["prs_created"] for row in workload_data_full]
         workload_gini = calculate_gini_coefficient(pr_counts)
 
         workload_summary = {
@@ -418,8 +441,18 @@ async def get_team_dynamics(
             "workload_gini": workload_gini,
         }
 
+        # Apply pagination to workload data
+        offset = (page - 1) * page_size
+        workload_data = workload_data_full[offset : offset + page_size]
+        workload_pagination = {
+            "page": page,
+            "page_size": page_size,
+            "total": total_contributors,
+            "total_pages": ceil(total_contributors / page_size) if total_contributors > 0 else 0,
+        }
+
         # Process review efficiency data
-        review_data = [
+        review_data_full = [
             {
                 "user": row["user"],
                 "avg_review_time_hours": float(row["avg_review_time_hours"] or 0),
@@ -429,24 +462,25 @@ async def get_team_dynamics(
             for row in review_rows
         ]
 
-        # Calculate review efficiency summary
+        # Calculate review efficiency summary (using full dataset)
         avg_review_time = 0.0
         median_review_time = 0.0
         fastest_reviewer = None
         slowest_reviewer = None
 
-        if review_data:
+        if review_data_full:
             # Note: avg_review_time is an unweighted average-of-averages (approximation).
             # For accurate aggregate statistics, use median_review_time which is computed
             # directly from the database using PERCENTILE_CONT(0.5).
-            avg_review_time = round(sum(r["avg_review_time_hours"] for r in review_data) / len(review_data), 1)
+            total_review_hours = sum(r["avg_review_time_hours"] for r in review_data_full)
+            avg_review_time = round(total_review_hours / len(review_data_full), 1)
             # Use proper aggregate median from database query
             median_review_time = float(review_rows[0]["overall_median_hours"] or 0) if review_rows else 0.0
 
-            fastest = min(review_data, key=lambda x: x["avg_review_time_hours"])
+            fastest = min(review_data_full, key=lambda x: x["avg_review_time_hours"])
             fastest_reviewer = {"user": fastest["user"], "avg_hours": fastest["avg_review_time_hours"]}
 
-            slowest = max(review_data, key=lambda x: x["avg_review_time_hours"])
+            slowest = max(review_data_full, key=lambda x: x["avg_review_time_hours"])
             slowest_reviewer = {"user": slowest["user"], "avg_hours": slowest["avg_review_time_hours"]}
 
         review_summary = {
@@ -456,8 +490,18 @@ async def get_team_dynamics(
             "slowest_reviewer": slowest_reviewer,
         }
 
+        # Apply pagination to review data
+        total_reviewers = len(review_data_full)
+        review_data = review_data_full[offset : offset + page_size]
+        review_pagination = {
+            "page": page,
+            "page_size": page_size,
+            "total": total_reviewers,
+            "total_pages": ceil(total_reviewers / page_size) if total_reviewers > 0 else 0,
+        }
+
         # Process approval bottleneck data
-        approval_data = [
+        approval_data_full = [
             {
                 "approver": row["approver"],
                 "avg_approval_hours": float(row["avg_approval_hours"] or 0),
@@ -466,11 +510,11 @@ async def get_team_dynamics(
             for row in approval_rows
         ]
 
-        # Generate bottleneck alerts (based on approval time only)
+        # Generate bottleneck alerts (based on approval time only, using full dataset)
         pending_count = pending_row["pending_count"] if pending_row else 0
         alerts = []
 
-        for approver_data in approval_data:
+        for approver_data in approval_data_full:
             avg_hours = approver_data["avg_approval_hours"]
 
             # Severity based on approval time only
@@ -493,6 +537,16 @@ async def get_team_dynamics(
         # Sort alerts: critical first (False < True), then by avg_approval_hours descending
         alerts.sort(key=lambda x: (x["severity"] != "critical", -x["avg_approval_hours"]))
 
+        # Apply pagination to approval data
+        total_approvers = len(approval_data_full)
+        approval_data = approval_data_full[offset : offset + page_size]
+        approval_pagination = {
+            "page": page,
+            "page_size": page_size,
+            "total": total_approvers,
+            "total_pages": ceil(total_approvers / page_size) if total_approvers > 0 else 0,
+        }
+
     except asyncio.CancelledError:
         raise
     except HTTPException:
@@ -508,13 +562,16 @@ async def get_team_dynamics(
             "workload": {
                 "summary": workload_summary,
                 "by_contributor": workload_data,
+                "pagination": workload_pagination,
             },
             "review_efficiency": {
                 "summary": review_summary,
                 "by_reviewer": review_data,
+                "pagination": review_pagination,
             },
             "bottlenecks": {
                 "alerts": alerts,
                 "by_approver": approval_data,
+                "pagination": approval_pagination,
             },
         }

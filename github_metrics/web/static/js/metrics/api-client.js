@@ -439,6 +439,8 @@ class MetricsAPIClient {
      * @param {string|null} endTime - ISO 8601 end time filter (optional)
      * @param {string|null} repository - Filter by repository (optional)
      * @param {string|null} user - Filter by user (optional)
+     * @param {number} page - Page number for pagination (optional)
+     * @param {number} pageSize - Number of items per page (optional)
      * @returns {Promise<Object>} Team dynamics data or error object
      *
      * Response format (success):
@@ -457,7 +459,15 @@ class MetricsAPIClient {
      *                 prs_merged: 38,
      *                 workload_percentage: 15.2
      *             }
-     *         ]
+     *         ],
+     *         pagination: {
+     *             total: 100,
+     *             page: 1,
+     *             page_size: 25,
+     *             total_pages: 4,
+     *             has_next: true,
+     *             has_prev: false
+     *         }
      *     },
      *     review_efficiency: {
      *         summary: {
@@ -473,7 +483,15 @@ class MetricsAPIClient {
      *                 median_review_time_hours: 1.2,
      *                 total_reviews: 85
      *             }
-     *         ]
+     *         ],
+     *         pagination: {
+     *             total: 50,
+     *             page: 1,
+     *             page_size: 25,
+     *             total_pages: 2,
+     *             has_next: true,
+     *             has_prev: false
+     *         }
      *     },
      *     bottlenecks: {
      *         by_approver: [
@@ -483,6 +501,14 @@ class MetricsAPIClient {
      *                 avg_approval_hours: 48.3
      *             }
      *         ],
+     *         pagination: {
+     *             total: 30,
+     *             page: 1,
+     *             page_size: 25,
+     *             total_pages: 2,
+     *             has_next: true,
+     *             has_prev: false
+     *         },
      *         alerts: [
      *             {
      *                 severity: 'critical',
@@ -494,12 +520,14 @@ class MetricsAPIClient {
      *     }
      * }
      */
-    async fetchTeamDynamics(startTime = null, endTime = null, repository = null, user = null) {
+    async fetchTeamDynamics(startTime = null, endTime = null, repository = null, user = null, page = null, pageSize = null) {
         const params = {};
         if (startTime) params.start_time = startTime;
         if (endTime) params.end_time = endTime;
         if (repository) params.repository = repository;
         if (user) params.user = user;
+        if (page !== null && page !== undefined) params.page = page;
+        if (pageSize !== null && pageSize !== undefined) params.page_size = pageSize;
 
         return await this._fetch('/team-dynamics', params);
     }

@@ -362,7 +362,7 @@ class TestTeamDynamicsEndpoint:
             assert set(data.keys()) == {"workload", "review_efficiency", "bottlenecks"}
 
             # Verify workload structure
-            assert set(data["workload"].keys()) == {"summary", "by_contributor"}
+            assert set(data["workload"].keys()) == {"summary", "by_contributor", "pagination"}
             assert set(data["workload"]["summary"].keys()) == {
                 "total_contributors",
                 "avg_prs_per_contributor",
@@ -370,18 +370,28 @@ class TestTeamDynamicsEndpoint:
                 "workload_gini",
             }
 
+            # Verify pagination structure
+            assert set(data["workload"]["pagination"].keys()) == {"page", "page_size", "total", "total_pages"}
+            assert data["workload"]["pagination"]["page"] == 1
+            assert data["workload"]["pagination"]["page_size"] == 25
+            assert data["workload"]["pagination"]["total"] == 3
+            assert data["workload"]["pagination"]["total_pages"] == 1
+
             # Verify contributor data structure
             for contributor in data["workload"]["by_contributor"]:
                 assert set(contributor.keys()) == {"user", "prs_created", "prs_reviewed", "prs_approved"}
 
             # Verify review efficiency structure
-            assert set(data["review_efficiency"].keys()) == {"summary", "by_reviewer"}
+            assert set(data["review_efficiency"].keys()) == {"summary", "by_reviewer", "pagination"}
             assert set(data["review_efficiency"]["summary"].keys()) == {
                 "avg_review_time_hours",
                 "median_review_time_hours",
                 "fastest_reviewer",
                 "slowest_reviewer",
             }
+
+            # Verify pagination structure
+            assert set(data["review_efficiency"]["pagination"].keys()) == {"page", "page_size", "total", "total_pages"}
 
             # Verify reviewer data structure
             for reviewer in data["review_efficiency"]["by_reviewer"]:
@@ -393,7 +403,10 @@ class TestTeamDynamicsEndpoint:
                 }
 
             # Verify bottlenecks structure
-            assert set(data["bottlenecks"].keys()) == {"alerts", "by_approver"}
+            assert set(data["bottlenecks"].keys()) == {"alerts", "by_approver", "pagination"}
+
+            # Verify pagination structure
+            assert set(data["bottlenecks"]["pagination"].keys()) == {"page", "page_size", "total", "total_pages"}
 
             # Verify alert structure
             for alert in data["bottlenecks"]["alerts"]:
@@ -403,6 +416,147 @@ class TestTeamDynamicsEndpoint:
             # Verify approver data structure
             for approver in data["bottlenecks"]["by_approver"]:
                 assert set(approver.keys()) == {"approver", "avg_approval_hours", "total_approvals"}
+
+    def test_team_dynamics_pagination(self) -> None:
+        """Test team dynamics pagination functionality."""
+        # Create 5 users to test pagination
+        workload_rows = [
+            {"user": f"user{i}", "prs_created": i * 10, "prs_reviewed": i * 5, "prs_approved": i * 3}
+            for i in range(1, 6)
+        ]
+        review_rows = [
+            {
+                "user": f"user{i}",
+                "avg_review_time_hours": float(i),
+                "median_review_time_hours": float(i * 0.8),
+                "total_reviews": i * 10,
+                "overall_median_hours": 2.5,
+            }
+            for i in range(1, 6)
+        ]
+        approval_rows = [
+            {"approver": f"user{i}", "avg_approval_hours": float(i * 5), "total_approvals": i * 10} for i in range(1, 6)
+        ]
+        pending_row = {"pending_count": 5}
+
+        with patch("github_metrics.routes.api.team_dynamics.db_manager") as mock_db:
+            mock_db.fetch = AsyncMock(side_effect=[workload_rows, review_rows, approval_rows])
+            mock_db.fetchrow = AsyncMock(return_value=pending_row)
+
+            client = TestClient(app)
+
+            # Test page 1 with page_size=2
+            response = client.get("/api/metrics/team-dynamics", params={"page": 1, "page_size": 2})
+
+            assert response.status_code == 200
+            data = response.json()
+
+            # Verify workload pagination
+            assert data["workload"]["pagination"]["page"] == 1
+            assert data["workload"]["pagination"]["page_size"] == 2
+            assert data["workload"]["pagination"]["total"] == 5
+            assert data["workload"]["pagination"]["total_pages"] == 3
+            assert len(data["workload"]["by_contributor"]) == 2
+            # First page should have first 2 users
+            # Rows come from mock in order: user1, user2, user3, user4, user5
+            # Page 1 (offset=0, page_size=2) = rows[0:2] = user1, user2
+            assert data["workload"]["by_contributor"][0]["user"] == "user1"
+            assert data["workload"]["by_contributor"][1]["user"] == "user2"
+
+            # Verify review efficiency pagination
+            assert data["review_efficiency"]["pagination"]["page"] == 1
+            assert data["review_efficiency"]["pagination"]["page_size"] == 2
+            assert data["review_efficiency"]["pagination"]["total"] == 5
+            assert data["review_efficiency"]["pagination"]["total_pages"] == 3
+            assert len(data["review_efficiency"]["by_reviewer"]) == 2
+
+            # Verify bottlenecks pagination
+            assert data["bottlenecks"]["pagination"]["page"] == 1
+            assert data["bottlenecks"]["pagination"]["page_size"] == 2
+            assert data["bottlenecks"]["pagination"]["total"] == 5
+            assert data["bottlenecks"]["pagination"]["total_pages"] == 3
+            assert len(data["bottlenecks"]["by_approver"]) == 2
+
+    def test_team_dynamics_pagination_page_2(self) -> None:
+        """Test team dynamics pagination page 2."""
+        # Create 5 users to test pagination
+        workload_rows = [
+            {"user": f"user{i}", "prs_created": i * 10, "prs_reviewed": i * 5, "prs_approved": i * 3}
+            for i in range(1, 6)
+        ]
+        review_rows = [
+            {
+                "user": f"user{i}",
+                "avg_review_time_hours": float(i),
+                "median_review_time_hours": float(i * 0.8),
+                "total_reviews": i * 10,
+                "overall_median_hours": 2.5,
+            }
+            for i in range(1, 6)
+        ]
+        approval_rows = [
+            {"approver": f"user{i}", "avg_approval_hours": float(i * 5), "total_approvals": i * 10} for i in range(1, 6)
+        ]
+        pending_row = {"pending_count": 5}
+
+        with patch("github_metrics.routes.api.team_dynamics.db_manager") as mock_db:
+            mock_db.fetch = AsyncMock(side_effect=[workload_rows, review_rows, approval_rows])
+            mock_db.fetchrow = AsyncMock(return_value=pending_row)
+
+            client = TestClient(app)
+
+            # Test page 2 with page_size=2
+            response = client.get("/api/metrics/team-dynamics", params={"page": 2, "page_size": 2})
+
+            assert response.status_code == 200
+            data = response.json()
+
+            # Verify workload pagination
+            assert data["workload"]["pagination"]["page"] == 2
+            assert data["workload"]["pagination"]["page_size"] == 2
+            assert data["workload"]["pagination"]["total"] == 5
+            assert data["workload"]["pagination"]["total_pages"] == 3
+            assert len(data["workload"]["by_contributor"]) == 2
+            # Second page should have next 2 users
+            # Rows come from mock in order: user1, user2, user3, user4, user5
+            # Page 2 (offset=2, page_size=2) = rows[2:4] = user3, user4
+            assert data["workload"]["by_contributor"][0]["user"] == "user3"
+            assert data["workload"]["by_contributor"][1]["user"] == "user4"
+
+    def test_team_dynamics_pagination_empty_page(self) -> None:
+        """Test team dynamics pagination with empty page."""
+        workload_rows = [
+            {"user": "user1", "prs_created": 10, "prs_reviewed": 5, "prs_approved": 3},
+        ]
+        review_rows = [
+            {
+                "user": "user1",
+                "avg_review_time_hours": 1.0,
+                "median_review_time_hours": 0.8,
+                "total_reviews": 10,
+                "overall_median_hours": 1.0,
+            }
+        ]
+        approval_rows = [{"approver": "user1", "avg_approval_hours": 5.0, "total_approvals": 10}]
+        pending_row = {"pending_count": 0}
+
+        with patch("github_metrics.routes.api.team_dynamics.db_manager") as mock_db:
+            mock_db.fetch = AsyncMock(side_effect=[workload_rows, review_rows, approval_rows])
+            mock_db.fetchrow = AsyncMock(return_value=pending_row)
+
+            client = TestClient(app)
+
+            # Test page 2 when only 1 item exists
+            response = client.get("/api/metrics/team-dynamics", params={"page": 2, "page_size": 25})
+
+            assert response.status_code == 200
+            data = response.json()
+
+            # Verify empty results on page 2
+            assert data["workload"]["pagination"]["page"] == 2
+            assert data["workload"]["pagination"]["total"] == 1
+            assert data["workload"]["pagination"]["total_pages"] == 1
+            assert len(data["workload"]["by_contributor"]) == 0
 
     def test_team_dynamics_with_user_filter(
         self,
