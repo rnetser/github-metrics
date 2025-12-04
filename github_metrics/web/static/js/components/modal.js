@@ -194,12 +194,19 @@ export class Modal {
     close() {
         if (!this.modal) return;
 
+        // Guard: return early if modal is already closed
+        if (!this.isOpenState) {
+            console.debug(`[Modal] Modal already closed: ${this.id}`);
+            return;
+        }
+
         // Hide modal
         this.modal.classList.remove('show');
         this.isOpenState = false;
 
         // Unlock body scroll (using counter-based approach for multiple modals)
-        modalOpenCount--;
+        // Prevent negative count by clamping to 0
+        modalOpenCount = Math.max(0, modalOpenCount - 1);
         if (modalOpenCount === 0) {
             document.body.style.overflow = originalBodyOverflow;
         }

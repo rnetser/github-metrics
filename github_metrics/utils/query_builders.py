@@ -13,7 +13,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
 
 # Allowed parameter types for SQL query parameters
 ParamValue = str | int | float | datetime | None
@@ -45,7 +44,7 @@ class QueryParams:
         count_params = params.get_params_excluding_pagination()
     """
 
-    _params: list[Any] = field(default_factory=list)
+    _params: list[ParamValue] = field(default_factory=list)
     _count: int = 0
     _pagination_start_index: int | None = None
 
@@ -75,7 +74,7 @@ class QueryParams:
         """
         self._pagination_start_index = len(self._params)
 
-    def get_params(self) -> list[Any]:
+    def get_params(self) -> list[ParamValue]:
         """Get all parameters for query execution.
 
         Returns a defensive copy to prevent accidental mutation
@@ -83,7 +82,7 @@ class QueryParams:
         """
         return self._params.copy()
 
-    def get_params_excluding_pagination(self) -> list[Any]:
+    def get_params_excluding_pagination(self) -> list[ParamValue]:
         """Get parameters excluding pagination (LIMIT/OFFSET).
 
         Returns all parameters added before mark_pagination_start() was called.

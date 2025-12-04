@@ -155,11 +155,12 @@ export class CollapsibleSection {
             this.container.classList.remove('collapsed');
         }
 
-        // Update button icon and title
+        // Update button icon, title, and aria-expanded
         if (this.collapseBtn) {
             // Icon: ▼ when expanded (pointing down), ▲ when collapsed (pointing up/right)
             this.collapseBtn.textContent = collapsed ? '▲' : '▼';
             this.collapseBtn.title = collapsed ? 'Expand' : 'Collapse';
+            this.collapseBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
         }
 
         // Save state to localStorage

@@ -78,6 +78,20 @@ class TestFormatPaginationMetadata:
             "has_prev": False,
         }
 
+    def test_format_pagination_metadata_negative_total(self) -> None:
+        """Test pagination metadata with negative total (edge case)."""
+        result = format_pagination_metadata(total=-5, page=1, page_size=10)
+
+        # Negative total should be treated as 0
+        assert result == {
+            "total": -5,
+            "page": 1,
+            "page_size": 10,
+            "total_pages": 0,
+            "has_next": False,
+            "has_prev": False,
+        }
+
     def test_format_pagination_metadata_partial_last_page(self) -> None:
         """Test pagination metadata when last page is partial."""
         result = format_pagination_metadata(total=95, page=10, page_size=10)
@@ -108,22 +122,22 @@ class TestFormatPaginationMetadata:
 
     def test_format_pagination_metadata_zero_page_size_raises_error(self) -> None:
         """Test that page_size of 0 raises ValueError."""
-        with pytest.raises(ValueError, match="page_size must be positive, got 0"):
+        with pytest.raises(ValueError, match="page_size must be positive"):
             format_pagination_metadata(total=100, page=1, page_size=0)
 
     def test_format_pagination_metadata_negative_page_size_raises_error(self) -> None:
         """Test that negative page_size raises ValueError."""
-        with pytest.raises(ValueError, match="page_size must be positive, got -10"):
+        with pytest.raises(ValueError, match="page_size must be positive"):
             format_pagination_metadata(total=100, page=1, page_size=-10)
 
     def test_format_pagination_metadata_zero_page_raises_error(self) -> None:
         """Test that page of 0 raises ValueError."""
-        with pytest.raises(ValueError, match="page must be >= 1, got 0"):
+        with pytest.raises(ValueError, match="page must be at least 1"):
             format_pagination_metadata(total=100, page=0, page_size=10)
 
     def test_format_pagination_metadata_negative_page_raises_error(self) -> None:
         """Test that negative page raises ValueError."""
-        with pytest.raises(ValueError, match="page must be >= 1, got -5"):
+        with pytest.raises(ValueError, match="page must be at least 1"):
             format_pagination_metadata(total=100, page=-5, page_size=10)
 
 
@@ -207,7 +221,7 @@ class TestFormatPaginatedResponse:
 
     def test_format_paginated_response_invalid_page(self) -> None:
         """Test that invalid page in format_paginated_response raises error."""
-        with pytest.raises(ValueError, match="page must be >= 1"):
+        with pytest.raises(ValueError, match="page must be at least 1"):
             format_paginated_response(
                 data=[],
                 total=100,

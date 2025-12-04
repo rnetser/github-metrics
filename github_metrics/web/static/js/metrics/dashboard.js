@@ -511,22 +511,8 @@ class MetricsDashboard {
                 }
             }
 
-            // Update Contributors Tables with filtered data
-            if (data.contributors) {
-                // Preserve pagination shapes for each contributor type
-                const contributorsForTable = {
-                    pr_creators: data.contributors.pr_creators?.data
-                        ? { ...data.contributors.pr_creators, data: filteredContributors.pr_creators }
-                        : filteredContributors.pr_creators,
-                    pr_reviewers: data.contributors.pr_reviewers?.data
-                        ? { ...data.contributors.pr_reviewers, data: filteredContributors.pr_reviewers }
-                        : filteredContributors.pr_reviewers,
-                    pr_approvers: data.contributors.pr_approvers?.data
-                        ? { ...data.contributors.pr_approvers, data: filteredContributors.pr_approvers }
-                        : filteredContributors.pr_approvers
-                };
-                this.updateContributorsTables(contributorsForTable);
-            }
+            // Note: Contributors tables removed from Overview page
+            // They're only in Contributors page now, managed by turnaround.js
 
             // Update User PRs Table with filtered data
             if (filteredUserPrs) {
@@ -648,16 +634,6 @@ class MetricsDashboard {
         }
     }
 
-    /**
-     * Update PR contributors tables with new data.
-     * Note: This method is now a no-op as PR contributor tables were removed from Overview page.
-     * PR contributor tables are only in Contributors page, managed by turnaround.js.
-     */
-    updateContributorsTables() {
-        // No-op: PR contributor tables removed from Overview page
-        // They're only in Contributors page now, managed by turnaround.js
-        console.log('[Dashboard] updateContributorsTables called but PR contributor tables are in Contributors page');
-    }
 
     /**
      * Generic contributor table updater.
@@ -866,9 +842,20 @@ class MetricsDashboard {
             }
 
             if (container) {
-                // Load saved page size from localStorage
+                // Load saved page size from localStorage with validation
                 const savedPageSize = localStorage.getItem(`pageSize_${key}`);
-                const pageSize = savedPageSize ? parseInt(savedPageSize, 10) : 10;
+                let pageSize = 10; // Default page size
+
+                if (savedPageSize) {
+                    const parsedSize = parseInt(savedPageSize, 10);
+                    // Validate parsed value - must be finite and in allowed options
+                    const allowedSizes = [10, 25, 50, 100];
+                    if (Number.isFinite(parsedSize) && allowedSizes.includes(parsedSize)) {
+                        pageSize = parsedSize;
+                    } else {
+                        console.warn(`[Dashboard] Invalid saved page size for ${key}: ${savedPageSize}, using default`);
+                    }
+                }
 
                 this.paginationComponents[key] = new Pagination({
                     container: container,
@@ -878,7 +865,7 @@ class MetricsDashboard {
                         this.loadSectionData(key);
                     },
                     onPageSizeChange: (newPageSize) => {
-                        localStorage.setItem(`pageSize_${key}`, newPageSize);
+                        localStorage.setItem(`pageSize_${key}`, String(newPageSize));
                         this.loadSectionData(key);
                     }
                 });
@@ -1411,6 +1398,36 @@ class MetricsDashboard {
         if (this.collapsibleSections) {
             this.collapsibleSections.forEach(section => section.destroy());
             this.collapsibleSections = null;
+        }
+
+        // Destroy download buttons
+        if (this.downloadButtons) {
+            Object.values(this.downloadButtons).forEach(downloadBtn => {
+                if (downloadBtn && typeof downloadBtn.destroy === 'function') {
+                    downloadBtn.destroy();
+                }
+            });
+            this.downloadButtons = null;
+        }
+
+        // Destroy sortable tables
+        if (this.sortableTables) {
+            Object.values(this.sortableTables).forEach(sortableTable => {
+                if (sortableTable && typeof sortableTable.destroy === 'function') {
+                    sortableTable.destroy();
+                }
+            });
+            this.sortableTables = null;
+        }
+
+        // Destroy pagination components
+        if (this.paginationComponents) {
+            Object.values(this.paginationComponents).forEach(pagination => {
+                if (pagination && typeof pagination.destroy === 'function') {
+                    pagination.destroy();
+                }
+            });
+            this.paginationComponents = null;
         }
 
         console.log('[Dashboard] Dashboard destroyed');

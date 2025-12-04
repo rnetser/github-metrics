@@ -1887,10 +1887,10 @@ class TestReviewTurnaroundEndpoint:
             mock_db.fetchrow = AsyncMock(side_effect=asyncio.CancelledError)
 
             client = TestClient(app)
-            response = client.get("/api/metrics/turnaround")
-
-            assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
-            assert response.json()["detail"] == "Request was cancelled"
+            # CancelledError is re-raised and handled by FastAPI/ASGI server
+            # TestClient wraps it in concurrent.futures.CancelledError
+            with pytest.raises(concurrent.futures.CancelledError):
+                client.get("/api/metrics/turnaround")
 
 
 class TestNoCacheMiddleware:

@@ -685,11 +685,10 @@ class TurnaroundMetrics {
     async loadContributorCategory(category, filters = {}) {
         try {
             const page = this.contributorMetrics[category].currentPage;
-            const categoryPrefix = this.getCategoryPrefix(category);
 
-            // Get page size from select element (default to 10 if not found)
-            const pageSizeSelect = document.querySelector(`.page-size-select[data-section="${categoryPrefix}"]`);
-            const pageSize = pageSizeSelect ? parseInt(pageSizeSelect.value, 10) : 10;
+            // Get page size from the Pagination instance associated with this category
+            const paginationComponent = this.contributorMetrics[category].paginationComponent;
+            const pageSize = paginationComponent?.pageSize || 10;
 
             const params = {
                 ...filters,
@@ -1101,12 +1100,11 @@ class TurnaroundMetrics {
      */
     async loadPrStoryToPanel(repository, prNumber, storyPanel) {
         try {
-            const response = await fetch(`/api/metrics/pr-story/${encodeURIComponent(repository)}/${prNumber}`);
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
+            const data = await apiClient.fetchPRStory(repository, prNumber);
 
-            const data = await response.json();
+            if (data.error) {
+                throw new Error(data.detail || data.error);
+            }
 
             // Render PR story timeline
             storyPanel.innerHTML = `<div class="pr-story-content">${this.renderPrStoryTimeline(data)}</div>`;
@@ -1121,9 +1119,16 @@ class TurnaroundMetrics {
      * Render PR story timeline
      */
     renderPrStoryTimeline(storyData) {
-        const { events, summary } = storyData;
+        // Safely derive events and summary with defaults
+        const events = storyData?.events || [];
+        const summary = storyData?.summary || {
+            total_commits: 0,
+            total_reviews: 0,
+            total_check_runs: 0,
+            total_comments: 0
+        };
 
-        if (!events || events.length === 0) {
+        if (events.length === 0) {
             return '<div class="empty-state">No timeline events found for this PR.</div>';
         }
 

@@ -38,11 +38,11 @@ def format_pagination_metadata(
     """
     # Validate page_size to prevent ZeroDivisionError
     if page_size <= 0:
-        raise ValueError(f"page_size must be positive, got {page_size}")
+        raise ValueError("page_size must be positive")
 
     # Validate page to be 1-based
     if page < 1:
-        raise ValueError(f"page must be >= 1, got {page}")
+        raise ValueError("page must be at least 1")
 
     total_pages = calculate_total_pages(total, page_size)
 

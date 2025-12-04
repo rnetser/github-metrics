@@ -44,6 +44,12 @@ export class DownloadButtons {
         this.section = options.section || 'data';
         this.getData = options.getData || (() => []);
 
+        // Store bound handlers for removal in destroy()
+        this.boundHandlers = {
+            csvClick: null,
+            jsonClick: null
+        };
+
         this.render();
         this.bindEvents();
     }
@@ -79,11 +85,13 @@ export class DownloadButtons {
         const jsonBtn = this.container.querySelector('.json-btn');
 
         if (csvBtn) {
-            csvBtn.addEventListener('click', () => this.handleDownload('csv'));
+            this.boundHandlers.csvClick = () => this.handleDownload('csv');
+            csvBtn.addEventListener('click', this.boundHandlers.csvClick);
         }
 
         if (jsonBtn) {
-            jsonBtn.addEventListener('click', () => this.handleDownload('json'));
+            this.boundHandlers.jsonClick = () => this.handleDownload('json');
+            jsonBtn.addEventListener('click', this.boundHandlers.jsonClick);
         }
     }
 
@@ -204,5 +212,28 @@ export class DownloadButtons {
         document.body.removeChild(link);
         // Delay URL.revokeObjectURL to ensure download starts
         setTimeout(() => URL.revokeObjectURL(url), DownloadButtons.URL_REVOKE_DELAY_MS);
+    }
+
+    /**
+     * Clean up event listeners and resources.
+     */
+    destroy() {
+        if (!this.container) return;
+
+        const csvBtn = this.container.querySelector('.csv-btn');
+        const jsonBtn = this.container.querySelector('.json-btn');
+
+        // Remove all bound event listeners
+        if (csvBtn && this.boundHandlers.csvClick) {
+            csvBtn.removeEventListener('click', this.boundHandlers.csvClick);
+        }
+        if (jsonBtn && this.boundHandlers.jsonClick) {
+            jsonBtn.removeEventListener('click', this.boundHandlers.jsonClick);
+        }
+
+        // Clear stored references
+        this.boundHandlers = null;
+        this.container = null;
+        this.getData = null;
     }
 }

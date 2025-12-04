@@ -73,6 +73,9 @@ export class SortableTable {
             direction: 'asc'
         };
 
+        // Store bound handlers for removal in destroy()
+        this.boundHandlers = new Map();
+
         this.bindEvents();
     }
 
@@ -84,12 +87,16 @@ export class SortableTable {
 
         const headers = this.table.querySelectorAll('th.sortable');
         headers.forEach(header => {
-            header.addEventListener('click', () => {
+            const boundHandler = () => {
                 const column = header.dataset.column;
                 if (column) {
                     this.handleSort(column);
                 }
-            });
+            };
+
+            // Store bound handler for later removal
+            this.boundHandlers.set(header, boundHandler);
+            header.addEventListener('click', boundHandler);
         });
     }
 
@@ -224,15 +231,17 @@ export class SortableTable {
     updateSortIndicators(column, direction) {
         if (!this.table) return;
 
-        // Remove existing sort classes
+        // Remove existing sort classes and reset ARIA state
         this.table.querySelectorAll('th.sortable').forEach(th => {
             th.classList.remove('sort-asc', 'sort-desc');
+            th.setAttribute('aria-sort', 'none');
         });
 
-        // Add sort class to current column
+        // Add sort class to current column and update ARIA state
         const currentHeader = this.table.querySelector(`th.sortable[data-column="${column}"]`);
         if (currentHeader) {
             currentHeader.classList.add(`sort-${direction}`);
+            currentHeader.setAttribute('aria-sort', direction === 'asc' ? 'ascending' : 'descending');
         }
     }
 
@@ -259,5 +268,25 @@ export class SortableTable {
             return this.sortData(this.data, this.state.column, this.state.direction);
         }
         return this.data;
+    }
+
+    /**
+     * Clean up event listeners and resources.
+     */
+    destroy() {
+        if (!this.table) return;
+
+        // Remove all bound event listeners
+        this.boundHandlers.forEach((handler, header) => {
+            header.removeEventListener('click', handler);
+        });
+
+        // Clear stored references
+        this.boundHandlers.clear();
+        this.data = [];
+        this.table = null;
+        this.columns = null;
+        this.onSort = null;
+        this.renderRow = null;
     }
 }

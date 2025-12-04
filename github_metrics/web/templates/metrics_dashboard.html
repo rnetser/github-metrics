@@ -120,10 +120,10 @@
           <div class="control-panel" data-section="control-panel">
             <div class="panel-header">
               <h3>Filters & Controls</h3>
-              <button class="btn-icon collapse-btn" data-section="control-panel" title="Collapse Panel">▼</button>
+              <button class="btn-icon collapse-btn" data-section="control-panel" title="Collapse Panel" aria-expanded="true" aria-controls="control-panel-content">▼</button>
             </div>
 
-            <div class="panel-content">
+            <div class="panel-content" id="control-panel-content">
               <div class="filters">
                 <div class="filter-group">
                   <label for="time-range-select">Quick Range:</label>
@@ -173,10 +173,10 @@
             <div class="chart-header-actions">
               <button class="btn-icon download-btn" data-section="topRepositories" data-format="csv" title="Download as CSV" aria-label="Download top repositories data as CSV">⬇️ CSV</button>
               <button class="btn-icon download-btn" data-section="topRepositories" data-format="json" title="Download as JSON" aria-label="Download top repositories data as JSON">⬇️ JSON</button>
-              <button class="btn-icon collapse-btn" data-section="top-repositories" title="Collapse">▼</button>
+              <button class="btn-icon collapse-btn" data-section="top-repositories" title="Collapse" aria-expanded="true" aria-controls="top-repositories-content">▼</button>
             </div>
           </div>
-          <div class="chart-content">
+          <div class="chart-content" id="top-repositories-content">
             <div class="table-wrapper">
               <table id="topRepositoriesTable">
                 <thead>
@@ -202,10 +202,10 @@
             <div class="chart-header-actions">
               <button class="btn-icon download-btn" data-section="recentEvents" data-format="csv" title="Download as CSV" aria-label="Download recent events data as CSV">⬇️ CSV</button>
               <button class="btn-icon download-btn" data-section="recentEvents" data-format="json" title="Download as JSON" aria-label="Download recent events data as JSON">⬇️ JSON</button>
-              <button class="btn-icon collapse-btn" data-section="recent-events" title="Collapse">▼</button>
+              <button class="btn-icon collapse-btn" data-section="recent-events" title="Collapse" aria-expanded="true" aria-controls="recent-events-content">▼</button>
             </div>
           </div>
-          <div class="chart-content">
+          <div class="chart-content" id="recent-events-content">
             <div class="table-wrapper">
               <table id="recentEventsTable">
                 <thead>
@@ -232,10 +232,10 @@
             <div class="chart-header-actions">
               <button class="btn-icon download-btn" data-section="userPrs" data-format="csv" title="Download as CSV" aria-label="Download pull requests data as CSV">⬇️ CSV</button>
               <button class="btn-icon download-btn" data-section="userPrs" data-format="json" title="Download as JSON" aria-label="Download pull requests data as JSON">⬇️ JSON</button>
-              <button class="btn-icon collapse-btn" data-section="user-prs" title="Collapse">▼</button>
+              <button class="btn-icon collapse-btn" data-section="user-prs" title="Collapse" aria-expanded="true" aria-controls="user-prs-content">▼</button>
             </div>
           </div>
-          <div class="chart-content">
+          <div class="chart-content" id="user-prs-content">
             <div class="table-wrapper">
               <table id="userPrsTable">
                 <thead>
@@ -289,9 +289,9 @@
               <div class="chart-container full-width" data-section="turnaround-kpi-cards">
                 <div class="panel-header">
                   <h3>Summary Metrics</h3>
-                  <button class="btn-icon collapse-btn" data-section="turnaround-kpi-cards" title="Collapse Panel">▼</button>
+                  <button class="btn-icon collapse-btn" data-section="turnaround-kpi-cards" title="Collapse Panel" aria-expanded="true" aria-controls="turnaround-kpi-cards-content">▼</button>
                 </div>
-                <div class="panel-content">
+                <div class="panel-content" id="turnaround-kpi-cards-content">
                   <div class="kpi-cards-grid">
                     <div class="kpi-card">
                       <div class="kpi-label">Avg First Review</div>
@@ -325,10 +325,10 @@
                     <div class="chart-header-actions">
                       <button class="btn-icon download-btn" data-section="turnaroundByRepo" data-format="csv" title="Download as CSV" aria-label="Download turnaround by repository data as CSV">⬇️ CSV</button>
                       <button class="btn-icon download-btn" data-section="turnaroundByRepo" data-format="json" title="Download as JSON" aria-label="Download turnaround by repository data as JSON">⬇️ JSON</button>
-                      <button class="btn-icon collapse-btn" data-section="turnaround-by-repo" title="Collapse">▼</button>
+                      <button class="btn-icon collapse-btn" data-section="turnaround-by-repo" title="Collapse" aria-expanded="true" aria-controls="turnaround-by-repo-content">▼</button>
                     </div>
                   </div>
-                  <div class="chart-content">
+                  <div class="chart-content" id="turnaround-by-repo-content">
                     <div class="table-wrapper">
                       <table id="turnaroundByRepoTable">
                         <caption class="sr-only">Review turnaround times by repository</caption>
@@ -358,10 +358,10 @@
                     <div class="chart-header-actions">
                       <button class="btn-icon download-btn" data-section="turnaroundByReviewer" data-format="csv" title="Download as CSV" aria-label="Download response time by reviewer data as CSV">⬇️ CSV</button>
                       <button class="btn-icon download-btn" data-section="turnaroundByReviewer" data-format="json" title="Download as JSON" aria-label="Download response time by reviewer data as JSON">⬇️ JSON</button>
-                      <button class="btn-icon collapse-btn" data-section="turnaround-by-reviewer" title="Collapse">▼</button>
+                      <button class="btn-icon collapse-btn" data-section="turnaround-by-reviewer" title="Collapse" aria-expanded="true" aria-controls="turnaround-by-reviewer-content">▼</button>
                     </div>
                   </div>
-                  <div class="chart-content">
+                  <div class="chart-content" id="turnaround-by-reviewer-content">
                     <div class="table-wrapper">
                       <table id="turnaroundByReviewerTable">
                         <caption class="sr-only">Response times by reviewer</caption>
@@ -390,10 +390,10 @@
                     <div class="chart-header-actions">
                       <button class="btn-icon download-btn" data-section="prCreatorsMetrics" data-format="csv" title="Download as CSV" aria-label="Download PR creators metrics data as CSV">⬇️ CSV</button>
                       <button class="btn-icon download-btn" data-section="prCreatorsMetrics" data-format="json" title="Download as JSON" aria-label="Download PR creators metrics data as JSON">⬇️ JSON</button>
-                      <button class="btn-icon collapse-btn" data-section="pr-creators-section" title="Collapse">▼</button>
+                      <button class="btn-icon collapse-btn" data-section="pr-creators-section" title="Collapse" aria-expanded="true" aria-controls="pr-creators-section-content">▼</button>
                     </div>
                   </div>
-                  <div class="chart-content">
+                  <div class="chart-content" id="pr-creators-section-content">
                     <div class="table-wrapper">
                       <table id="prCreatorsMetricsTable">
                         <caption class="sr-only">PR creators metrics</caption>
@@ -426,10 +426,10 @@
                     <div class="chart-header-actions">
                       <button class="btn-icon download-btn" data-section="prReviewersMetrics" data-format="csv" title="Download as CSV" aria-label="Download PR reviewers metrics data as CSV">⬇️ CSV</button>
                       <button class="btn-icon download-btn" data-section="prReviewersMetrics" data-format="json" title="Download as JSON" aria-label="Download PR reviewers metrics data as JSON">⬇️ JSON</button>
-                      <button class="btn-icon collapse-btn" data-section="pr-reviewers-section" title="Collapse">▼</button>
+                      <button class="btn-icon collapse-btn" data-section="pr-reviewers-section" title="Collapse" aria-expanded="true" aria-controls="pr-reviewers-section-content">▼</button>
                     </div>
                   </div>
-                  <div class="chart-content">
+                  <div class="chart-content" id="pr-reviewers-section-content">
                     <div class="table-wrapper">
                       <table id="prReviewersMetricsTable">
                         <caption class="sr-only">PR reviewers metrics</caption>
@@ -461,10 +461,10 @@
                     <div class="chart-header-actions">
                       <button class="btn-icon download-btn" data-section="prApproversMetrics" data-format="csv" title="Download as CSV" aria-label="Download PR approvers metrics data as CSV">⬇️ CSV</button>
                       <button class="btn-icon download-btn" data-section="prApproversMetrics" data-format="json" title="Download as JSON" aria-label="Download PR approvers metrics data as JSON">⬇️ JSON</button>
-                      <button class="btn-icon collapse-btn" data-section="pr-approvers-section" title="Collapse">▼</button>
+                      <button class="btn-icon collapse-btn" data-section="pr-approvers-section" title="Collapse" aria-expanded="true" aria-controls="pr-approvers-section-content">▼</button>
                     </div>
                   </div>
-                  <div class="chart-content">
+                  <div class="chart-content" id="pr-approvers-section-content">
                     <div class="table-wrapper">
                       <table id="prApproversMetricsTable">
                         <caption class="sr-only">PR approvers metrics</caption>
@@ -495,10 +495,10 @@
                     <div class="chart-header-actions">
                       <button class="btn-icon download-btn" data-section="prLgtmMetrics" data-format="csv" title="Download as CSV" aria-label="Download PR LGTM metrics data as CSV">⬇️ CSV</button>
                       <button class="btn-icon download-btn" data-section="prLgtmMetrics" data-format="json" title="Download as JSON" aria-label="Download PR LGTM metrics data as JSON">⬇️ JSON</button>
-                      <button class="btn-icon collapse-btn" data-section="pr-lgtm-section" title="Collapse">▼</button>
+                      <button class="btn-icon collapse-btn" data-section="pr-lgtm-section" title="Collapse" aria-expanded="true" aria-controls="pr-lgtm-section-content">▼</button>
                     </div>
                   </div>
-                  <div class="chart-content">
+                  <div class="chart-content" id="pr-lgtm-section-content">
                     <div class="table-wrapper">
                       <table id="prLgtmMetricsTable">
                         <caption class="sr-only">PR LGTM metrics</caption>

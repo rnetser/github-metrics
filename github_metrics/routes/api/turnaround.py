@@ -437,12 +437,8 @@ async def get_review_turnaround(
             for row in by_reviewer_rows
         ]
 
-    except asyncio.CancelledError as ex:
-        LOGGER.debug("Review turnaround metrics request was cancelled")
-        raise HTTPException(
-            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Request was cancelled",
-        ) from ex
+    except asyncio.CancelledError:
+        raise
     except HTTPException:
         raise
     except Exception as ex:
