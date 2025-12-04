@@ -431,6 +431,78 @@ class MetricsAPIClient {
     }
 
     /**
+     * Fetch team dynamics metrics.
+     *
+     * Returns metrics about team workload distribution, review efficiency, and bottlenecks.
+     *
+     * @param {string|null} startTime - ISO 8601 start time filter (optional)
+     * @param {string|null} endTime - ISO 8601 end time filter (optional)
+     * @param {string|null} repository - Filter by repository (optional)
+     * @returns {Promise<Object>} Team dynamics data or error object
+     *
+     * Response format (success):
+     * {
+     *     workload: {
+     *         summary: {
+     *             total_contributors: 25,
+     *             avg_prs_per_contributor: 8.4,
+     *             top_contributor: 'user1',
+     *             workload_gini: 0.35
+     *         },
+     *         by_contributor: [
+     *             {
+     *                 user: 'user1',
+     *                 prs_created: 42,
+     *                 prs_merged: 38,
+     *                 workload_percentage: 15.2
+     *             }
+     *         ]
+     *     },
+     *     review_efficiency: {
+     *         summary: {
+     *             avg_review_time_hours: 4.2,
+     *             median_review_time_hours: 2.8,
+     *             fastest_reviewer: 'user2',
+     *             slowest_reviewer: 'user3'
+     *         },
+     *         by_reviewer: [
+     *             {
+     *                 user: 'user2',
+     *                 avg_review_time_hours: 1.5,
+     *                 reviews_count: 85,
+     *                 efficiency_score: 95.2
+     *             }
+     *         ]
+     *     },
+     *     bottlenecks: {
+     *         by_approver: [
+     *             {
+     *                 user: 'user4',
+     *                 pending_approvals: 12,
+     *                 avg_approval_hours: 48.3
+     *             }
+     *         ],
+     *         alerts: [
+     *             {
+     *                 type: 'critical',
+     *                 approver: 'user4',
+     *                 pending_count: 12,
+     *                 avg_approval_hours: 48.3
+     *             }
+     *         ]
+     *     }
+     * }
+     */
+    async fetchTeamDynamics(startTime = null, endTime = null, repository = null) {
+        const params = {};
+        if (startTime) params.start_time = startTime;
+        if (endTime) params.end_time = endTime;
+        if (repository) params.repository = repository;
+
+        return await this._fetch('/team-dynamics', params);
+    }
+
+    /**
      * Internal fetch wrapper with timeout and error handling.
      *
      * @private
