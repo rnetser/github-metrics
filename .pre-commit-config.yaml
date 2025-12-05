@@ -54,23 +54,6 @@ repos:
       - id: mypy
         additional_dependencies: [types-requests, types-PyYAML, types-colorama]
 
-  - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v9.27.0
-    hooks:
-      - id: eslint
-        name: eslint (frontend)
-        files: ^frontend/src/.*\.(ts|tsx|js|jsx)$
-        types: [file]
-        args: ["--config", "frontend/eslint.config.js", "--fix"]
-        additional_dependencies:
-          - eslint@9.39.1
-          - "@eslint/js@9.39.1"
-          - typescript@5.9.3
-          - typescript-eslint@8.46.4
-          - eslint-plugin-react-hooks@7.0.1
-          - eslint-plugin-react-refresh@0.4.24
-          - globals@16.5.0
-
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v4.0.0-alpha.8
     hooks:
