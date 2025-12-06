@@ -97,10 +97,6 @@ function PRStoryContent({ prStory }: PRStoryContentProps): ReactElement {
         <div className="text-center text-muted-foreground py-8">No events found for this PR</div>
       ) : filteredEvents.length > 0 ? (
         <PRStoryTimeline events={filteredEvents} />
-      ) : selectedEventTypes.size === 0 ? (
-        <div className="text-center text-muted-foreground py-8">
-          No events match the current filter
-        </div>
       ) : (
         <div className="text-center text-muted-foreground py-8">
           No events match the current filter

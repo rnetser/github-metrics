@@ -18,7 +18,7 @@ Access the application:
 
 ## Development Modes
 
-### Full Stack Development (Recommended)
+### Full-Stack Development (Recommended)
 
 Start both backend and frontend servers together with automatic database setup.
 
@@ -196,7 +196,7 @@ METRICS_SERVER_ALLOW_ALL_HOSTS=true
 
 | Mode | Command | Backend | Frontend | Database | Hot Reload |
 |------|---------|---------|----------|----------|------------|
-| Full Stack | `./dev/run-all.sh` | :8765 | :3003 | :15432 | ✅ Both |
+| Full-Stack | `./dev/run-all.sh` | :8765 | :3003 | :15432 | ✅ Both |
 | Backend Only | `./dev/run-backend.sh` | :8765 | - | :15432 | ✅ Backend |
 | Frontend Only | `./dev/run-frontend.sh` | - | :3003 | - | ✅ Frontend |
 | Container | `./dev/dev-container.sh` | :8765 | :8765 | internal | ❌ Manual rebuild |

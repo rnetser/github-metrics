@@ -1301,7 +1301,7 @@ bunx eslint . --fix
 
 ### Pre-commit Hooks
 
-**Note:** The repository uses Python-side `pre-commit` tooling at the root level for unified hook management. Husky + lint-staged are _optional_ if you prefer frontend-only pre-commit hooks during development.
+> **Note:** The repository uses Python-side `pre-commit` tooling at the root level for unified hook management. Husky + lint-staged are _optional_ if you prefer frontend-only pre-commit hooks during development.
 
 **Optional: Frontend-only Husky setup**
 
