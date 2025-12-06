@@ -53,28 +53,28 @@ function PRStoryContent({ prStory }: PRStoryContentProps): ReactElement {
         {/* Summary stats */}
         <div className="flex items-center gap-3 text-sm">
           <div className="flex items-center gap-1">
-            <span>📝</span>
+            <span aria-hidden="true">📝</span>
             <strong>{prStory.summary.total_commits}</strong>
             <span className="text-muted-foreground">
               commit{prStory.summary.total_commits !== 1 ? "s" : ""}
             </span>
           </div>
           <div className="flex items-center gap-1">
-            <span>💬</span>
+            <span aria-hidden="true">💬</span>
             <strong>{prStory.summary.total_reviews}</strong>
             <span className="text-muted-foreground">
               review{prStory.summary.total_reviews !== 1 ? "s" : ""}
             </span>
           </div>
           <div className="flex items-center gap-1">
-            <span>▶️</span>
+            <span aria-hidden="true">▶️</span>
             <strong>{prStory.summary.total_check_runs}</strong>
             <span className="text-muted-foreground">
               check run{prStory.summary.total_check_runs !== 1 ? "s" : ""}
             </span>
           </div>
           <div className="flex items-center gap-1">
-            <span>💭</span>
+            <span aria-hidden="true">💭</span>
             <strong>{prStory.summary.total_comments}</strong>
             <span className="text-muted-foreground">
               comment{prStory.summary.total_comments !== 1 ? "s" : ""}
@@ -102,7 +102,9 @@ function PRStoryContent({ prStory }: PRStoryContentProps): ReactElement {
           No events match the current filter
         </div>
       ) : (
-        <div className="text-center text-muted-foreground py-8">No events found for this PR</div>
+        <div className="text-center text-muted-foreground py-8">
+          No events match the current filter
+        </div>
       )}
     </div>
   );

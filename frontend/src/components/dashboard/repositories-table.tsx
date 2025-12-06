@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import {
   Table,
   TableBody,
@@ -23,7 +24,7 @@ export function RepositoriesTable({
   repositories: repoFilter,
   users,
   excludeUsers,
-}: RepositoriesTableProps): React.ReactElement {
+}: RepositoriesTableProps): ReactElement {
   const filters = {
     ...(repoFilter && repoFilter.length > 0 && { repositories: repoFilter }),
     ...(users && users.length > 0 && { users }),

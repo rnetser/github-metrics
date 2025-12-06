@@ -14,6 +14,8 @@ Access the application:
 - **Backend API**: <http://localhost:8765>
 - **Dashboard**: <http://localhost:3003> (React SPA served from root path; Vite dev server proxies API calls to backend on port 8765)
 
+**⚠️ Security Note:** The dashboard endpoint is unauthenticated. When deployed, ensure it runs only on trusted networks (VPN, internal network); never expose to the public internet without authentication.
+
 ## Development Modes
 
 ### Full Stack Development (Recommended)

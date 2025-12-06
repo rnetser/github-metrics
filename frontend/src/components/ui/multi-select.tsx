@@ -119,8 +119,9 @@ export function MultiSelect({
     }
   };
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>): void => {
+  const handleDropdownKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
     if (e.key === "Escape") {
+      e.stopPropagation();
       setShowDropdown(false);
       setInputValue("");
     }
@@ -140,27 +141,18 @@ export function MultiSelect({
     }
   };
 
-  const handleTriggerKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      handleToggleDropdown();
-    }
-  };
-
   return (
     <TooltipProvider>
       <div ref={containerRef} className="relative w-full" id={id}>
         {/* Selected items display with count and tooltip */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <div
-              role="button"
-              tabIndex={0}
+            <button
+              type="button"
               aria-haspopup="listbox"
               aria-expanded={showDropdown}
-              className={`flex h-9 items-center justify-between px-3 border border-input rounded-md bg-background cursor-pointer text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${className ?? ""}`}
+              className={`flex h-9 items-center justify-between px-3 border border-input rounded-md bg-background cursor-pointer text-sm ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${className ?? ""}`}
               onClick={handleToggleDropdown}
-              onKeyDown={handleTriggerKeyDown}
             >
               {value.length === 0 ? (
                 <span className="text-muted-foreground">{placeholder}</span>
@@ -170,7 +162,7 @@ export function MultiSelect({
               <ChevronDown
                 className={`h-4 w-4 text-muted-foreground transition-transform ${showDropdown ? "transform rotate-180" : ""}`}
               />
-            </div>
+            </button>
           </TooltipTrigger>
           {value.length > 0 && (
             <TooltipContent side="bottom" className="max-w-xs">
@@ -188,6 +180,9 @@ export function MultiSelect({
           createPortal(
             <div
               ref={dropdownRef}
+              role="listbox"
+              aria-multiselectable="true"
+              aria-label={placeholder}
               className="fixed z-[9999] mt-1 rounded-md border border-input bg-popover text-popover-foreground shadow-lg"
               style={{
                 top: `${String(dropdownPosition.top)}px`,
@@ -195,6 +190,7 @@ export function MultiSelect({
                 width: `${String(dropdownPosition.width)}px`,
                 minWidth: "200px",
               }}
+              onKeyDown={handleDropdownKeyDown}
             >
               {/* Search input */}
               <div className="sticky top-0 bg-popover p-2 border-b border-border z-10">
@@ -205,7 +201,6 @@ export function MultiSelect({
                   onChange={(e) => {
                     setInputValue(e.target.value);
                   }}
-                  onKeyDown={handleKeyDown}
                   placeholder="Search..."
                   className="h-8"
                 />
@@ -234,7 +229,7 @@ export function MultiSelect({
                     <Checkbox
                       checked={allSelected}
                       aria-label="Select all"
-                      className={someSelected ? "data-[state=checked]:bg-primary/50" : ""}
+                      className={`pointer-events-none ${someSelected ? "data-[state=checked]:bg-primary/50" : ""}`}
                       tabIndex={-1}
                     />
                     <span className="text-sm font-medium">
@@ -272,6 +267,7 @@ export function MultiSelect({
                           <Checkbox
                             checked={isSelected}
                             aria-label={`Select ${suggestion}`}
+                            className="pointer-events-none"
                             tabIndex={-1}
                           />
                           <span className="text-sm flex-1">{suggestion}</span>

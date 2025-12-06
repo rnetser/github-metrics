@@ -6,5 +6,9 @@ export function cn(...inputs: ClassValue[]): string {
 }
 
 export function formatDateTime(dateString: string): string {
-  return new Date(dateString).toLocaleString();
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+  return date.toLocaleString();
 }

@@ -63,8 +63,8 @@ export function WebhooksTable({
         </TableHeader>
         <TableBody>
           {isLoading ? (
-            // Loading skeleton rows
-            Array.from({ length: pageSize }).map((_, i) => (
+            // Loading skeleton rows (capped for UX/perf)
+            Array.from({ length: Math.min(pageSize, 25) }).map((_, i) => (
               <TableRow key={i}>
                 {Array.from({ length: 6 }).map((_, j) => (
                   <TableCell key={j}>
@@ -105,8 +105,14 @@ export function WebhooksTable({
       {data && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            Showing {(page - 1) * pageSize + 1} to{" "}
-            {Math.min(page * pageSize, data.pagination.total)} of {data.pagination.total} events
+            {data.pagination.total === 0 ? (
+              <>Showing 0 of 0 events</>
+            ) : (
+              <>
+                Showing {(page - 1) * pageSize + 1} to{" "}
+                {Math.min(page * pageSize, data.pagination.total)} of {data.pagination.total} events
+              </>
+            )}
           </div>
           <PaginationControls
             currentPage={page}

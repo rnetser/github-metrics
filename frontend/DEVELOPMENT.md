@@ -1301,9 +1301,11 @@ bunx eslint . --fix
 
 ### Pre-commit Hooks
 
-**Note:** This project uses Python-side pre-commit tooling at the repository root. Frontend-specific Husky and lint-staged can be configured optionally for frontend-only development.
+**Note:** The repository uses Python-side `pre-commit` tooling at the root level for unified hook management. Husky + lint-staged are _optional_ if you prefer frontend-only pre-commit hooks during development.
 
-If you want to set up frontend-only pre-commit hooks:
+**Optional: Frontend-only Husky setup**
+
+To add frontend-only pre-commit hooks (independent of the repository's Python pre-commit):
 
 1. Install Husky: `bun add -d husky`
 2. Install lint-staged: `bun add -d lint-staged`
@@ -1408,7 +1410,7 @@ Check: Class names are correct (no typos)
 
 ### Unit Tests (Bun Test Runner)
 
-The project uses Bun's built-in test runner (Vitest-compatible API):
+The project uses **Bun's built-in test runner** with a Vitest-compatible API:
 
 ```bash
 # Run tests
