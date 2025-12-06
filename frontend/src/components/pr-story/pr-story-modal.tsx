@@ -186,13 +186,13 @@ export function PRStoryModal({
               ))}
             </div>
           ) : error ? (
-            <div className="py-8 text-center text-destructive" role="alert" aria-live="assertive">
+            <div className="py-8 text-center text-destructive" role="alert">
               <p className="font-semibold mb-2">Error loading PR story</p>
               <p className="text-sm text-muted-foreground">{error.message}</p>
             </div>
           ) : prStory ? (
             <PRStoryContent
-              key={`${prStory.pr.repository}/${prStory.pr.number.toString()}`}
+              key={`${prStory.pr.repository}/${String(prStory.pr.number)}`}
               prStory={prStory}
             />
           ) : null}
