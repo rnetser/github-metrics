@@ -43,6 +43,8 @@ export function Layout(): React.ReactElement {
 
   // Fetch repositories and contributors for filter suggestions
   // Use a large page size to get all available options
+  // TODO: Consider server-side search with autocomplete for large datasets (>1000 repos/contributors)
+  // Current approach works for moderate datasets but may need pagination for very large organizations
   const { data: reposData } = useRepositories(filters.timeRange, {}, 1, 1000);
   const { data: contributorsData } = useContributors(filters.timeRange, {}, 1, 1000);
 

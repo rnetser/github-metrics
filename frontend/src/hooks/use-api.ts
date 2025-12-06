@@ -59,7 +59,17 @@ export const queryKeys = {
     users?: readonly string[],
     excludeUsers?: readonly string[]
   ) => ["metrics", "summary", timeRange, repositories, users, excludeUsers] as const,
-  webhooks: (params?: WebhookParams) => ["metrics", "webhooks", params] as const,
+  webhooks: (params?: WebhookParams) =>
+    [
+      "metrics",
+      "webhooks",
+      params?.start_time ?? null,
+      params?.end_time ?? null,
+      params?.page ?? null,
+      params?.page_size ?? null,
+      params?.repository ?? null,
+      params?.event_type ?? null,
+    ] as const,
   repositories: (
     timeRange?: TimeRange,
     repositories?: readonly string[],
@@ -104,7 +114,19 @@ export const queryKeys = {
     users?: readonly string[],
     excludeUsers?: readonly string[]
   ) => ["metrics", "turnaround", timeRange, repositories, users, excludeUsers] as const,
-  userPrs: (params?: UserPRParams) => ["metrics", "user-prs", params] as const,
+  userPrs: (params?: UserPRParams) =>
+    [
+      "metrics",
+      "user-prs",
+      params?.start_time ?? null,
+      params?.end_time ?? null,
+      params?.page ?? null,
+      params?.page_size ?? null,
+      params?.role ?? null,
+      params?.repositories ?? null,
+      params?.users ?? null,
+      params?.exclude_users ?? null,
+    ] as const,
   teamDynamics: (
     timeRange?: TimeRange,
     repositories?: readonly string[],
@@ -254,9 +276,12 @@ export function useContributors(
 }
 
 export function useTrends(timeRange?: TimeRange, bucket: string = "hour") {
+  const params = buildFilterParams(timeRange);
+  params.set("bucket", bucket);
+
   return useQuery<readonly TrendDataPoint[]>({
     queryKey: queryKeys.trends(timeRange, bucket),
-    queryFn: () => fetchApi<readonly TrendDataPoint[]>("/trends", { ...timeRange, bucket }),
+    queryFn: () => fetchApi<readonly TrendDataPoint[]>("/trends", params),
   });
 }
 

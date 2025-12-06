@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -64,23 +64,16 @@ function PRListItem({ pr, isSelected, onClick }: PRListItemProps): React.ReactEl
   const badgeVariant = getPRStateBadgeVariant(pr.state, pr.merged);
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-selected={isSelected}
+    <button
+      type="button"
+      aria-pressed={isSelected}
       className={cn(
-        "cursor-pointer border-b last:border-b-0 transition-colors",
+        "w-full text-left cursor-pointer border-b last:border-b-0 transition-colors",
         isSelected
           ? "bg-muted border-l-4 border-l-primary"
           : "hover:bg-muted/50 border-l-4 border-l-transparent"
       )}
       onClick={onClick}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onClick();
-        }
-      }}
     >
       <div className="flex items-start justify-between gap-4 p-4">
         <div className="flex-1 min-w-0">
@@ -109,7 +102,7 @@ function PRListItem({ pr, isSelected, onClick }: PRListItemProps): React.ReactEl
           </Badge>
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -123,7 +116,7 @@ export function UserPRsModal({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [selectedPR, setSelectedPR] = useState<{ repository: string; number: number } | null>(null);
-  const [selectedEventTypes, setSelectedEventTypes] = useState<Set<string>>(new Set());
+  const [userSelectedEventTypes, setUserSelectedEventTypes] = useState<Set<string> | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch user PRs when modal is open
@@ -155,15 +148,13 @@ export function UserPRsModal({
     return Array.from(types);
   }, [prStoryData]);
 
-  // Initialize selected event types when PR changes
-  // Note: We intentionally omit 'eventTypes' from deps to avoid re-triggering when event types are computed.
-  // The effect should only run when the selected PR changes (by repository or number).
-  useEffect(() => {
-    if (eventTypes.length > 0) {
-      setSelectedEventTypes(new Set(eventTypes));
+  // Derive selected event types: use user selection if set, otherwise all event types
+  const selectedEventTypes = useMemo(() => {
+    if (userSelectedEventTypes !== null) {
+      return userSelectedEventTypes;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPR?.repository, selectedPR?.number]);
+    return new Set(eventTypes);
+  }, [userSelectedEventTypes, eventTypes]);
 
   // Filter events based on selected event types
   const filteredEvents = useMemo(() => {
@@ -182,7 +173,7 @@ export function UserPRsModal({
         String(pr.number).includes(query) ||
         pr.repository.toLowerCase().includes(query)
     );
-  }, [data?.data, searchQuery]);
+  }, [data, searchQuery]);
 
   const roleText = getRoleDescription(category);
   const totalPRs = data?.pagination.total ?? 0;
@@ -191,7 +182,7 @@ export function UserPRsModal({
   const handlePRClick = (pr: UserPR): void => {
     setSelectedPR({ repository: pr.repository, number: pr.number });
     // Reset event type filter when selecting a new PR
-    setSelectedEventTypes(new Set());
+    setUserSelectedEventTypes(null);
   };
 
   return (
@@ -347,7 +338,7 @@ export function UserPRsModal({
                   <EventTypeFilter
                     eventTypes={eventTypes}
                     selectedTypes={selectedEventTypes}
-                    onSelectionChange={setSelectedEventTypes}
+                    onSelectionChange={setUserSelectedEventTypes}
                   />
                 </div>
 

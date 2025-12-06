@@ -177,7 +177,7 @@ export function PRStoryModal({
               ))}
             </div>
           ) : error ? (
-            <div className="py-8 text-center text-destructive">
+            <div className="py-8 text-center text-destructive" role="alert" aria-live="assertive">
               <p className="font-semibold mb-2">Error loading PR story</p>
               <p className="text-sm text-muted-foreground">{error.message}</p>
             </div>

@@ -1408,7 +1408,7 @@ Check: Class names are correct (no typos)
 
 ### Unit Tests (Bun Test Runner)
 
-The project uses Bun's built-in test runner, which is Vitest-compatible:
+The project uses Bun's built-in test runner (Vitest-compatible API):
 
 ```bash
 # Run tests

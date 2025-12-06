@@ -36,13 +36,12 @@ export function RepositoriesTable({
     // Log detailed error for debugging
     console.error("Failed to load repositories:", error);
 
-    // Show sanitized message in production, detailed in development
-    const errorMessage =
-      import.meta.env.MODE !== "production"
-        ? `Failed to load repositories: ${error.message}`
-        : "Failed to load repositories";
-
-    return <div className="text-destructive">{errorMessage}</div>;
+    // Show consistent sanitized message
+    return (
+      <div role="alert" className="text-destructive">
+        Failed to load repositories
+      </div>
+    );
   }
 
   const repositories = data?.repositories ?? [];

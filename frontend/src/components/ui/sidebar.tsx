@@ -72,6 +72,23 @@ const SidebarProvider = React.forwardRef<
     // We use openProp and setOpenProp for control from outside the component.
     const [_open, _setOpen] = React.useState(defaultOpen);
     const open = openProp ?? _open;
+
+    // Read cookie on mount to restore sidebar state
+    React.useEffect(() => {
+      // Only read cookie if no explicit openProp was provided
+      if (openProp === undefined) {
+        const cookies = document.cookie.split("; ");
+        const sidebarCookie = cookies.find((cookie) =>
+          cookie.startsWith(`${SIDEBAR_COOKIE_NAME}=`)
+        );
+        if (sidebarCookie) {
+          const value = sidebarCookie.split("=")[1];
+          const isOpen = value === "true";
+          _setOpen(isOpen);
+        }
+      }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
     const setOpen = React.useCallback(
       (value: boolean | ((value: boolean) => boolean)) => {
         const openState = typeof value === "function" ? value(open) : value;

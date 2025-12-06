@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "./button-variants";
 
 export interface ButtonProps
-  extends React.ComponentProps<"button">,
+  extends React.ComponentPropsWithoutRef<"button">,
     VariantProps<typeof buttonVariants> {
   readonly asChild?: boolean;
 }

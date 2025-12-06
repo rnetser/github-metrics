@@ -1,9 +1,22 @@
+import React from "react";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface DownloadButtonsProps {
   readonly data: readonly unknown[];
   readonly filename: string;
+}
+
+function downloadFile(content: string, filename: string, type: string): void {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 export function DownloadButtons({ data, filename }: DownloadButtonsProps): React.ReactElement {
@@ -23,7 +36,10 @@ export function DownloadButtons({ data, filename }: DownloadButtonsProps): React
     // Escape headers the same way as values
     const csvHeaders = headers
       .map((header) => {
-        return header.includes(",") || header.includes('"')
+        return header.includes(",") ||
+          header.includes('"') ||
+          header.includes("\n") ||
+          header.includes("\r")
           ? `"${header.replace(/"/g, '""')}"`
           : header;
       })
@@ -55,8 +71,11 @@ export function DownloadButtons({ data, filename }: DownloadButtonsProps): React
           } else {
             stringValue = "";
           }
-          // Escape quotes and wrap in quotes if contains comma or quote
-          return stringValue.includes(",") || stringValue.includes('"')
+          // Escape quotes and wrap in quotes if contains comma, quote, or newline
+          return stringValue.includes(",") ||
+            stringValue.includes('"') ||
+            stringValue.includes("\n") ||
+            stringValue.includes("\r")
             ? `"${stringValue.replace(/"/g, '""')}"`
             : stringValue;
         })
@@ -70,18 +89,6 @@ export function DownloadButtons({ data, filename }: DownloadButtonsProps): React
   const downloadJSON = (): void => {
     const json = JSON.stringify(data, null, 2);
     downloadFile(json, `github_metrics_${filename}.json`, "application/json");
-  };
-
-  const downloadFile = (content: string, filename: string, type: string): void => {
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
   };
 
   return (

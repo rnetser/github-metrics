@@ -37,9 +37,10 @@ export function WebhooksTable({
   });
 
   if (error) {
+    console.error("Failed to load webhooks:", error.message);
     return (
       <div className="text-destructive" role="alert">
-        Failed to load webhooks: {error.message}
+        Failed to load webhooks
       </div>
     );
   }

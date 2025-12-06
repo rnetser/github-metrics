@@ -15,6 +15,7 @@ function debounce<T extends (...args: unknown[]) => void>(
     }
     timeout = setTimeout(() => {
       func(...args);
+      timeout = null;
     }, wait);
   }) as T & { cancel: () => void };
 
@@ -29,16 +30,16 @@ function debounce<T extends (...args: unknown[]) => void>(
 }
 
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined);
+  const [isMobile, setIsMobile] = React.useState<boolean>(false);
 
   React.useEffect(() => {
     const mql = window.matchMedia(`(max-width: ${(MOBILE_BREAKPOINT - 1).toString()}px)`);
     const onChange = debounce(() => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+      setIsMobile(mql.matches);
     }, RESIZE_DEBOUNCE_MS);
 
     mql.addEventListener("change", onChange);
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    setIsMobile(mql.matches);
 
     return () => {
       mql.removeEventListener("change", onChange);
@@ -46,5 +47,5 @@ export function useIsMobile() {
     };
   }, []);
 
-  return !!isMobile;
+  return isMobile;
 }

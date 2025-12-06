@@ -54,7 +54,11 @@ export function ThemeProvider({
   const value = {
     theme,
     setTheme: (newTheme: Theme) => {
-      localStorage.setItem(storageKey, newTheme);
+      try {
+        localStorage.setItem(storageKey, newTheme);
+      } catch {
+        // localStorage write failed, continue with state update
+      }
       setTheme(newTheme);
     },
   };

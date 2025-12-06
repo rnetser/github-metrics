@@ -41,7 +41,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "Backend: http://localhost:8765"
-echo "Frontend: http://localhost:3000"
+echo "Frontend: http://localhost:3003"
 echo "Press Ctrl+C to stop both servers"
 
 # Wait for both

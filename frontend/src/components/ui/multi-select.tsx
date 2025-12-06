@@ -233,9 +233,9 @@ export function MultiSelect({
                   >
                     <Checkbox
                       checked={allSelected}
-                      onCheckedChange={handleSelectAll}
                       aria-label="Select all"
                       className={someSelected ? "data-[state=checked]:bg-primary/50" : ""}
+                      tabIndex={-1}
                     />
                     <span className="text-sm font-medium">
                       {allSelected ? "Deselect All" : "Select All"}
@@ -271,10 +271,8 @@ export function MultiSelect({
                         >
                           <Checkbox
                             checked={isSelected}
-                            onCheckedChange={() => {
-                              toggleValue(suggestion);
-                            }}
                             aria-label={`Select ${suggestion}`}
+                            tabIndex={-1}
                           />
                           <span className="text-sm flex-1">{suggestion}</span>
                         </div>

@@ -12,7 +12,7 @@ Quick reference for running the GitHub Metrics application in development mode.
 Access the application:
 - **Frontend**: http://localhost:3003
 - **Backend API**: http://localhost:8765
-- **Dashboard**: http://localhost:8765
+- **Dashboard**: http://localhost:3003 (React SPA served from root path; Vite dev server proxies API calls to backend on port 8765)
 
 ## Development Modes
 
