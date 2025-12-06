@@ -10,9 +10,9 @@ Quick reference for running the GitHub Metrics application in development mode.
 ```
 
 Access the application:
-- **Frontend**: http://localhost:3003
-- **Backend API**: http://localhost:8765
-- **Dashboard**: http://localhost:3003 (React SPA served from root path; Vite dev server proxies API calls to backend on port 8765)
+- **Frontend**: <http://localhost:3003>
+- **Backend API**: <http://localhost:8765>
+- **Dashboard**: <http://localhost:3003> (React SPA served from root path; Vite dev server proxies API calls to backend on port 8765)
 
 ## Development Modes
 
@@ -56,8 +56,8 @@ Start only the FastAPI backend server (includes database).
 - Frontend is already running from another terminal
 
 **Access:**
-- Backend API: http://localhost:8765
-- Dashboard: http://localhost:8765/dashboard
+- Backend API: <http://localhost:8765>
+- Frontend: Use `./dev/run-frontend.sh` in another terminal to access dashboard at <http://localhost:3003>
 
 ### Frontend Only
 
@@ -78,7 +78,7 @@ Start only the React frontend server.
 - Testing frontend components in isolation
 
 **Access:**
-- Frontend: http://localhost:3003
+- Frontend: <http://localhost:3003>
 
 **Prerequisites:**
 Backend must be running on port 8765 for API calls to work.
@@ -104,7 +104,7 @@ Run the entire application in Docker containers (production-like environment).
 - CI/CD pipeline testing
 
 **Access:**
-- Application: http://localhost:8765
+- Application: <http://localhost:8765>
 
 **Note:** This mode uses the production build (no hot reload). Rebuild required for code changes.
 
@@ -254,18 +254,18 @@ bun install
 
 1. Start full stack: `./dev/run-all.sh`
 2. Make code changes (hot reload applies automatically)
-3. Test in browser at http://localhost:3003
+3. Test in browser at <http://localhost:3003>
 4. Check backend logs in terminal
 5. Stop with Ctrl+C (graceful shutdown)
 
 **For backend-only work:**
 
 1. Start backend: `./dev/run-backend.sh`
-2. Test API at http://localhost:8765
+2. Test API at <http://localhost:8765>
 3. Use curl or Postman for API testing
 
 **For frontend-only work:**
 
 1. Ensure backend is running: `./dev/run-backend.sh` (separate terminal)
 2. Start frontend: `./dev/run-frontend.sh`
-3. Test UI at http://localhost:3003
+3. Test UI at <http://localhost:3003>

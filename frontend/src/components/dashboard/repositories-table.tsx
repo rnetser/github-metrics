@@ -74,7 +74,7 @@ export function RepositoriesTable({
           </TableRow>
         ) : (
           repositories.map((repo) => {
-            const percentage = repo.percentage !== null ? `${repo.percentage.toFixed(1)}%` : "N/A";
+            const percentage = repo.percentage != null ? `${repo.percentage.toFixed(1)}%` : "N/A";
             return (
               <TableRow key={repo.repository}>
                 <TableCell>

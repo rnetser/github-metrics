@@ -4,6 +4,8 @@
 
 ## Quick Start
 
+1. See [DEVELOPMENT.md](./DEVELOPMENT.md#getting-started) for installation and setup instructions.
+
 This is a React + TypeScript + Vite application with shadcn/ui components and Tailwind CSS v4. The project uses Bun as the package manager and runtime.
 
 ## ESLint Configuration

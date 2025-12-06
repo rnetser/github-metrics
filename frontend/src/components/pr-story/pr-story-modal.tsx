@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { useMemo, useState } from "react";
 import {
   Dialog,
@@ -26,7 +27,7 @@ interface PRStoryContentProps {
 }
 
 // Separate component to handle event filtering - keyed by PR to reset state
-function PRStoryContent({ prStory }: PRStoryContentProps): React.ReactElement {
+function PRStoryContent({ prStory }: PRStoryContentProps): ReactElement {
   // Get unique event types from events
   const eventTypes = useMemo(() => {
     return Array.from(new Set(prStory.events.map((event) => event.event_type)));
@@ -92,7 +93,9 @@ function PRStoryContent({ prStory }: PRStoryContentProps): React.ReactElement {
       </div>
 
       {/* Timeline */}
-      {filteredEvents.length > 0 ? (
+      {prStory.events.length === 0 ? (
+        <div className="text-center text-muted-foreground py-8">No events found for this PR</div>
+      ) : filteredEvents.length > 0 ? (
         <PRStoryTimeline events={filteredEvents} />
       ) : selectedEventTypes.size === 0 ? (
         <div className="text-center text-muted-foreground py-8">
@@ -111,9 +114,16 @@ export function PRStoryModal({
   prStory,
   isLoading,
   error,
-}: PRStoryModalProps): React.ReactElement {
+}: PRStoryModalProps): ReactElement {
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           {isLoading ? (
@@ -132,11 +142,12 @@ export function PRStoryModal({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline inline-flex items-center gap-1"
+                  aria-label={`Open PR #${String(prStory.pr.number)} on GitHub`}
                   onClick={(e) => {
                     e.stopPropagation();
                   }}
                 >
-                  <ExternalLink className="h-4 w-4" />
+                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
                 </a>
               </DialogTitle>
               <DialogDescription className="flex items-center gap-2 flex-wrap">

@@ -142,7 +142,7 @@ Use this for testing production-like deployments before committing.
 
 ### CRITICAL RULE: Use shadcn for ALL UI Elements
 
-**❌ NEVER create custom HTML elements for UI components**
+### Never create custom HTML elements for UI components
 
 ```tsx
 // ❌ WRONG - Custom HTML button
@@ -422,7 +422,7 @@ usePRStory(params?)
 
 ### Common Patterns
 
-**Basic Usage:**
+#### Basic Usage
 
 ```tsx
 import { useSummary } from "@/hooks/use-api";
@@ -536,7 +536,7 @@ export function useUserActivity(timeRange?: TimeRange, username?: string) {
 }
 ```
 
-**Step 4: Use in Component**
+#### Step 4: Use in Component
 
 ```tsx
 import { useUserActivity } from "@/hooks/use-api";
@@ -585,7 +585,7 @@ function processData(data: unknown) {
 }
 ```
 
-**❌ NO type assertions without justification**
+### NO type assertions without justification
 
 ```typescript
 // ❌ WRONG - Unsafe assertion
@@ -597,7 +597,7 @@ if (isValidUser(response)) {
 }
 ```
 
-**✅ All props must be typed**
+### All props must be typed
 
 ```typescript
 // ❌ WRONG - No type
@@ -615,7 +615,7 @@ export function Component({ title, count, onSelect }: ComponentProps): JSX.Eleme
 }
 ```
 
-**✅ All API responses must have interfaces**
+### All API responses must have interfaces
 
 ```typescript
 // src/types/metrics.ts
@@ -775,7 +775,7 @@ function toggleDarkMode() {
 
 ### Step-by-Step Guide
 
-**Step 1: Create Page Component**
+#### Step 1: Create Page Component
 
 Create `src/pages/my-feature.tsx`:
 
@@ -806,7 +806,7 @@ export function MyFeaturePage(): JSX.Element {
 }
 ```
 
-**Step 2: Add Route**
+#### Step 2: Add Route
 
 Update `src/App.tsx`:
 
@@ -817,7 +817,7 @@ import { MyFeaturePage } from "@/pages/my-feature";
 <Route path="/my-feature" element={<MyFeaturePage />} />;
 ```
 
-**Step 3: Add to Navigation**
+#### Step 3: Add to Navigation
 
 Update sidebar navigation in `src/components/layout/app-sidebar.tsx`:
 
@@ -834,7 +834,7 @@ const menuItems = [
 ];
 ```
 
-**Step 4: Add API Hook (if needed)**
+#### Step 4: Add API Hook (if needed)
 
 Follow [Adding New API Endpoints](#adding-new-api-endpoints).
 
@@ -842,13 +842,13 @@ Follow [Adding New API Endpoints](#adding-new-api-endpoints).
 
 ### Do's ✅
 
-**Use shadcn components for all UI:**
+#### Use shadcn components for all UI
 
 ```tsx
 import { Button, Card, Table } from "@/components/ui/*";
 ```
 
-**Type everything strictly:**
+#### Type everything strictly
 
 ```tsx
 interface Props {
@@ -857,13 +857,13 @@ interface Props {
 }
 ```
 
-**Use React Query for data fetching:**
+#### Use React Query for data fetching
 
 ```tsx
 const { data, isLoading, error } = useMyData();
 ```
 
-**Compose components from primitives:**
+#### Compose components from primitives
 
 ```tsx
 export function MetricCard({ title, value }: Props): JSX.Element {
@@ -878,7 +878,7 @@ export function MetricCard({ title, value }: Props): JSX.Element {
 }
 ```
 
-**Handle loading and error states:**
+#### Handle loading and error states
 
 ```tsx
 if (isLoading) return <Skeleton />;
@@ -886,13 +886,13 @@ if (error) return <ErrorMessage error={error} />;
 return <DataDisplay data={data} />;
 ```
 
-**Use Tailwind utilities:**
+#### Use Tailwind utilities
 
 ```tsx
 <div className="flex items-center gap-4 p-6" />
 ```
 
-**Keep components focused:**
+#### Keep components focused
 
 ```tsx
 // One responsibility per component
@@ -902,7 +902,7 @@ export function UserProfile({ user }: Props) {}
 
 ### Don'ts ❌
 
-**❌ Create custom UI elements**
+#### Create custom UI elements
 
 ```tsx
 // WRONG
@@ -913,7 +913,7 @@ import { Button } from '@/components/ui/button';
 <Button onClick={...}>Click</Button>
 ```
 
-**❌ Use `any` type**
+#### Use `any` type
 
 ```tsx
 // WRONG
@@ -923,7 +923,7 @@ function handle(data: any) {}
 function handle(data: UserData) {}
 ```
 
-**❌ Skip typing props**
+#### Skip typing props
 
 ```tsx
 // WRONG
@@ -936,7 +936,7 @@ interface Props {
 export function Component({ title }: Props): JSX.Element {}
 ```
 
-**❌ Inline fetch calls**
+#### Inline fetch calls
 
 ```tsx
 // WRONG
@@ -948,7 +948,7 @@ useEffect(() => {
 const { data } = useMyData();
 ```
 
-**❌ Modify shadcn components**
+#### Modify shadcn components
 
 ```tsx
 // WRONG - Editing src/components/ui/button.tsx
@@ -959,7 +959,7 @@ export function MyButton(props: Props) {
 }
 ```
 
-**❌ Use global state unnecessarily**
+#### Use global state unnecessarily
 
 ```tsx
 // WRONG - Global state for server data
@@ -969,7 +969,7 @@ const [users, setUsers] = useState([]);
 const { data: users } = useUsers();
 ```
 
-**❌ Hardcode colors**
+#### Hardcode colors
 
 ```tsx
 // WRONG
@@ -1326,7 +1326,7 @@ If you want to set up frontend-only pre-commit hooks:
 
 ### CRITICAL: No Linter Suppressions
 
-**❌ NEVER suppress linter warnings**
+#### NEVER suppress linter warnings
 
 ```tsx
 // ❌ WRONG
@@ -1337,7 +1337,7 @@ const data: any = response;
 const data: ResponseData = response;
 ```
 
-**If you believe a rule is wrong:**
+#### If you believe a rule is wrong
 
 1. **STOP** - Do NOT add suppression
 2. **ASK** for explicit approval
@@ -1376,30 +1376,30 @@ bunx tsc --noEmit
 
 ### Common Issues
 
-**Issue: API calls fail with 404**
+#### Issue: API calls fail with 404
 
-```
+```text
 Solution: Ensure backend is running on port 8765
 Check: http://localhost:8765/api/metrics/summary
 ```
 
-**Issue: Types don't match API response**
+#### Issue: Types don't match API response
 
-```
+```text
 Solution: Update type definitions in src/types/
 Verify: Check actual API response in Network tab
 ```
 
-**Issue: Component not re-rendering on data change**
+#### Issue: Component not re-rendering on data change
 
-```
+```text
 Solution: Ensure React Query cache is working
 Check: Query key dependencies in useQuery
 ```
 
-**Issue: Tailwind classes not working**
+#### Issue: Tailwind classes not working
 
-```
+```text
 Solution: Restart dev server (Vite HMR issue)
 Check: Class names are correct (no typos)
 ```

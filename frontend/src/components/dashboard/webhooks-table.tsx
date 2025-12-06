@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { useWebhooks } from "@/hooks/use-api";
 import type { TimeRange } from "@/types/api";
+import { formatDateTime } from "@/lib/utils";
 
 interface WebhooksTableProps {
   readonly timeRange?: TimeRange;
@@ -44,10 +45,6 @@ export function WebhooksTable({
       </div>
     );
   }
-
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleString();
-  };
 
   const totalPages = data?.pagination.total_pages ?? 0;
 
@@ -97,7 +94,7 @@ export function WebhooksTable({
                   </Badge>
                 </TableCell>
                 <TableCell>{webhook.processing_time_ms}ms</TableCell>
-                <TableCell>{formatDate(webhook.created_at)}</TableCell>
+                <TableCell>{formatDateTime(webhook.created_at)}</TableCell>
               </TableRow>
             ))
           )}
