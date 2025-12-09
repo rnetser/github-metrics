@@ -66,7 +66,8 @@ export function TeamDynamicsPage(): React.ReactElement {
   const workloadData = teamData?.workload.by_contributor ?? [];
   const reviewData = teamData?.review_efficiency.by_reviewer ?? [];
   const bottleneckData = teamData?.bottlenecks.by_approver ?? [];
-  const crossTeamReviewsData = crossTeamData?.data ?? [];
+  const crossTeamReviewsData: readonly CrossTeamReviewRow[] = (crossTeamData?.data ??
+    []) as readonly CrossTeamReviewRow[];
 
   // Workload Distribution KPIs
   const workloadKPIs: readonly KPIItem[] = teamData?.workload.summary
