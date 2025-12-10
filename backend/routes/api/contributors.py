@@ -386,6 +386,7 @@ async def get_metrics_contributors(
             (SELECT label_elem->>'name'
              FROM jsonb_array_elements(payload->'pull_request'->'labels') AS label_elem
              WHERE label_elem->>'name' LIKE 'sig-%'
+             ORDER BY label_elem->>'name' ASC
              LIMIT 1) AS pr_sig_label
         FROM webhooks
         WHERE event_type = 'pull_request_review'
@@ -558,6 +559,14 @@ async def get_metrics_contributors(
         reviewer_stats: dict[str, ReviewerStatsInternal] = {}
 
         for row in pr_reviewers_raw_rows:
+            if row["user"] is None or row["repository"] is None or row["pr_number"] is None:
+                LOGGER.error(
+                    "Unexpected NULL in review row: user=%s, repository=%s, pr_number=%s",
+                    row["user"],
+                    row["repository"],
+                    row["pr_number"],
+                )
+                continue  # Skip malformed row
             reviewer = str(row["user"])
             repository = str(row["repository"])
             pr_number = int(row["pr_number"])

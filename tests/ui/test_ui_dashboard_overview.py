@@ -338,13 +338,17 @@ class TestOverviewDownloadButtons:
 class TestOverviewPaginationControls:
     """Tests for pagination controls on Overview page."""
 
+    @staticmethod
+    async def _scroll_to_bottom(page: Page) -> None:
+        """Scroll to bottom of page and wait for content to settle."""
+        await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        await page.wait_for_timeout(500)
+
     async def test_pagination_page_size_selector_visibility(self, page_with_js_coverage: Page) -> None:
         """Verify pagination page size selector is visible when present."""
         await page_with_js_coverage.goto(BASE_URL, timeout=TIMEOUT)
         await page_with_js_coverage.wait_for_load_state("networkidle")
-        # Scroll down to see pagination controls
-        await page_with_js_coverage.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-        await page_with_js_coverage.wait_for_timeout(500)
+        await self._scroll_to_bottom(page_with_js_coverage)
         # Look for page size selector - presence depends on available data
         page_info = page_with_js_coverage.get_by_text("Showing")
         count = await page_info.count()
@@ -356,9 +360,7 @@ class TestOverviewPaginationControls:
         """Verify pagination controls are visible when present."""
         await page_with_js_coverage.goto(BASE_URL, timeout=TIMEOUT)
         await page_with_js_coverage.wait_for_load_state("networkidle")
-        # Scroll down to see pagination controls
-        await page_with_js_coverage.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-        await page_with_js_coverage.wait_for_timeout(500)
+        await self._scroll_to_bottom(page_with_js_coverage)
         # Previous and Next buttons visibility depends on available data
         prev_buttons = page_with_js_coverage.get_by_label("Go to previous page")
         next_buttons = page_with_js_coverage.get_by_label("Go to next page")
@@ -376,18 +378,18 @@ class TestOverviewPaginationControls:
 class TestOverviewPRStoryModal:
     """Tests for PR Story modal on Overview page."""
 
-    async def test_pr_timeline_button_exists(self, page_with_js_coverage: Page) -> None:
-        """Verify PR timeline button exists in Pull Requests table."""
+    async def test_pr_timeline_button_visibility(self, page_with_js_coverage: Page) -> None:
+        """Verify PR timeline button is visible when PRs are present."""
         await page_with_js_coverage.goto(BASE_URL, timeout=TIMEOUT)
         await page_with_js_coverage.wait_for_load_state("networkidle")
         # Wait a bit for data to load
         await page_with_js_coverage.wait_for_timeout(1000)
-        # Look for History icon button (timeline button)
+        # Look for History icon button (timeline button) - presence depends on available PRs
         timeline_buttons = page_with_js_coverage.get_by_label("View PR story for PR")
-        # If there are PRs, timeline button should exist
         count = await timeline_buttons.count()
-        # We can't guarantee PRs exist, so just check count >= 0
-        assert count >= 0
+        # Verify visibility only when timeline buttons are present
+        if count > 0:
+            await expect(timeline_buttons.first).to_be_visible()
 
 
 @pytest.mark.usefixtures("dev_server")
