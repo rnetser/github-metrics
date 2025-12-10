@@ -342,7 +342,14 @@ class TestOverviewPaginationControls:
     async def _scroll_to_bottom(page: Page) -> None:
         """Scroll to bottom of page and wait for content to settle."""
         await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-        await page.wait_for_timeout(500)
+        # Wait for scroll position to stabilize (content has settled)
+        prev_height = 0
+        for _ in range(10):  # Max 10 iterations (1 second total)
+            current_height = await page.evaluate("document.body.scrollHeight")
+            if current_height == prev_height:
+                break
+            prev_height = current_height
+            await page.wait_for_timeout(100)
 
     async def test_pagination_page_size_selector_visibility(self, page_with_js_coverage: Page) -> None:
         """Verify pagination page size selector is visible when present."""

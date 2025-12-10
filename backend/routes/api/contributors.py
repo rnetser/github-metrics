@@ -547,9 +547,9 @@ async def get_metrics_contributors(
             PrCreatorRow(
                 user=row["user"],
                 total_prs=row["total_prs"],
-                merged_prs=row["merged_prs"] or 0,
-                closed_prs=row["closed_prs"] or 0,
-                avg_commits_per_pr=round(row["avg_commits"] or 0, 1),
+                merged_prs=row["merged_prs"],
+                closed_prs=row["closed_prs"],
+                avg_commits_per_pr=round(row["avg_commits"], 1),
             )
             for row in pr_creators_rows
         ]
