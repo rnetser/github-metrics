@@ -20,6 +20,10 @@ LOGGER = get_logger(name="backend.routes.api.contributors")
 # This prevents OOM when fetching unbounded review data for Python-side processing
 # If a query would return more rows, an HTTP 413 error is raised asking the user
 # to narrow their filters (time range, repositories, users)
+#
+# Rationale: Each row contains ~5-6 fields (user, repository, pr_number, pr_author, pr_sig_label),
+# approximately 200-500 bytes per row. At 100k rows, this is ~20-50 MB in memory, well within
+# safe limits for in-memory processing. Adjust if row structure changes significantly.
 MAX_REVIEWERS_RAW_ROWS = 100_000
 
 
@@ -103,6 +107,21 @@ class PrLgtmSection(TypedDict):
 
     data: list[PrLgtmRow]
     pagination: PaginationInfo
+
+
+# Internal type for reviewer statistics during processing
+class ReviewerStatsInternal(TypedDict):
+    total_reviews: int
+    prs_reviewed: set[str]
+    cross_team_reviews: int
+
+
+# Internal type for reviewer list (before pagination)
+class ReviewerListItem(TypedDict):
+    user: str
+    total_reviews: int
+    prs_reviewed: int
+    cross_team_reviews: int
 
 
 class ContributorsResponse(TypedDict):
@@ -533,19 +552,6 @@ async def get_metrics_contributors(
             )
             for row in pr_creators_rows
         ]
-
-        # Internal type for reviewer statistics during processing
-        class ReviewerStatsInternal(TypedDict):
-            total_reviews: int
-            prs_reviewed: set[str]
-            cross_team_reviews: int
-
-        # Internal type for reviewer list (before pagination)
-        class ReviewerListItem(TypedDict):
-            user: str
-            total_reviews: int
-            prs_reviewed: int
-            cross_team_reviews: int
 
         # Process PR reviewers: compute cross-team reviews in Python
         # Group reviews by reviewer
