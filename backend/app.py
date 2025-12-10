@@ -188,7 +188,6 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     # Set webhook-specific globals
     webhooks.metrics_tracker = metrics_tracker
     webhooks.allowed_ips = allowed_ips
-    webhooks.sig_teams_config = sig_teams_config
     cross_team.sig_teams_config = sig_teams_config
     contributors.sig_teams_config = sig_teams_config
 

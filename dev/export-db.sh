@@ -24,6 +24,14 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 cd "$PROJECT_DIR"
 
+# Cleanup function for remote temp file
+cleanup_remote() {
+    if [[ -n "${REMOTE_TMP_FILE:-}" && -n "${SSH_HOST:-}" ]]; then
+        ssh -T "$SSH_HOST" "rm -f $REMOTE_TMP_FILE" 2>/dev/null || true
+    fi
+}
+trap cleanup_remote EXIT
+
 SSH_HOST="${1:?Usage: $0 <ssh_host> [container_name] [prod_db] [prod_user] [prod_password] [local_container] [remote_runtime] [use_sudo]}"
 CONTAINER_NAME="${2:-github-metrics-db}"
 PROD_DB="${3:-github_metrics}"
@@ -76,7 +84,7 @@ echo "  Container: $CONTAINER_NAME"
 echo "  Database: $PROD_DB"
 echo "  User: $PROD_USER"
 if [[ -n "$PROD_PASSWORD" ]]; then
-    echo "  Password: $PROD_PASSWORD"
+    echo "  Password: [REDACTED]"
 else
     echo "  Auth: peer/trust"
 fi
@@ -123,25 +131,21 @@ PG_DUMP_ARGS="--data-only --no-owner --no-privileges --inserts --exclude-table=a
 REMOTE_TMP_FILE="/tmp/prod_data_export_$$.sql"
 
 # Step 1: Run pg_dump on remote and save to temp file there
+REMOTE_EXPORT_CMD="$REMOTE_CMD exec '$CONTAINER_NAME' pg_dump -U '$PROD_USER' -d '$PROD_DB' $PG_DUMP_ARGS > $REMOTE_TMP_FILE"
+
 if [[ -n "$PROD_PASSWORD" ]]; then
-    # Escape password for safe shell transmission
-    ESCAPED_PWD="${PROD_PASSWORD//\'/\'\"\'\"\'}"
-    ssh -T "$SSH_HOST" "$REMOTE_CMD exec -e PGPASSWORD='$ESCAPED_PWD' '$CONTAINER_NAME' pg_dump -U '$PROD_USER' -d '$PROD_DB' $PG_DUMP_ARGS > $REMOTE_TMP_FILE"
+    # Pass password via environment to avoid process list exposure
+    ssh -T "$SSH_HOST" "PGPASSWORD='$PROD_PASSWORD' $REMOTE_EXPORT_CMD"
 else
-    ssh -T "$SSH_HOST" "$REMOTE_CMD exec '$CONTAINER_NAME' pg_dump -U '$PROD_USER' -d '$PROD_DB' $PG_DUMP_ARGS > $REMOTE_TMP_FILE"
+    ssh -T "$SSH_HOST" "$REMOTE_EXPORT_CMD"
 fi
 
 # Step 2: Copy the dump file from remote to local
 echo "Copying dump file from remote..."
-# Use rsync with compression for more resilient transfers
-# --compress: compress during transfer
-# --partial: keep partial files for resume
-# --progress: show progress
-# -e "ssh -T -o Compression=yes": use SSH with compression
-rsync --compress --partial --progress -e "ssh -T -o Compression=yes -o MACs=hmac-sha2-256" "$SSH_HOST:$REMOTE_TMP_FILE" /tmp/prod_data.sql
-
-# Step 3: Clean up remote temp file
-ssh -T "$SSH_HOST" "rm -f $REMOTE_TMP_FILE"
+if ! rsync --compress --partial --progress -e "ssh -T" "$SSH_HOST:$REMOTE_TMP_FILE" /tmp/prod_data.sql; then
+    echo "Error: rsync transfer failed"
+    exit 1
+fi
 
 # Check if export was successful
 if [ ! -s /tmp/prod_data.sql ]; then

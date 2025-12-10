@@ -1,7 +1,7 @@
 """API routes for contributor statistics."""
 
 import asyncio
-from typing import Annotated, Any
+from typing import Annotated, TypedDict
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi import status as http_status
@@ -12,10 +12,102 @@ from backend.sig_teams import SigTeamsConfig
 from backend.utils.contributor_queries import get_pr_creators_count_query, get_pr_creators_data_query
 from backend.utils.datetime_utils import parse_datetime_string
 from backend.utils.query_builders import QueryParams, build_repository_filter, build_time_filter
-from backend.utils.response_formatters import format_pagination_metadata
 
 # Module-level logger
 LOGGER = get_logger(name="backend.routes.api.contributors")
+
+
+class PrCreatorRow(TypedDict):
+    """Individual PR creator statistics."""
+
+    user: str
+    total_prs: int
+    merged_prs: int
+    closed_prs: int
+    avg_commits_per_pr: float
+
+
+class PrReviewerRow(TypedDict):
+    """Individual PR reviewer statistics."""
+
+    user: str
+    total_reviews: int
+    prs_reviewed: int
+    avg_reviews_per_pr: float
+    cross_team_reviews: int
+
+
+class PrApproverRow(TypedDict):
+    """Individual PR approver statistics."""
+
+    user: str
+    total_approvals: int
+    prs_approved: int
+
+
+class PrLgtmRow(TypedDict):
+    """Individual LGTM statistics."""
+
+    user: str
+    total_lgtm: int
+    prs_lgtm: int
+
+
+class PaginationInfo(TypedDict):
+    """Pagination metadata."""
+
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    has_next: bool
+    has_prev: bool
+
+
+class TimeRange(TypedDict):
+    """Time range filter information."""
+
+    start_time: str | None
+    end_time: str | None
+
+
+class PrCreatorsSection(TypedDict):
+    """PR creators section with data and pagination."""
+
+    data: list[PrCreatorRow]
+    pagination: PaginationInfo
+
+
+class PrReviewersSection(TypedDict):
+    """PR reviewers section with data and pagination."""
+
+    data: list[PrReviewerRow]
+    pagination: PaginationInfo
+
+
+class PrApproversSection(TypedDict):
+    """PR approvers section with data and pagination."""
+
+    data: list[PrApproverRow]
+    pagination: PaginationInfo
+
+
+class PrLgtmSection(TypedDict):
+    """PR LGTM section with data and pagination."""
+
+    data: list[PrLgtmRow]
+    pagination: PaginationInfo
+
+
+class ContributorsResponse(TypedDict):
+    """Response structure for contributors endpoint."""
+
+    time_range: TimeRange
+    pr_creators: PrCreatorsSection
+    pr_reviewers: PrReviewersSection
+    pr_approvers: PrApproversSection
+    pr_lgtm: PrLgtmSection
+
 
 router = APIRouter(prefix="/api/metrics")
 
@@ -35,7 +127,7 @@ async def get_metrics_contributors(
     repositories: Annotated[list[str] | None, Query(description="Filter by repositories (org/repo format)")] = None,
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(default=10, ge=1, description="Items per page"),
-) -> dict[str, Any]:
+) -> ContributorsResponse:
     """Get PR contributors statistics (creators, reviewers, approvers, LGTM).
 
     Analyzes webhook payloads to extract contributor activity including PR creation,
@@ -360,11 +452,20 @@ async def get_metrics_contributors(
             db_manager.fetchval(pr_lgtm_count_query, *params_without_pagination),
         )
 
-        # Convert potentially None values to integers with safe defaults
-        pr_creators_total = int(pr_creators_total or 0)
+        # Fail-fast: Check for unexpected NULL counts from database
+        if pr_creators_total is None or pr_approvers_total is None or pr_lgtm_total is None:
+            raise ValueError(
+                f"Unexpected NULL count from database: "
+                f"pr_creators_total={pr_creators_total}, "
+                f"pr_approvers_total={pr_approvers_total}, "
+                f"pr_lgtm_total={pr_lgtm_total}"
+            )
+
+        # Convert to integers (no defensive fallback)
+        pr_creators_total = int(pr_creators_total)
         # Note: pr_reviewers_total will be recomputed after Python-side processing
-        pr_approvers_total = int(pr_approvers_total or 0)
-        pr_lgtm_total = int(pr_lgtm_total or 0)
+        pr_approvers_total = int(pr_approvers_total)
+        pr_lgtm_total = int(pr_lgtm_total)
 
         # Execute all data queries in parallel for better performance
         pr_creators_rows, pr_reviewers_raw_rows, pr_approvers_rows, pr_lgtm_rows = await asyncio.gather(
@@ -375,20 +476,33 @@ async def get_metrics_contributors(
         )
 
         # Format PR creators
-        pr_creators = [
-            {
-                "user": row["user"],
-                "total_prs": row["total_prs"],
-                "merged_prs": row["merged_prs"] or 0,
-                "closed_prs": row["closed_prs"] or 0,
-                "avg_commits_per_pr": round(row["avg_commits"] or 0, 1),
-            }
+        pr_creators: list[PrCreatorRow] = [
+            PrCreatorRow(
+                user=row["user"],
+                total_prs=row["total_prs"],
+                merged_prs=row["merged_prs"] or 0,
+                closed_prs=row["closed_prs"] or 0,
+                avg_commits_per_pr=round(row["avg_commits"] or 0, 1),
+            )
             for row in pr_creators_rows
         ]
 
+        # Internal type for reviewer statistics during processing
+        class ReviewerStatsInternal(TypedDict):
+            total_reviews: int
+            prs_reviewed: set[str]
+            cross_team_reviews: int
+
+        # Internal type for reviewer list (before pagination)
+        class ReviewerListItem(TypedDict):
+            user: str
+            total_reviews: int
+            prs_reviewed: int
+            cross_team_reviews: int
+
         # Process PR reviewers: compute cross-team reviews in Python
         # Group reviews by reviewer
-        reviewer_stats: dict[str, dict[str, Any]] = {}
+        reviewer_stats: dict[str, ReviewerStatsInternal] = {}
 
         for row in pr_reviewers_raw_rows:
             reviewer = str(row["user"])
@@ -398,11 +512,11 @@ async def get_metrics_contributors(
 
             # Initialize reviewer stats if not exists
             if reviewer not in reviewer_stats:
-                reviewer_stats[reviewer] = {
-                    "total_reviews": 0,
-                    "prs_reviewed": set(),
-                    "cross_team_reviews": 0,
-                }
+                reviewer_stats[reviewer] = ReviewerStatsInternal(
+                    total_reviews=0,
+                    prs_reviewed=set(),
+                    cross_team_reviews=0,
+                )
 
             # Count total reviews
             reviewer_stats[reviewer]["total_reviews"] += 1
@@ -418,13 +532,13 @@ async def get_metrics_contributors(
                     reviewer_stats[reviewer]["cross_team_reviews"] += 1
 
         # Convert to sorted list
-        reviewer_list = [
-            {
-                "user": user,
-                "total_reviews": stats["total_reviews"],
-                "prs_reviewed": len(stats["prs_reviewed"]),
-                "cross_team_reviews": stats["cross_team_reviews"],
-            }
+        reviewer_list: list[ReviewerListItem] = [
+            ReviewerListItem(
+                user=user,
+                total_reviews=stats["total_reviews"],
+                prs_reviewed=len(stats["prs_reviewed"]),
+                cross_team_reviews=stats["cross_team_reviews"],
+            )
             for user, stats in reviewer_stats.items()
         ]
 
@@ -440,60 +554,72 @@ async def get_metrics_contributors(
         paginated_reviewers = reviewer_list[start_idx:end_idx]
 
         # Format PR reviewers with avg_reviews_per_pr
-        pr_reviewers = [
-            {
-                "user": reviewer["user"],
-                "total_reviews": reviewer["total_reviews"],
-                "prs_reviewed": reviewer["prs_reviewed"],
-                "avg_reviews_per_pr": round(reviewer["total_reviews"] / max(reviewer["prs_reviewed"], 1), 2),
-                "cross_team_reviews": reviewer["cross_team_reviews"],
-            }
+        pr_reviewers: list[PrReviewerRow] = [
+            PrReviewerRow(
+                user=reviewer["user"],
+                total_reviews=reviewer["total_reviews"],
+                prs_reviewed=reviewer["prs_reviewed"],
+                avg_reviews_per_pr=round(reviewer["total_reviews"] / max(reviewer["prs_reviewed"], 1), 2),
+                cross_team_reviews=reviewer["cross_team_reviews"],
+            )
             for reviewer in paginated_reviewers
         ]
 
         # Format PR approvers
-        pr_approvers = [
-            {
-                "user": row["user"],
-                "total_approvals": row["total_approvals"],
-                "prs_approved": row["prs_approved"],
-            }
+        pr_approvers: list[PrApproverRow] = [
+            PrApproverRow(
+                user=row["user"],
+                total_approvals=row["total_approvals"],
+                prs_approved=row["prs_approved"],
+            )
             for row in pr_approvers_rows
         ]
 
         # Format LGTM
-        pr_lgtm = [
-            {
-                "user": row["user"],
-                "total_lgtm": row["total_lgtm"],
-                "prs_lgtm": row["prs_lgtm"],
-            }
+        pr_lgtm: list[PrLgtmRow] = [
+            PrLgtmRow(
+                user=row["user"],
+                total_lgtm=row["total_lgtm"],
+                prs_lgtm=row["prs_lgtm"],
+            )
             for row in pr_lgtm_rows
         ]
 
-        # Calculate pagination metadata for each category using shared formatter
-        return {
-            "time_range": {
-                "start_time": start_datetime.isoformat() if start_datetime else None,
-                "end_time": end_datetime.isoformat() if end_datetime else None,
-            },
-            "pr_creators": {
-                "data": pr_creators,
-                "pagination": format_pagination_metadata(pr_creators_total, page, page_size),
-            },
-            "pr_reviewers": {
-                "data": pr_reviewers,
-                "pagination": format_pagination_metadata(pr_reviewers_total, page, page_size),
-            },
-            "pr_approvers": {
-                "data": pr_approvers,
-                "pagination": format_pagination_metadata(pr_approvers_total, page, page_size),
-            },
-            "pr_lgtm": {
-                "data": pr_lgtm,
-                "pagination": format_pagination_metadata(pr_lgtm_total, page, page_size),
-            },
-        }
+        # Calculate pagination metadata for each category
+        # Helper to create pagination info
+        def make_pagination(total: int) -> PaginationInfo:
+            total_pages = (total + page_size - 1) // page_size if page_size > 0 else 0
+            return PaginationInfo(
+                total=total,
+                page=page,
+                page_size=page_size,
+                total_pages=total_pages,
+                has_next=page < total_pages,
+                has_prev=page > 1,
+            )
+
+        return ContributorsResponse(
+            time_range=TimeRange(
+                start_time=start_datetime.isoformat() if start_datetime else None,
+                end_time=end_datetime.isoformat() if end_datetime else None,
+            ),
+            pr_creators=PrCreatorsSection(
+                data=pr_creators,
+                pagination=make_pagination(pr_creators_total),
+            ),
+            pr_reviewers=PrReviewersSection(
+                data=pr_reviewers,
+                pagination=make_pagination(pr_reviewers_total),
+            ),
+            pr_approvers=PrApproversSection(
+                data=pr_approvers,
+                pagination=make_pagination(pr_approvers_total),
+            ),
+            pr_lgtm=PrLgtmSection(
+                data=pr_lgtm,
+                pagination=make_pagination(pr_lgtm_total),
+            ),
+        )
     except asyncio.CancelledError:
         LOGGER.debug("Contributors metrics request was cancelled")
         raise  # Re-raise directly, let FastAPI handle

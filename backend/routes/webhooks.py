@@ -11,7 +11,6 @@ from simple_logger.logger import get_logger
 
 from backend.config import get_config
 from backend.metrics_tracker import MetricsTracker
-from backend.sig_teams import SigTeamsConfig
 from backend.utils.security import verify_ip_allowlist, verify_signature
 
 # Module-level logger
@@ -25,7 +24,6 @@ IPNetwork = ipaddress.IPv4Network | ipaddress.IPv6Network
 # Global instances (set by app.py during lifespan)
 metrics_tracker: MetricsTracker | None = None
 allowed_ips: tuple[IPNetwork, ...] = ()
-sig_teams_config: SigTeamsConfig | None = None
 
 
 @router.post("/metrics", operation_id="receive_webhook", tags=["mcp_exclude"])
