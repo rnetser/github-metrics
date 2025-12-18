@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useFilters } from "@/hooks/use-filters";
-import { useTeamDynamics, useCrossTeamReviews, usePRStory } from "@/hooks/use-api";
+import { useTeamDynamics, useCrossTeamReviews, usePRStory, useExcludeUsers } from "@/hooks/use-api";
 import { CollapsibleSection } from "@/components/shared/collapsible-section";
 import { DataTable, type ColumnDef } from "@/components/shared/data-table";
 import { KPICards, type KPIItem } from "@/components/shared/kpi-cards";
@@ -67,13 +67,16 @@ export function TeamDynamicsPage(): React.ReactElement {
     }, 200);
   };
 
+  // Combine exclude_users with maintainers if excludeMaintainers is enabled
+  const effectiveExcludeUsers = useExcludeUsers(filters.excludeUsers, filters.excludeMaintainers);
+
   // Fetch team dynamics data with server-side pagination
   const { data: teamData, isLoading } = useTeamDynamics(
     filters.timeRange,
     {
       repositories: filters.repositories,
       users: filters.users,
-      exclude_users: filters.excludeUsers,
+      exclude_users: effectiveExcludeUsers,
     },
     page,
     pageSize
@@ -88,7 +91,7 @@ export function TeamDynamicsPage(): React.ReactElement {
     {
       repositories: filters.repositories,
       users: filters.users,
-      exclude_users: filters.excludeUsers,
+      exclude_users: effectiveExcludeUsers,
     },
     crossTeamPage,
     crossTeamPageSize

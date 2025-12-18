@@ -1,6 +1,12 @@
 import { useState, useMemo, useEffect } from "react";
 import { useFilters } from "@/hooks/use-filters";
-import { useRepositories, useWebhooks, useUserPRs, usePRStory } from "@/hooks/use-api";
+import {
+  useRepositories,
+  useWebhooks,
+  useUserPRs,
+  usePRStory,
+  useExcludeUsers,
+} from "@/hooks/use-api";
 import { CollapsibleSection } from "@/components/shared/collapsible-section";
 import { DataTable, type ColumnDef } from "@/components/shared/data-table";
 import { DownloadButtons } from "@/components/shared/download-buttons";
@@ -89,13 +95,16 @@ export function OverviewPage(): React.ReactElement {
     }
   }, [prsExpanded]);
 
+  // Combine exclude_users with maintainers if excludeMaintainers is enabled
+  const effectiveExcludeUsers = useExcludeUsers(filters.excludeUsers, filters.excludeMaintainers);
+
   // Fetch data
   const { data: repositoriesData, isLoading: reposLoading } = useRepositories(
     filters.timeRange,
     {
       repositories: filters.repositories,
       users: filters.users,
-      exclude_users: filters.excludeUsers,
+      exclude_users: effectiveExcludeUsers,
     },
     reposPage,
     reposPageSize
@@ -116,7 +125,7 @@ export function OverviewPage(): React.ReactElement {
     page: prPage,
     page_size: prPageSize,
     users: filters.users,
-    exclude_users: filters.excludeUsers,
+    exclude_users: effectiveExcludeUsers,
     repositories: filters.repositories,
   });
 

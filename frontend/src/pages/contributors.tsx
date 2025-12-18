@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useFilters } from "@/hooks/use-filters";
-import { useContributors, useTurnaround } from "@/hooks/use-api";
+import { useContributors, useTurnaround, useExcludeUsers } from "@/hooks/use-api";
 import { CollapsibleSection } from "@/components/shared/collapsible-section";
 import { DataTable, type ColumnDef } from "@/components/shared/data-table";
 import { KPICards, type KPIItem } from "@/components/shared/kpi-cards";
@@ -29,11 +29,14 @@ export function ContributorsPage(): React.ReactElement {
     setIsModalOpen(true);
   };
 
+  // Combine exclude_users with maintainers if excludeMaintainers is enabled
+  const effectiveExcludeUsers = useExcludeUsers(filters.excludeUsers, filters.excludeMaintainers);
+
   // Fetch turnaround metrics for KPIs
   const { data: turnaround, isLoading: turnaroundLoading } = useTurnaround(filters.timeRange, {
     repositories: filters.repositories,
     users: filters.users,
-    exclude_users: filters.excludeUsers,
+    exclude_users: effectiveExcludeUsers,
   });
 
   // Fetch contributor data with server-side pagination
@@ -43,7 +46,7 @@ export function ContributorsPage(): React.ReactElement {
     {
       repositories: filters.repositories,
       users: filters.users,
-      exclude_users: filters.excludeUsers,
+      exclude_users: effectiveExcludeUsers,
     },
     page,
     pageSize

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import type { MetricsSummary, TrendDataPoint, TurnaroundMetrics } from "@/types/metrics";
 import type { WebhookEvent } from "@/types/webhooks";
 import type { ContributorMetrics } from "@/types/contributors";
@@ -8,6 +9,7 @@ import type { UserPRsResponse } from "@/types/user-prs";
 import type { TeamDynamicsResponse } from "@/types/team-dynamics";
 import type { PRStory } from "@/types/pr-story";
 import type { CrossTeamData } from "@/types/cross-team";
+import type { MaintainersResponse } from "@/types/maintainers";
 
 const API_BASE = "/api/metrics";
 
@@ -166,6 +168,7 @@ export const queryKeys = {
       page,
       pageSize,
     ] as const,
+  maintainers: () => ["metrics", "maintainers"] as const,
 };
 
 interface WebhookParams {
@@ -391,4 +394,37 @@ export function useCrossTeamReviews(
     ),
     queryFn: () => fetchApi<CrossTeamData>("/cross-team-reviews", params),
   });
+}
+
+export function useMaintainers() {
+  return useQuery<MaintainersResponse>({
+    queryKey: queryKeys.maintainers(),
+    queryFn: () => fetchApi<MaintainersResponse>("/maintainers"),
+    staleTime: 1000 * 60 * 5, // 5 minutes - maintainers don't change often
+  });
+}
+
+/**
+ * Helper hook to merge exclude_users with maintainers when excludeMaintainers is true.
+ * This ensures that maintainers are filtered out from API results when requested.
+ *
+ * @param excludeUsers - The base list of users to exclude
+ * @param excludeMaintainers - Whether to also exclude all maintainers
+ * @returns Combined list of users to exclude (deduplicated)
+ */
+export function useExcludeUsers(
+  excludeUsers: readonly string[],
+  excludeMaintainers: boolean
+): readonly string[] {
+  const { data: maintainersData } = useMaintainers();
+
+  return useMemo(() => {
+    if (!excludeMaintainers || !maintainersData) {
+      return excludeUsers;
+    }
+
+    // Merge and deduplicate
+    const combined = new Set([...excludeUsers, ...maintainersData.all_maintainers]);
+    return Array.from(combined);
+  }, [excludeUsers, excludeMaintainers, maintainersData]);
 }

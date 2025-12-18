@@ -28,6 +28,7 @@ from backend.routes import health, webhooks
 from backend.routes.api import (
     contributors,
     cross_team,
+    maintainers,
     pr_story,
     repositories,
     summary,
@@ -261,6 +262,7 @@ def create_app() -> FastAPI:
     app.include_router(turnaround.router)
     app.include_router(team_dynamics.router)
     app.include_router(cross_team.router)
+    app.include_router(maintainers.router)
 
     return app
 
