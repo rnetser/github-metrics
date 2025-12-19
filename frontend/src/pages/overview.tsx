@@ -96,10 +96,13 @@ export function OverviewPage(): React.ReactElement {
   }, [prsExpanded]);
 
   // Combine exclude_users with maintainers if excludeMaintainers is enabled
-  const effectiveExcludeUsers = useExcludeUsers(filters.excludeUsers, filters.excludeMaintainers);
+  const { users: effectiveExcludeUsers, isLoading: isExcludeUsersLoading } = useExcludeUsers(
+    filters.excludeUsers,
+    filters.excludeMaintainers
+  );
 
   // Fetch data
-  const { data: repositoriesData, isLoading: reposLoading } = useRepositories(
+  const { data: repositoriesData, isLoading: reposDataLoading } = useRepositories(
     filters.timeRange,
     {
       repositories: filters.repositories,
@@ -107,8 +110,12 @@ export function OverviewPage(): React.ReactElement {
       exclude_users: effectiveExcludeUsers,
     },
     reposPage,
-    reposPageSize
+    reposPageSize,
+    !isExcludeUsersLoading
   );
+
+  // Combine loading states
+  const reposLoading = reposDataLoading || isExcludeUsersLoading;
 
   const { data: webhookData, isLoading: webhooksLoading } = useWebhooks({
     ...(filters.timeRange.start_time && { start_time: filters.timeRange.start_time }),
@@ -119,7 +126,7 @@ export function OverviewPage(): React.ReactElement {
     ...(filters.repositories.length === 1 ? { repository: filters.repositories[0] } : {}),
   });
 
-  const { data: userPRsData, isLoading: prsLoading } = useUserPRs({
+  const { data: userPRsData, isLoading: prsDataLoading } = useUserPRs({
     ...(filters.timeRange.start_time && { start_time: filters.timeRange.start_time }),
     ...(filters.timeRange.end_time && { end_time: filters.timeRange.end_time }),
     page: prPage,
@@ -128,6 +135,9 @@ export function OverviewPage(): React.ReactElement {
     exclude_users: effectiveExcludeUsers,
     repositories: filters.repositories,
   });
+
+  // Combine loading states
+  const prsLoading = prsDataLoading || isExcludeUsersLoading;
 
   // Calculate percentages for repositories
   const repositoriesWithPercentages = useMemo(() => {

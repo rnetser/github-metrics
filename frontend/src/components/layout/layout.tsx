@@ -35,14 +35,20 @@ export function Layout(): React.ReactElement {
   const { filters } = useFilters();
 
   // Combine exclude_users with maintainers if excludeMaintainers is enabled
-  const effectiveExcludeUsers = useExcludeUsers(filters.excludeUsers, filters.excludeMaintainers);
+  const { users: effectiveExcludeUsers, isLoading: isExcludeUsersLoading } = useExcludeUsers(
+    filters.excludeUsers,
+    filters.excludeMaintainers
+  );
 
   // Fetch summary data for the tooltip
-  const { data: summaryData, isLoading: isSummaryLoading } = useSummary(filters.timeRange, {
+  const { data: summaryData, isLoading: isSummaryDataLoading } = useSummary(filters.timeRange, {
     repositories: filters.repositories,
     users: filters.users,
     exclude_users: effectiveExcludeUsers,
   });
+
+  // Combine loading states - show loading if either summary data or exclude users are loading
+  const isSummaryLoading = isSummaryDataLoading || isExcludeUsersLoading;
 
   // Fetch repositories and contributors for filter suggestions
   // Use a large page size to get all available options

@@ -30,18 +30,28 @@ export function ContributorsPage(): React.ReactElement {
   };
 
   // Combine exclude_users with maintainers if excludeMaintainers is enabled
-  const effectiveExcludeUsers = useExcludeUsers(filters.excludeUsers, filters.excludeMaintainers);
+  const { users: effectiveExcludeUsers, isLoading: isExcludeUsersLoading } = useExcludeUsers(
+    filters.excludeUsers,
+    filters.excludeMaintainers
+  );
 
   // Fetch turnaround metrics for KPIs
-  const { data: turnaround, isLoading: turnaroundLoading } = useTurnaround(filters.timeRange, {
-    repositories: filters.repositories,
-    users: filters.users,
-    exclude_users: effectiveExcludeUsers,
-  });
+  const { data: turnaround, isLoading: turnaroundDataLoading } = useTurnaround(
+    filters.timeRange,
+    {
+      repositories: filters.repositories,
+      users: filters.users,
+      exclude_users: effectiveExcludeUsers,
+    },
+    !isExcludeUsersLoading
+  );
+
+  // Combine loading states
+  const turnaroundLoading = turnaroundDataLoading || isExcludeUsersLoading;
 
   // Fetch contributor data with server-side pagination
   // Note: The API returns all contributor types in one response with the same pagination params
-  const { data: contributorMetrics, isLoading } = useContributors(
+  const { data: contributorMetrics, isLoading: contributorDataLoading } = useContributors(
     filters.timeRange,
     {
       repositories: filters.repositories,
@@ -49,8 +59,12 @@ export function ContributorsPage(): React.ReactElement {
       exclude_users: effectiveExcludeUsers,
     },
     page,
-    pageSize
+    pageSize,
+    !isExcludeUsersLoading
   );
+
+  // Combine loading states
+  const isLoading = contributorDataLoading || isExcludeUsersLoading;
 
   // Server-side paginated data for each section
   const creatorsData = contributorMetrics?.pr_creators.data ?? [];

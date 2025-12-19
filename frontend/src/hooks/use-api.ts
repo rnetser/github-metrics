@@ -222,7 +222,7 @@ function buildFilterParams(timeRange?: TimeRange, filters?: FilterParams): URLSe
 }
 
 // Hooks
-export function useSummary(timeRange?: TimeRange, filters?: FilterParams) {
+export function useSummary(timeRange?: TimeRange, filters?: FilterParams, enabled: boolean = true) {
   return useQuery<MetricsSummary>({
     queryKey: queryKeys.summary(
       timeRange,
@@ -231,6 +231,7 @@ export function useSummary(timeRange?: TimeRange, filters?: FilterParams) {
       filters?.exclude_users
     ),
     queryFn: () => fetchApi<MetricsSummary>("/summary", buildFilterParams(timeRange, filters)),
+    enabled,
   });
 }
 
@@ -255,7 +256,8 @@ export function useRepositories(
   timeRange?: TimeRange,
   filters?: FilterParams,
   page: number = 1,
-  pageSize: number = 10
+  pageSize: number = 10,
+  enabled: boolean = true
 ) {
   const params = buildFilterParams(timeRange, filters);
   params.set("page", String(page));
@@ -271,6 +273,7 @@ export function useRepositories(
       pageSize
     ),
     queryFn: () => fetchApi<RepositoriesResponse>("/repositories", params),
+    enabled,
   });
 }
 
@@ -278,7 +281,8 @@ export function useContributors(
   timeRange?: TimeRange,
   filters?: FilterParams,
   page: number = 1,
-  pageSize: number = 10
+  pageSize: number = 10,
+  enabled: boolean = true
 ) {
   const params = buildFilterParams(timeRange, filters);
   params.set("page", String(page));
@@ -294,6 +298,7 @@ export function useContributors(
       pageSize
     ),
     queryFn: () => fetchApi<ContributorMetrics>("/contributors", params),
+    enabled,
   });
 }
 
@@ -307,7 +312,11 @@ export function useTrends(timeRange?: TimeRange, bucket: string = "hour") {
   });
 }
 
-export function useTurnaround(timeRange?: TimeRange, filters?: FilterParams) {
+export function useTurnaround(
+  timeRange?: TimeRange,
+  filters?: FilterParams,
+  enabled: boolean = true
+) {
   return useQuery<TurnaroundMetrics>({
     queryKey: queryKeys.turnaround(
       timeRange,
@@ -317,6 +326,7 @@ export function useTurnaround(timeRange?: TimeRange, filters?: FilterParams) {
     ),
     queryFn: () =>
       fetchApi<TurnaroundMetrics>("/turnaround", buildFilterParams(timeRange, filters)),
+    enabled,
   });
 }
 
@@ -345,7 +355,8 @@ export function useTeamDynamics(
   timeRange?: TimeRange,
   filters?: FilterParams,
   page: number = 1,
-  pageSize: number = 25
+  pageSize: number = 25,
+  enabled: boolean = true
 ) {
   const params = buildFilterParams(timeRange, filters);
   params.set("page", String(page));
@@ -361,6 +372,7 @@ export function useTeamDynamics(
       pageSize
     ),
     queryFn: () => fetchApi<TeamDynamicsResponse>("/team-dynamics", params),
+    enabled,
   });
 }
 
@@ -377,7 +389,8 @@ export function useCrossTeamReviews(
   timeRange?: TimeRange,
   filters?: FilterParams,
   page: number = 1,
-  pageSize: number = 25
+  pageSize: number = 25,
+  enabled: boolean = true
 ) {
   const params = buildFilterParams(timeRange, filters);
   params.set("page", String(page));
@@ -393,6 +406,7 @@ export function useCrossTeamReviews(
       pageSize
     ),
     queryFn: () => fetchApi<CrossTeamData>("/cross-team-reviews", params),
+    enabled,
   });
 }
 
@@ -410,21 +424,33 @@ export function useMaintainers() {
  *
  * @param excludeUsers - The base list of users to exclude
  * @param excludeMaintainers - Whether to also exclude all maintainers
- * @returns Combined list of users to exclude (deduplicated)
+ * @returns Object with combined list of users to exclude (deduplicated) and loading state
  */
 export function useExcludeUsers(
   excludeUsers: readonly string[],
   excludeMaintainers: boolean
-): readonly string[] {
-  const { data: maintainersData } = useMaintainers();
+): { readonly users: readonly string[]; readonly isLoading: boolean } {
+  const { data: maintainersData, isLoading: isMaintainersLoading } = useMaintainers();
 
-  return useMemo(() => {
-    if (!excludeMaintainers || !maintainersData) {
+  const users = useMemo(() => {
+    // If not excluding maintainers, just return the base exclude list
+    if (!excludeMaintainers) {
       return excludeUsers;
+    }
+
+    // If excluding maintainers but data not loaded yet, return empty array
+    // The isLoading flag will prevent dependent queries from firing
+    if (!maintainersData) {
+      return [];
     }
 
     // Merge and deduplicate
     const combined = new Set([...excludeUsers, ...maintainersData.all_maintainers]);
     return Array.from(combined);
   }, [excludeUsers, excludeMaintainers, maintainersData]);
+
+  // Only show loading when we're trying to exclude maintainers but data isn't ready
+  const isLoading = excludeMaintainers && isMaintainersLoading;
+
+  return { users, isLoading };
 }
