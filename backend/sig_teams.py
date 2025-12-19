@@ -125,7 +125,7 @@ class SigTeamsConfig:
         mapping_count = sum(len(users) for users in self._user_to_team.values())
         maintainers_count = sum(len(maintainers) for maintainers in self._maintainers.values())
         LOGGER.info(
-            f"Successfully loaded SIG teams configuration: %s repositories, %s total user-team mappings, %s maintainers",
+            "Successfully loaded SIG teams configuration: %s repositories, %s total user-team mappings, %s maintainers",
             repo_count,
             mapping_count,
             maintainers_count,
@@ -200,7 +200,7 @@ class SigTeamsConfig:
                             LOGGER.error(msg)
                             raise TypeError(msg)
                     maintainers[repository] = users
-                    continue  # Skip adding maintainers to team mapping
+                    continue  # Skip adding maintainers to team mapping for filtering
 
                 # Regular team processing
                 for user in users:
@@ -226,7 +226,6 @@ class SigTeamsConfig:
 
             lookup[repository] = repo_lookup
 
-        # Store maintainers in instance variable
         self._maintainers = maintainers
 
         return lookup
