@@ -200,9 +200,9 @@ class SigTeamsConfig:
                             LOGGER.error(msg)
                             raise TypeError(msg)
                     maintainers[repository] = users
-                    continue  # Skip adding maintainers to team mapping for filtering
+                    continue  # Skip adding maintainers to team mapping
 
-                # Regular team processing
+                # Regular team processing - process users for this team
                 for user in users:
                     if not isinstance(user, str):
                         msg = (
@@ -212,7 +212,8 @@ class SigTeamsConfig:
                         LOGGER.error(msg)
                         raise TypeError(msg)
 
-                    # Check for duplicate user assignments within teams (not maintainers)
+                    # Check for duplicate user assignments ONLY within regular teams
+                    # Users can be in maintainers AND a team - that's allowed
                     if user in repo_lookup:
                         msg = (
                             f"Duplicate user assignment in '{repository}': "

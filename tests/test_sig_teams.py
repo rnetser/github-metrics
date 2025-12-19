@@ -627,3 +627,34 @@ class TestSigTeamsConfig:
 
         with pytest.raises(TypeError, match="Invalid username type in maintainers list"):
             config.load_from_file(config_file)
+
+    def test_user_in_team_then_maintainers_dict_order(self, tmp_path: Path) -> None:
+        """Test user can be in team first, then maintainers (dict iteration order).
+
+        This test verifies the fix for the bug where users could not be both
+        maintainers AND team members when the YAML dict is iterated with
+        team appearing before maintainers.
+
+        Regression test for:
+        ValueError: Duplicate user assignment in 'RedHatQE/openshift-virtualization-tests':
+        'vsibirsk' is already in team 'sig-virt', cannot also be in 'maintainers'
+        """
+        # YAML with team defined before maintainers to test dict iteration order
+        yaml_content = {
+            "RedHatQE/openshift-virtualization-tests": {
+                "sig-virt": ["vsibirsk"],
+                "maintainers": ["vsibirsk"],
+            },
+        }
+
+        config_file = tmp_path / "team_then_maintainers.yaml"
+        with config_file.open("w") as f:
+            yaml.dump(yaml_content, f)
+
+        config = SigTeamsConfig()
+        # Should NOT raise ValueError about duplicate user assignment
+        config.load_from_file(config_file)
+
+        # User should be both maintainer AND team member
+        assert config.is_maintainer("RedHatQE/openshift-virtualization-tests", "vsibirsk") is True
+        assert config.get_user_team("RedHatQE/openshift-virtualization-tests", "vsibirsk") == "sig-virt"
