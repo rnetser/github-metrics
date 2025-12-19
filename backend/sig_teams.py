@@ -7,8 +7,8 @@ Used for tracking cross-team code review metrics.
 YAML file structure:
     org/repo:
       maintainers:              # RESERVED KEY - not a team name
+        - username1
         - maintainer1
-        - maintainer2
       sig-team-name:
         - username1
         - username2
@@ -66,8 +66,8 @@ class SigTeamsConfig:
         Expected YAML structure:
             org/repo:
               maintainers:          # RESERVED KEY - defines repository maintainers
+                - username1
                 - maintainer1
-                - maintainer2
               sig-team-name:
                 - username1
                 - username2
