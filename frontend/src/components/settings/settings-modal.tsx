@@ -1,3 +1,4 @@
+import React from "react";
 import { useDateFormat } from "@/hooks/use-date-format";
 import { useTheme } from "@/hooks/use-theme";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,7 +12,7 @@ interface SettingsModalProps {
   readonly onOpenChange: (open: boolean) => void;
 }
 
-export function SettingsModal({ open, onOpenChange }: SettingsModalProps): JSX.Element {
+export function SettingsModal({ open, onOpenChange }: SettingsModalProps): React.ReactElement {
   const { theme, setTheme } = useTheme();
   const { dateFormat, setDateFormat } = useDateFormat();
 
