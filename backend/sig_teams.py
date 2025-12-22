@@ -199,7 +199,7 @@ class SigTeamsConfig:
                             )
                             LOGGER.error(msg)
                             raise TypeError(msg)
-                    maintainers[repository] = users
+                    maintainers[repository] = list(users)
                     continue  # Skip adding maintainers to team mapping
 
                 # Regular team processing - process users for this team
