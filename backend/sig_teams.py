@@ -313,7 +313,7 @@ class SigTeamsConfig:
             maintainers = config.get_maintainers("myk-org/github-metrics")
             # Returns ["maintainer1", "maintainer2"] or [] if no maintainers configured
         """
-        return self._maintainers.get(repository, [])
+        return list(self._maintainers.get(repository, []))
 
     def is_maintainer(self, repository: str, username: str) -> bool:
         """

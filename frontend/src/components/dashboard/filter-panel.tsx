@@ -225,12 +225,12 @@ export function FilterPanel({
                 setExcludeMaintainers(checked === true);
               }}
             />
-            <label
+            <Label
               htmlFor="exclude-maintainers"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
             >
               Exclude Maintainers
-            </label>
+            </Label>
           </div>
         </div>
 

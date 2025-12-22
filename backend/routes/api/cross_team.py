@@ -169,7 +169,7 @@ async def get_metrics_cross_team_reviews(
             detail="SIG teams configuration not loaded - cross-team tracking unavailable",
         )
 
-    LOGGER.info(f"Cross-team reviews endpoint called with exclude_users={exclude_users}")
+    LOGGER.info("Cross-team reviews endpoint called with exclude_users=%s", exclude_users)
 
     start_datetime = parse_datetime_string(start_time, "start_time")
     end_datetime = parse_datetime_string(end_time, "end_time")

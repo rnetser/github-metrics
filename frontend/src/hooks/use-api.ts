@@ -330,7 +330,7 @@ export function useTurnaround(
   });
 }
 
-export function useUserPRs(params?: UserPRParams) {
+export function useUserPRs(params?: UserPRParams, enabled: boolean = true) {
   // Build URLSearchParams with proper array serialization
   const urlParams = new URLSearchParams();
 
@@ -348,6 +348,7 @@ export function useUserPRs(params?: UserPRParams) {
   return useQuery<UserPRsResponse>({
     queryKey: queryKeys.userPrs(params),
     queryFn: () => fetchApi<UserPRsResponse>("/user-prs", urlParams),
+    enabled,
   });
 }
 
