@@ -524,22 +524,21 @@ async def get_team_dynamics(
                 }
             else:
                 # Fallback: use best available but add low_sample_size warning
-                if review_data_full:
-                    fastest = min(review_data_full, key=lambda x: x["avg_review_time_hours"])
-                    fastest_reviewer = {
-                        "user": fastest["user"],
-                        "avg_hours": fastest["avg_review_time_hours"],
-                        "total_reviews": fastest["total_reviews"],
-                        "low_sample_size": True,
-                    }
+                fastest = min(review_data_full, key=lambda x: x["avg_review_time_hours"])
+                fastest_reviewer = {
+                    "user": fastest["user"],
+                    "avg_hours": fastest["avg_review_time_hours"],
+                    "total_reviews": fastest["total_reviews"],
+                    "low_sample_size": True,
+                }
 
-                    slowest = max(review_data_full, key=lambda x: x["avg_review_time_hours"])
-                    slowest_reviewer = {
-                        "user": slowest["user"],
-                        "avg_hours": slowest["avg_review_time_hours"],
-                        "total_reviews": slowest["total_reviews"],
-                        "low_sample_size": True,
-                    }
+                slowest = max(review_data_full, key=lambda x: x["avg_review_time_hours"])
+                slowest_reviewer = {
+                    "user": slowest["user"],
+                    "avg_hours": slowest["avg_review_time_hours"],
+                    "total_reviews": slowest["total_reviews"],
+                    "low_sample_size": True,
+                }
 
         review_summary = {
             "avg_review_time_hours": avg_review_time,

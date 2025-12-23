@@ -30,7 +30,8 @@ export METRICS_VERIFY_GITHUB_IPS="${METRICS_VERIFY_GITHUB_IPS:-false}"
 export METRICS_VERIFY_CLOUDFLARE_IPS="${METRICS_VERIFY_CLOUDFLARE_IPS:-false}"
 export METRICS_SERVER_RELOAD="${METRICS_SERVER_RELOAD:-true}"
 export METRICS_SERVER_DEBUG="${METRICS_SERVER_DEBUG:-true}"
-export METRICS_SIG_TEAMS_CONFIG="${METRICS_SIG_TEAMS_CONFIG:-${PROJECT_DIR}/dev/sig-teams.yaml}"
+# SIG teams configuration is optional - leave empty to disable SIG team filtering
+export METRICS_SIG_TEAMS_CONFIG="${METRICS_SIG_TEAMS_CONFIG:-}"
 
 CONTAINER_NAME="github-metrics-dev-db"
 VOLUME_NAME="github-metrics-dev-data"
