@@ -166,14 +166,14 @@ export function TeamDynamicsPage(): React.ReactElement {
           label: "Fastest Reviewer",
           value: teamData.review_efficiency.summary.fastest_reviewer?.user ?? "N/A",
           ...(teamData.review_efficiency.summary.fastest_reviewer?.low_sample_size && {
-            warning: `Sample size below ${String(teamData.review_efficiency.summary.min_reviews_threshold)} reviews`,
+            warning: `Sample size: ${String(teamData.review_efficiency.summary.fastest_reviewer.total_reviews)} reviews (below ${String(teamData.review_efficiency.summary.min_reviews_threshold)} threshold)`,
           }),
         },
         {
           label: "Slowest Reviewer",
           value: teamData.review_efficiency.summary.slowest_reviewer?.user ?? "N/A",
           ...(teamData.review_efficiency.summary.slowest_reviewer?.low_sample_size && {
-            warning: `Sample size below ${String(teamData.review_efficiency.summary.min_reviews_threshold)} reviews`,
+            warning: `Sample size: ${String(teamData.review_efficiency.summary.slowest_reviewer.total_reviews)} reviews (below ${String(teamData.review_efficiency.summary.min_reviews_threshold)} threshold)`,
           }),
         },
       ]

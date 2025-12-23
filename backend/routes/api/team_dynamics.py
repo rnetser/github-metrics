@@ -523,8 +523,11 @@ async def get_team_dynamics(
                     "total_reviews": slowest["total_reviews"],
                 }
             else:
-                # Fallback: use best available but add low_sample_size warning
-                fastest = min(review_data_full, key=lambda x: x["avg_review_time_hours"])
+                # Fallback: use reviewers with maximum review count (closest to threshold)
+                max_review_count = max(r["total_reviews"] for r in review_data_full)
+                max_count_reviewers = [r for r in review_data_full if r["total_reviews"] == max_review_count]
+
+                fastest = min(max_count_reviewers, key=lambda x: x["avg_review_time_hours"])
                 fastest_reviewer = {
                     "user": fastest["user"],
                     "avg_hours": fastest["avg_review_time_hours"],
@@ -532,7 +535,7 @@ async def get_team_dynamics(
                     "low_sample_size": True,
                 }
 
-                slowest = max(review_data_full, key=lambda x: x["avg_review_time_hours"])
+                slowest = max(max_count_reviewers, key=lambda x: x["avg_review_time_hours"])
                 slowest_reviewer = {
                     "user": slowest["user"],
                     "avg_hours": slowest["avg_review_time_hours"],
