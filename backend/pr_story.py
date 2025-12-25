@@ -8,6 +8,7 @@ Aggregates complete PR timeline from webhook payloads including:
 - Labels (added, removed, verified, approved, lgtm)
 - Check runs (CI/CD pipeline status)
 - Comments and review requests
+- Comment thread resolution (resolved, unresolved)
 
 Architecture:
 - All data from webhooks table only (single source of truth)
@@ -253,6 +254,29 @@ def _extract_event_from_payload(
                     "delivery_id": delivery_id,
                 })
 
+    elif event_type == "pull_request_review_thread":
+        thread = payload.get("thread", {})
+        if action == "resolved":
+            events.append({
+                "type": "thread_resolved",
+                "actor": actor,
+                "details": {
+                    "thread_id": thread.get("id"),
+                    "node_id": thread.get("node_id"),
+                },
+                "delivery_id": delivery_id,
+            })
+        elif action == "unresolved":
+            events.append({
+                "type": "thread_unresolved",
+                "actor": actor,
+                "details": {
+                    "thread_id": thread.get("id"),
+                    "node_id": thread.get("node_id"),
+                },
+                "delivery_id": delivery_id,
+            })
+
     return events
 
 
@@ -490,6 +514,8 @@ def _build_event_description(event_type: str, actor: str, details: dict[str, Any
         "approved_label": f"@{actor} approved via label",
         "lgtm": f"@{actor} gave LGTM",
         "check_run": f"{details.get('name', 'Check')} - {details.get('conclusion', 'running')}",
+        "thread_resolved": f"@{actor} resolved a comment thread",
+        "thread_unresolved": f"@{actor} unresolved a comment thread",
     }
     return descriptions.get(event_type, f"{event_type} by @{actor}")
 
