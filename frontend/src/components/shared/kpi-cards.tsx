@@ -64,7 +64,7 @@ export function KPICards({
                     <TooltipTrigger asChild>
                       <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/60 hover:text-muted-foreground cursor-help" />
                     </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
+                    <TooltipContent className="max-w-xs text-left">
                       <p>{item.tooltip}</p>
                     </TooltipContent>
                   </Tooltip>

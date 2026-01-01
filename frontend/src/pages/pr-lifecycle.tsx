@@ -177,7 +177,6 @@ export function PRLifecyclePage(): React.ReactElement {
     {
       key: "repository",
       label: "Repository",
-      tooltip: "GitHub repository in org/repo format",
       sortable: true,
     },
     {
@@ -228,7 +227,6 @@ export function PRLifecyclePage(): React.ReactElement {
     {
       key: "total_prs",
       label: "PRs",
-      tooltip: "Total PRs opened in this repository",
       align: "right",
       sortable: true,
       getValue: (item) => item.total_prs,
@@ -240,7 +238,6 @@ export function PRLifecyclePage(): React.ReactElement {
     {
       key: "pr_info",
       label: "Pull Request",
-      tooltip: "PR number, title, and repository",
       sortable: true,
       render: (item) => (
         <div className="min-w-0 max-w-sm">
@@ -265,7 +262,6 @@ export function PRLifecyclePage(): React.ReactElement {
     {
       key: "total_threads",
       label: "Threads",
-      tooltip: "Total review comment threads on this PR",
       align: "right",
       sortable: true,
       render: (item) => <span className="whitespace-nowrap">{item.total_threads}</span>,
@@ -274,7 +270,6 @@ export function PRLifecyclePage(): React.ReactElement {
     {
       key: "resolved_threads",
       label: "Resolved",
-      tooltip: "Number of threads marked as resolved",
       align: "right",
       sortable: true,
       render: (item) => <span className="whitespace-nowrap">{item.resolved_threads}</span>,
@@ -305,7 +300,6 @@ export function PRLifecyclePage(): React.ReactElement {
     {
       key: "actions",
       label: "Timeline",
-      tooltip: "View full PR event timeline",
       sortable: false,
       render: (item) => (
         <Button

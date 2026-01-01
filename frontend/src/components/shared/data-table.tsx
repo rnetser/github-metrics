@@ -203,7 +203,7 @@ export function DataTable<T extends object>({
                       <TooltipTrigger asChild>
                         <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/60 hover:text-muted-foreground cursor-help flex-shrink-0" />
                       </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
+                      <TooltipContent className="max-w-xs text-left">
                         <p>{column.tooltip}</p>
                       </TooltipContent>
                     </Tooltip>
