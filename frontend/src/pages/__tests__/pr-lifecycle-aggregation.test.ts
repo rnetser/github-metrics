@@ -1,116 +1,13 @@
 import { describe, it, expect } from "vitest";
+import { aggregateThreadsByPR, type Thread } from "@/utils/pr-aggregation";
 
 /**
  * Tests for PR lifecycle aggregation logic.
  *
- * This tests the exact logic used in pr-lifecycle.tsx lines 77-152
+ * This tests the shared aggregation utility used by pr-lifecycle.tsx
  * to aggregate thread data by PR number.
  */
 describe("PR Lifecycle Aggregation", () => {
-  interface Thread {
-    repository: string;
-    pr_number: number;
-    pr_title: string | null;
-    resolved_at: string | null;
-    resolution_time_hours: number | string | null;
-    time_from_can_be_merged_hours: number | string | null;
-  }
-
-  interface PRAggregated {
-    repository: string;
-    pr_number: number;
-    pr_title: string;
-    total_threads: number;
-    resolved_threads: number;
-    total_resolution_hours: number;
-    resolved_count: number;
-    time_from_can_be_merged_hours: number | null;
-    avg_resolution_hours: number | null;
-  }
-
-  function aggregateThreadsByPR(threads: Thread[]): PRAggregated[] {
-    const prMap = new Map<
-      string,
-      {
-        repository: string;
-        pr_number: number;
-        pr_title: string;
-        total_threads: number;
-        resolved_threads: number;
-        total_resolution_hours: number;
-        resolved_count: number;
-        time_from_can_be_merged_hours: number | null;
-      }
-    >();
-
-    for (const thread of threads) {
-      const key = `${thread.repository}#${String(thread.pr_number)}`;
-      const existing = prMap.get(key);
-
-      if (existing) {
-        existing.total_threads++;
-        if (thread.resolved_at) {
-          existing.resolved_threads++;
-          const resolutionTime =
-            typeof thread.resolution_time_hours === "string"
-              ? parseFloat(thread.resolution_time_hours)
-              : thread.resolution_time_hours;
-          if (resolutionTime !== null && !Number.isNaN(resolutionTime)) {
-            existing.total_resolution_hours += resolutionTime;
-            existing.resolved_count++;
-          }
-        }
-
-        // Take the minimum (earliest/most negative) time_from_can_be_merged
-        const mergedTime =
-          typeof thread.time_from_can_be_merged_hours === "string"
-            ? parseFloat(thread.time_from_can_be_merged_hours)
-            : thread.time_from_can_be_merged_hours;
-        if (mergedTime !== null && !Number.isNaN(mergedTime)) {
-          if (existing.time_from_can_be_merged_hours === null) {
-            existing.time_from_can_be_merged_hours = mergedTime;
-          } else {
-            existing.time_from_can_be_merged_hours = Math.min(
-              existing.time_from_can_be_merged_hours,
-              mergedTime
-            );
-          }
-        }
-      } else {
-        const resolutionTime =
-          typeof thread.resolution_time_hours === "string"
-            ? parseFloat(thread.resolution_time_hours)
-            : thread.resolution_time_hours;
-        const mergedTime =
-          typeof thread.time_from_can_be_merged_hours === "string"
-            ? parseFloat(thread.time_from_can_be_merged_hours)
-            : thread.time_from_can_be_merged_hours;
-
-        const validResolutionTime =
-          resolutionTime !== null && !Number.isNaN(resolutionTime) ? resolutionTime : 0;
-        const validMergedTime =
-          mergedTime !== null && !Number.isNaN(mergedTime) ? mergedTime : null;
-
-        prMap.set(key, {
-          repository: thread.repository,
-          pr_number: thread.pr_number,
-          pr_title: thread.pr_title ?? `PR #${String(thread.pr_number)}`,
-          total_threads: 1,
-          resolved_threads: thread.resolved_at ? 1 : 0,
-          total_resolution_hours: validResolutionTime,
-          resolved_count: validResolutionTime > 0 || resolutionTime === 0 ? 1 : 0,
-          time_from_can_be_merged_hours: validMergedTime,
-        });
-      }
-    }
-
-    return Array.from(prMap.values()).map((pr) => ({
-      ...pr,
-      avg_resolution_hours:
-        pr.resolved_count > 0 ? pr.total_resolution_hours / pr.resolved_count : null,
-    }));
-  }
-
   it("aggregates threads with string time_from_can_be_merged_hours correctly", () => {
     const threads: Thread[] = [
       {

@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { History, Info } from "lucide-react";
 import type { TurnaroundByRepository } from "@/types/metrics";
 import { formatHours } from "@/utils/time-format";
+import { aggregateThreadsByPR, type PRAggregated } from "@/utils/pr-aggregation";
 
 const MAX_AGGREGATION_THREADS = 1000;
 
@@ -63,97 +64,10 @@ export function PRLifecyclePage(): React.ReactElement {
     MAX_AGGREGATION_THREADS
   );
 
-  // Interface for aggregated PR comment data
-  interface PRAggregatedComments {
-    repository: string;
-    pr_number: number;
-    pr_title: string;
-    total_threads: number;
-    resolved_threads: number;
-    avg_resolution_hours: number | null;
-    time_from_can_be_merged_hours: number | null;
-    [key: string]: unknown;
-  }
-
-  // Aggregate threads by PR
+  // Aggregate threads by PR using shared utility
   const prAggregatedData = useMemo(() => {
     if (!commentsData) return [];
-
-    const prMap = new Map<
-      string,
-      {
-        repository: string;
-        pr_number: number;
-        pr_title: string;
-        total_threads: number;
-        resolved_threads: number;
-        total_resolution_hours: number;
-        resolved_count: number;
-        time_from_can_be_merged_hours: number | null;
-      }
-    >();
-
-    for (const thread of commentsData.threads) {
-      const key = `${thread.repository}#${String(thread.pr_number)}`;
-      const existing = prMap.get(key);
-
-      if (existing) {
-        existing.total_threads++;
-        if (thread.resolved_at) {
-          existing.resolved_threads++;
-          const resolutionTime =
-            typeof thread.resolution_time_hours === "number" ? thread.resolution_time_hours : null;
-          if (resolutionTime !== null) {
-            existing.total_resolution_hours += resolutionTime;
-            existing.resolved_count++;
-          }
-        }
-        // Take the maximum (latest) time_from_can_be_merged for the PR
-        // This represents the time from when CI passed (can-be-merged check) until
-        // the LAST thread was resolved - the actual bottleneck for merging
-        const mergedTime =
-          typeof thread.time_from_can_be_merged_hours === "number"
-            ? thread.time_from_can_be_merged_hours
-            : null;
-        if (mergedTime !== null) {
-          if (existing.time_from_can_be_merged_hours === null) {
-            existing.time_from_can_be_merged_hours = mergedTime;
-          } else {
-            existing.time_from_can_be_merged_hours = Math.max(
-              existing.time_from_can_be_merged_hours,
-              mergedTime
-            );
-          }
-        }
-      } else {
-        const resolutionTime =
-          typeof thread.resolution_time_hours === "number" ? thread.resolution_time_hours : null;
-        const mergedTime =
-          typeof thread.time_from_can_be_merged_hours === "number"
-            ? thread.time_from_can_be_merged_hours
-            : null;
-
-        const validResolutionTime = resolutionTime ?? 0;
-        const validMergedTime = mergedTime;
-
-        prMap.set(key, {
-          repository: thread.repository,
-          pr_number: thread.pr_number,
-          pr_title: thread.pr_title ?? `PR #${String(thread.pr_number)}`,
-          total_threads: 1,
-          resolved_threads: thread.resolved_at ? 1 : 0,
-          total_resolution_hours: validResolutionTime,
-          resolved_count: validResolutionTime > 0 || resolutionTime === 0 ? 1 : 0,
-          time_from_can_be_merged_hours: validMergedTime,
-        });
-      }
-    }
-
-    return Array.from(prMap.values()).map((pr) => ({
-      ...pr,
-      avg_resolution_hours:
-        pr.resolved_count > 0 ? pr.total_resolution_hours / pr.resolved_count : null,
-    }));
+    return aggregateThreadsByPR(commentsData.threads);
   }, [commentsData]);
 
   // Fetch PR Story when modal is open and PR is selected
@@ -321,7 +235,7 @@ export function PRLifecyclePage(): React.ReactElement {
   ];
 
   // Column definitions for PR Comments (aggregated by PR)
-  const commentsColumns: readonly ColumnDef<PRAggregatedComments>[] = [
+  const commentsColumns: readonly ColumnDef<PRAggregated>[] = [
     {
       key: "pr_info",
       label: "Pull Request",
@@ -457,7 +371,7 @@ export function PRLifecyclePage(): React.ReactElement {
             columns={commentsColumns}
             data={prAggregatedData}
             isLoading={commentsLoading}
-            keyExtractor={(item) => `${item.repository}#${String(item.pr_number)}`}
+            keyExtractor={(item: PRAggregated) => `${item.repository}#${String(item.pr_number)}`}
             emptyMessage="No PR comments data available. Enable pull_request_review_thread webhooks to see data."
           />
           <div className="text-sm text-muted-foreground">Showing {prAggregatedData.length} PRs</div>

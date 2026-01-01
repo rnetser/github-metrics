@@ -22,7 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
-import { formatRelativeTime, formatDateTime } from "@/utils/time-format";
+import { formatRelativeTime, formatDateTime, formatHours } from "@/utils/time-format";
 import { useDateFormat } from "@/hooks/use-date-format";
 import type { PRStoryEvent, PREventType } from "@/types/pr-story";
 
@@ -275,7 +275,7 @@ function TimelineEvent({ event, isLast }: TimelineEventProps): React.ReactElemen
                 {event.event_type === "thread_resolved" &&
                   event.resolution_time_hours !== undefined && (
                     <span className="text-muted-foreground ml-2 font-normal">
-                      ({event.resolution_time_hours}h)
+                      ({formatHours(event.resolution_time_hours)})
                     </span>
                   )}
               </span>

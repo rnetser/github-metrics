@@ -484,7 +484,100 @@ async def get_comment_resolution_time(
     """
     )
 
-    # Query 3: Count unresolved threads outside time range (only if start_time provided)
+    # Query 3: Calculate global summary statistics (avg/median) over ALL matching threads
+    global_stats_query = (
+        """
+        WITH comment_threads AS (
+            SELECT
+                w.repository,
+                w.pr_number,
+                w.payload->'comment'->>'id' as root_comment_id,
+                (w.payload->'comment'->>'created_at')::timestamptz as first_comment_at
+            FROM webhooks w
+            WHERE w.event_type = 'pull_request_review_comment'
+              AND w.action = 'created'
+              AND w.payload->'comment'->>'in_reply_to_id' IS NULL
+              AND w.pr_number IS NOT NULL
+              """
+        + time_filter
+        + repository_filter
+        + """
+        ),
+        comment_counts AS (
+            SELECT
+                w.payload->'comment'->>'in_reply_to_id' as parent_id,
+                COUNT(*) + 1 as comment_count
+            FROM webhooks w
+            WHERE w.event_type = 'pull_request_review_comment'
+              AND w.payload->'comment'->>'in_reply_to_id' IS NOT NULL
+            GROUP BY w.payload->'comment'->>'in_reply_to_id'
+        ),
+        latest_resolution_state AS (
+            SELECT DISTINCT ON (repository, pr_number, root_comment_id)
+                repository,
+                pr_number,
+                root_comment_id,
+                resolved_at,
+                action
+            FROM (
+                SELECT
+                    repository,
+                    pr_number,
+                    payload->'thread'->'comments'->0->>'id' as root_comment_id,
+                    CASE WHEN action = 'resolved' THEN created_at ELSE NULL END as resolved_at,
+                    created_at,
+                    action
+                FROM webhooks
+                WHERE event_type = 'pull_request_review_thread'
+                  AND pr_number IS NOT NULL
+                  """
+        + time_filter
+        + repository_filter
+        + """
+            ) sub
+            ORDER BY repository, pr_number, root_comment_id, created_at DESC
+        ),
+        second_comments AS (
+            SELECT
+                w.payload->'comment'->>'in_reply_to_id' as thread_root_id,
+                MIN((w.payload->'comment'->>'created_at')::timestamptz) as second_comment_at
+            FROM webhooks w
+            WHERE w.event_type = 'pull_request_review_comment'
+              AND w.payload->'comment'->>'in_reply_to_id' IS NOT NULL
+            GROUP BY w.payload->'comment'->>'in_reply_to_id'
+        ),
+        all_threads AS (
+            SELECT
+                ct.root_comment_id,
+                ct.first_comment_at,
+                lrs.resolved_at,
+                COALESCE(cc.comment_count, 1) as comment_count,
+                sc.second_comment_at
+            FROM comment_threads ct
+            LEFT JOIN latest_resolution_state lrs
+                ON ct.repository = lrs.repository
+                AND ct.pr_number = lrs.pr_number
+                AND ct.root_comment_id = lrs.root_comment_id
+            LEFT JOIN comment_counts cc ON ct.root_comment_id = cc.parent_id
+            LEFT JOIN second_comments sc ON ct.root_comment_id = sc.thread_root_id
+        ),
+        resolution_metrics AS (
+            SELECT
+                EXTRACT(EPOCH FROM (resolved_at - first_comment_at)) / 3600 as resolution_hours,
+                EXTRACT(EPOCH FROM (second_comment_at - first_comment_at)) / 3600 as response_hours,
+                comment_count
+            FROM all_threads
+        )
+        SELECT
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY resolution_hours) as median_resolution_hours,
+            AVG(resolution_hours) as avg_resolution_hours,
+            AVG(response_hours) as avg_response_hours,
+            AVG(comment_count) as avg_comments
+        FROM resolution_metrics
+    """
+    )
+
+    # Query 4: Count unresolved threads outside time range (only if start_time provided)
     unresolved_outside_query: str | None = None
     unresolved_outside_params: list[Any] = []
     if start_datetime is not None:
@@ -558,14 +651,16 @@ async def get_comment_resolution_time(
         # Note: unresolved_outside_count is set in both branches to ensure it's always defined
         if unresolved_outside_query is not None:
             try:
-                threads_rows, repo_stats_rows, unresolved_outside_rows = await asyncio.gather(
+                threads_rows, repo_stats_rows, global_stats_rows, unresolved_outside_rows = await asyncio.gather(
                     db_manager.fetch(threads_query, *param_list, page_size, offset),
                     db_manager.fetch(repo_stats_query, *param_list),
+                    db_manager.fetch(global_stats_query, *param_list),
                     db_manager.fetch(unresolved_outside_query, *unresolved_outside_params),
                 )
             except Exception:
                 LOGGER.exception(
-                    "Failed to execute parallel queries (threads_query, repo_stats_query, unresolved_outside_query)"
+                    "Failed to execute parallel queries "
+                    "(threads_query, repo_stats_query, global_stats_query, unresolved_outside_query)"
                 )
                 raise
             unresolved_outside_count = (
@@ -574,12 +669,15 @@ async def get_comment_resolution_time(
         else:
             # No start_time filter, so no unresolved threads outside range
             try:
-                threads_rows, repo_stats_rows = await asyncio.gather(
+                threads_rows, repo_stats_rows, global_stats_rows = await asyncio.gather(
                     db_manager.fetch(threads_query, *param_list, page_size, offset),
                     db_manager.fetch(repo_stats_query, *param_list),
+                    db_manager.fetch(global_stats_query, *param_list),
                 )
             except Exception:
-                LOGGER.exception("Failed to execute parallel queries (threads_query, repo_stats_query)")
+                LOGGER.exception(
+                    "Failed to execute parallel queries (threads_query, repo_stats_query, global_stats_query)"
+                )
                 raise
             unresolved_outside_count = 0
 
@@ -590,35 +688,24 @@ async def get_comment_resolution_time(
         total_threads_from_stats = sum(row["total_threads"] for row in repo_stats_rows)
         resolved_count_from_stats = sum(row["resolved_threads"] for row in repo_stats_rows)
 
-        # Calculate summary statistics from paginated threads (approximations for avg/median)
-        resolution_times: list[float] = []
-        response_times: list[float] = []
-        comment_counts: list[int] = []
+        # Extract global summary statistics from global_stats_query (calculated over ALL matching threads)
+        global_stats = global_stats_rows[0] if global_stats_rows else {}
 
-        for row in threads_rows:
-            if row["comment_count"]:
-                comment_counts.append(row["comment_count"])
+        # Use default of 0.0 for None, but preserve actual values (including negative values)
+        avg_resolution_raw = global_stats.get("avg_resolution_hours")
+        avg_resolution = round(float(avg_resolution_raw) if avg_resolution_raw is not None else 0.0, 1)
 
-            if row["resolution_time_hours"] is not None:
-                resolution_times.append(row["resolution_time_hours"])
+        median_resolution_raw = global_stats.get("median_resolution_hours")
+        median_resolution = round(
+            float(median_resolution_raw) if median_resolution_raw is not None else 0.0,
+            1,
+        )
 
-            if row["time_to_first_response_hours"] is not None:
-                response_times.append(row["time_to_first_response_hours"])
+        avg_response_raw = global_stats.get("avg_response_hours")
+        avg_response = round(float(avg_response_raw) if avg_response_raw is not None else 0.0, 1)
 
-        # Calculate summary metrics
-        avg_resolution = round(sum(resolution_times) / len(resolution_times), 1) if resolution_times else 0.0
-
-        median_resolution = 0.0
-        if resolution_times:
-            sorted_times = sorted(resolution_times)
-            mid = len(sorted_times) // 2
-            median_resolution = round(
-                sorted_times[mid] if len(sorted_times) % 2 == 1 else (sorted_times[mid - 1] + sorted_times[mid]) / 2,
-                1,
-            )
-
-        avg_response = round(sum(response_times) / len(response_times), 1) if response_times else 0.0
-        avg_comments = round(sum(comment_counts) / len(comment_counts), 1) if comment_counts else 0.0
+        avg_comments_raw = global_stats.get("avg_comments")
+        avg_comments = round(float(avg_comments_raw) if avg_comments_raw is not None else 0.0, 1)
 
         # Use accurate counts from repo_stats for resolution_rate
         resolution_rate = (

@@ -6,10 +6,18 @@ module.exports = {
     project: true,
     tsconfigRootDir: __dirname,
   },
-  rules: {
-    '@typescript-eslint/no-unsafe-call': 'off',
-    '@typescript-eslint/no-unsafe-member-access': 'off',
-    '@typescript-eslint/no-unsafe-assignment': 'off',
-  },
+  rules: {},
+  overrides: [
+    {
+      files: ["**/*.test.ts", "**/*.test.tsx", "**/__tests__/**"],
+      rules: {
+        // Test files may use mocks and test utilities that trigger unsafe rules
+        // TODO: Gradually type test utilities to remove these suppressions
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+      },
+    },
+  ],
   root: true,
 };

@@ -438,14 +438,10 @@ export function useCommentResolution(
   pageSize: number = 25,
   enabled: boolean = true
 ) {
-  const params = new URLSearchParams();
-
-  if (timeRange?.start_time) params.set("start_time", timeRange.start_time);
-  if (timeRange?.end_time) params.set("end_time", timeRange.end_time);
+  const filters: FilterParams = repositories ? { repositories } : {};
+  const params = buildFilterParams(timeRange, filters);
   params.set("page", String(page));
   params.set("page_size", String(pageSize));
-
-  appendArrayParam(params, "repositories", repositories);
 
   return useQuery<CommentResolutionResponse>({
     queryKey: queryKeys.commentResolution(timeRange, repositories, page, pageSize),

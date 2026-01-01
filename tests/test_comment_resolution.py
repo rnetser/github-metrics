@@ -103,9 +103,19 @@ class TestCommentResolutionTimeEndpoint:
             },
         ]
 
+        # Mock global stats query rows
+        mock_global_stats_rows = [
+            {
+                "median_resolution_hours": 2.0,
+                "avg_resolution_hours": 2.0,
+                "avg_response_hours": 0.375,
+                "avg_comments": 2.6666666666666665,
+            },
+        ]
+
         with patch("backend.routes.api.comment_resolution.db_manager") as mock_db:
-            # Mock fetch for both queries (asyncio.gather) - no start_time so no third query
-            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows])
+            # Mock fetch for all three queries (asyncio.gather) - no start_time so no fourth query
+            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows, mock_global_stats_rows])
 
             client = TestClient(app)
             response = client.get("/api/metrics/comment-resolution-time")
@@ -193,6 +203,16 @@ class TestCommentResolutionTimeEndpoint:
                 "avg_resolution_time_hours": 2.0,
             },
         ]
+        # Mock global stats query rows
+        mock_global_stats_rows = [
+            {
+                "median_resolution_hours": 2.0,
+                "avg_resolution_hours": 2.0,
+                "avg_response_hours": 0.5,
+                "avg_comments": 2.0,
+            },
+        ]
+
         # Mock unresolved threads outside range (3 older unresolved threads)
         mock_unresolved_outside_rows = [
             {
@@ -201,9 +221,14 @@ class TestCommentResolutionTimeEndpoint:
         ]
 
         with patch("backend.routes.api.comment_resolution.db_manager") as mock_db:
-            # Three queries now: threads, repo_stats, unresolved_outside (because start_time is provided)
+            # Four queries now: threads, repo_stats, global_stats, unresolved_outside (because start_time is provided)
             mock_db.fetch = AsyncMock(
-                side_effect=[mock_threads_rows, mock_repo_stats_rows, mock_unresolved_outside_rows]
+                side_effect=[
+                    mock_threads_rows,
+                    mock_repo_stats_rows,
+                    mock_global_stats_rows,
+                    mock_unresolved_outside_rows,
+                ]
             )
 
             client = TestClient(app)
@@ -255,9 +280,18 @@ class TestCommentResolutionTimeEndpoint:
                 "avg_resolution_time_hours": 0.0,
             },
         ]
+        # Mock global stats query rows
+        mock_global_stats_rows = [
+            {
+                "median_resolution_hours": 0.0,
+                "avg_resolution_hours": 0.0,
+                "avg_response_hours": 0.0,
+                "avg_comments": 0.0,
+            },
+        ]
 
         with patch("backend.routes.api.comment_resolution.db_manager") as mock_db:
-            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows])
+            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows, mock_global_stats_rows])
 
             client = TestClient(app)
             response = client.get(
@@ -282,9 +316,20 @@ class TestCommentResolutionTimeEndpoint:
 
     def test_get_comment_resolution_time_empty_results(self) -> None:
         """Test comment resolution time with no matching data."""
+
+        # Mock global stats query rows
+        mock_global_stats_rows = [
+            {
+                "median_resolution_hours": 0.0,
+                "avg_resolution_hours": 0.0,
+                "avg_response_hours": 0.0,
+                "avg_comments": 0.0,
+            },
+        ]
+
         with patch("backend.routes.api.comment_resolution.db_manager") as mock_db:
-            # Empty results for both queries (no start_time so only 2 queries)
-            mock_db.fetch = AsyncMock(side_effect=[[], []])
+            # Empty results for all three queries (no start_time so only 3 queries)
+            mock_db.fetch = AsyncMock(side_effect=[[], [], mock_global_stats_rows])
 
             client = TestClient(app)
             response = client.get("/api/metrics/comment-resolution-time")
@@ -351,9 +396,18 @@ class TestCommentResolutionTimeEndpoint:
                 "avg_resolution_time_hours": 2.0,
             },
         ]
+        # Mock global stats query rows (1 resolved thread with 2.0 hours, 1 unresolved)
+        mock_global_stats_rows = [
+            {
+                "median_resolution_hours": 2.0,
+                "avg_resolution_hours": 2.0,
+                "avg_response_hours": 0.5,  # Only first thread has response
+                "avg_comments": 2.0,  # (3 + 1) / 2 = 2.0
+            },
+        ]
 
         with patch("backend.routes.api.comment_resolution.db_manager") as mock_db:
-            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows])
+            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows, mock_global_stats_rows])
 
             client = TestClient(app)
             response = client.get("/api/metrics/comment-resolution-time")
@@ -406,9 +460,18 @@ class TestCommentResolutionTimeEndpoint:
                 "avg_resolution_time_hours": 3.0,
             },
         ]
+        # Mock global stats query rows (resolution times: 1, 3, 5)
+        mock_global_stats_rows = [
+            {
+                "median_resolution_hours": 3.0,  # Median of [1, 3, 5] = 3
+                "avg_resolution_hours": 3.0,  # (1 + 3 + 5) / 3 = 3
+                "avg_response_hours": 0.0,  # No responses in test data
+                "avg_comments": 2.0,  # All have 2 comments
+            },
+        ]
 
         with patch("backend.routes.api.comment_resolution.db_manager") as mock_db:
-            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows])
+            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows, mock_global_stats_rows])
 
             client = TestClient(app)
             response = client.get("/api/metrics/comment-resolution-time")
@@ -450,9 +513,18 @@ class TestCommentResolutionTimeEndpoint:
                 "avg_resolution_time_hours": 2.5,
             },
         ]
+        # Mock global stats query rows (resolution times: 1, 2, 3, 4)
+        mock_global_stats_rows = [
+            {
+                "median_resolution_hours": 2.5,  # Median of [1, 2, 3, 4] = (2 + 3) / 2 = 2.5
+                "avg_resolution_hours": 2.5,  # (1 + 2 + 3 + 4) / 4 = 2.5
+                "avg_response_hours": 0.0,  # No responses in test data
+                "avg_comments": 2.0,  # All have 2 comments
+            },
+        ]
 
         with patch("backend.routes.api.comment_resolution.db_manager") as mock_db:
-            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows])
+            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows, mock_global_stats_rows])
 
             client = TestClient(app)
             response = client.get("/api/metrics/comment-resolution-time")
@@ -549,9 +621,18 @@ class TestCommentResolutionTimeEndpoint:
                 "avg_resolution_time_hours": 2.0,
             },
         ]
+        # Mock global stats query rows
+        mock_global_stats_rows = [
+            {
+                "median_resolution_hours": 0.0,
+                "avg_resolution_hours": 0.0,
+                "avg_response_hours": 0.0,
+                "avg_comments": 0.0,
+            },
+        ]
 
         with patch("backend.routes.api.comment_resolution.db_manager") as mock_db:
-            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows])
+            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows, mock_global_stats_rows])
 
             client = TestClient(app)
             response = client.get("/api/metrics/comment-resolution-time")
@@ -626,9 +707,19 @@ class TestCommentResolutionTimeEndpoint:
         mock_threads_rows: list[dict[str, Any]] = []
         mock_repo_stats_rows: list[dict[str, Any]] = []
 
+        # Mock global stats query rows
+        mock_global_stats_rows = [
+            {
+                "median_resolution_hours": 0.0,
+                "avg_resolution_hours": 0.0,
+                "avg_response_hours": 0.0,
+                "avg_comments": 0.0,
+            },
+        ]
+
         with patch("backend.routes.api.comment_resolution.db_manager") as mock_db:
             # Simulate both SQL queries returning empty results (no start_time so 2 queries)
-            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows])
+            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows, mock_global_stats_rows])
 
             client = TestClient(app)
             response = client.get("/api/metrics/comment-resolution-time")
@@ -663,8 +754,10 @@ class TestCommentResolutionTimeEndpoint:
             assert data["pagination"]["total"] == 0
             assert data["pagination"]["total_pages"] == 0
 
-            # Verify database was queried correctly (2 queries executed, no start_time)
-            assert mock_db.fetch.call_count == 2
+            # Verify database was queried correctly
+            # 3 queries executed: threads, repo_stats, global_stats
+            # (no start_time so no unresolved query)
+            assert mock_db.fetch.call_count == 3
 
     def test_get_comment_resolution_time_page_2(self) -> None:
         """Test fetching page 2 of results."""
@@ -698,9 +791,18 @@ class TestCommentResolutionTimeEndpoint:
                 "avg_resolution_time_hours": 0.0,
             },
         ]
+        # Mock global stats query rows
+        mock_global_stats_rows = [
+            {
+                "median_resolution_hours": 0.0,
+                "avg_resolution_hours": 0.0,
+                "avg_response_hours": 0.0,
+                "avg_comments": 0.0,
+            },
+        ]
 
         with patch("backend.routes.api.comment_resolution.db_manager") as mock_db:
-            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows])
+            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows, mock_global_stats_rows])
 
             client = TestClient(app)
             response = client.get(
@@ -774,9 +876,18 @@ class TestCommentResolutionTimeEndpoint:
                 "avg_resolution_time_hours": 2.0,
             }
         ]
+        # Mock global stats query rows (1 resolved with 2.0 hours, 1 unresolved)
+        mock_global_stats_rows = [
+            {
+                "median_resolution_hours": 2.0,
+                "avg_resolution_hours": 2.0,
+                "avg_response_hours": 0.5,
+                "avg_comments": 2.0,
+            },
+        ]
 
         with patch("backend.routes.api.comment_resolution.db_manager") as mock_db:
-            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows])
+            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows, mock_global_stats_rows])
 
             client = TestClient(app)
             response = client.get("/api/metrics/comment-resolution-time")
@@ -835,9 +946,18 @@ class TestCommentResolutionTimeEndpoint:
                 "resolved_threads": 1,
             }
         ]
+        # Mock global stats query rows (1 thread with 2.0 hours)
+        mock_global_stats_rows = [
+            {
+                "median_resolution_hours": 2.0,
+                "avg_resolution_hours": 2.0,
+                "avg_response_hours": 0.0,  # No response in test data
+                "avg_comments": 3.0,  # Single thread has 3 comments
+            },
+        ]
 
         with patch("backend.routes.api.comment_resolution.db_manager") as mock_db:
-            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows])
+            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows, mock_global_stats_rows])
 
             client = TestClient(app)
             response = client.get("/api/metrics/comment-resolution-time")
@@ -890,9 +1010,18 @@ class TestCommentResolutionTimeEndpoint:
                 "resolved_threads": 1,
             }
         ]
+        # Mock global stats query rows (negative times should be passed through)
+        mock_global_stats_rows = [
+            {
+                "median_resolution_hours": -2.0,
+                "avg_resolution_hours": -2.0,
+                "avg_response_hours": -0.5,
+                "avg_comments": 1.0,
+            },
+        ]
 
         with patch("backend.routes.api.comment_resolution.db_manager") as mock_db:
-            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows])
+            mock_db.fetch = AsyncMock(side_effect=[mock_threads_rows, mock_repo_stats_rows, mock_global_stats_rows])
 
             client = TestClient(app)
             response = client.get("/api/metrics/comment-resolution-time")
