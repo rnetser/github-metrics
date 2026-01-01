@@ -21,7 +21,11 @@ db_manager: DatabaseManager | None = None
 
 
 def _build_can_be_merged_cte(time_filter: str, repository_filter: str) -> str:
-    """Build CTE for finding first successful can-be-merged check run per head_sha.
+    """Build CTE for finding first can-be-merged event per head_sha.
+
+    Supports two sources:
+    1. check_run events with name 'can-be-merged' and conclusion 'success'
+    2. pull_request events with action 'labeled' and label_name 'can-be-merged'
 
     Matches check_run events to PRs via head_sha instead of pull_requests array,
     since the pull_requests array is often empty in check_run webhooks.
@@ -36,6 +40,7 @@ def _build_can_be_merged_cte(time_filter: str, repository_filter: str) -> str:
     return (
         """
     can_be_merged AS (
+        -- Source 1: check_run events with can-be-merged check
         SELECT
             w.repository,
             w.payload->'check_run'->>'head_sha' as head_sha,
@@ -44,11 +49,30 @@ def _build_can_be_merged_cte(time_filter: str, repository_filter: str) -> str:
         WHERE w.event_type = 'check_run'
           AND w.payload->'check_run'->>'name' = 'can-be-merged'
           AND w.payload->'check_run'->>'conclusion' = 'success'
+          AND w.payload->'check_run'->>'head_sha' IS NOT NULL
           """
         + time_filter
         + repository_filter
         + """
         GROUP BY w.repository, w.payload->'check_run'->>'head_sha'
+
+        UNION
+
+        -- Source 2: pull_request events with can-be-merged label
+        SELECT
+            w.repository,
+            w.payload->'pull_request'->'head'->>'sha' as head_sha,
+            MIN(w.created_at) as can_be_merged_at
+        FROM webhooks w
+        WHERE w.event_type = 'pull_request'
+          AND w.action = 'labeled'
+          AND w.payload->'label'->>'name' = 'can-be-merged'
+          AND w.payload->'pull_request'->'head'->>'sha' IS NOT NULL
+          """
+        + time_filter
+        + repository_filter
+        + """
+        GROUP BY w.repository, w.payload->'pull_request'->'head'->>'sha'
     )"""
     )
 
@@ -78,7 +102,9 @@ async def get_comment_resolution_time(
 
     **Prerequisites:**
     - GitHub webhook must be configured to send `pull_request_review_thread` events
-    - (Optional) Repository uses a "can-be-merged" check run for correlation
+    - (Optional) Repository uses one of the following for correlation:
+      - "can-be-merged" check run (check_run events)
+      - "can-be-merged" label (pull_request labeled events)
 
     **Enabling pull_request_review_thread webhooks:**
     1. Go to your GitHub repository → Settings → Webhooks
