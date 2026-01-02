@@ -749,10 +749,10 @@ async def get_comment_resolution_time(
                 "pr_title": row["pr_title"],
                 "first_comment_at": row["first_comment_at"].isoformat() if row["first_comment_at"] else None,
                 "resolved_at": row["resolved_at"].isoformat() if row["resolved_at"] else None,
-                "resolution_time_hours": round(row["resolution_time_hours"], 1)
+                "resolution_time_hours": float(round(row["resolution_time_hours"], 1))
                 if row["resolution_time_hours"] is not None
                 else None,
-                "time_to_first_response_hours": round(row["time_to_first_response_hours"], 1)
+                "time_to_first_response_hours": float(round(row["time_to_first_response_hours"], 1))
                 if row["time_to_first_response_hours"] is not None
                 else None,
                 "comment_count": row["comment_count"],
@@ -760,7 +760,7 @@ async def get_comment_resolution_time(
                 "participants": row["participants"] if row["participants"] else [],
                 "file_path": row["file_path"],
                 "can_be_merged_at": row["can_be_merged_at"].isoformat() if row["can_be_merged_at"] else None,
-                "time_from_can_be_merged_hours": round(row["time_from_can_be_merged_hours"], 1)
+                "time_from_can_be_merged_hours": float(round(row["time_from_can_be_merged_hours"], 1))
                 if row["time_from_can_be_merged_hours"] is not None
                 else None,
             }
@@ -771,7 +771,7 @@ async def get_comment_resolution_time(
         by_repository = [
             {
                 "repository": row["repository"],
-                "avg_resolution_time_hours": round(row["avg_resolution_time_hours"], 1),
+                "avg_resolution_time_hours": float(round(row["avg_resolution_time_hours"], 1)),
                 "total_threads": row["total_threads"],
                 "resolved_threads": row["resolved_threads"],
             }
