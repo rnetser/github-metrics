@@ -766,15 +766,33 @@ async def get_comment_resolution_time(
 
         # Use default of 0.0 for None, but preserve actual values (including negative values)
         avg_resolution_raw = global_stats.get("avg_resolution_hours")
+        if avg_resolution_raw is not None and avg_resolution_raw < 0:
+            LOGGER.warning(
+                "Negative avg resolution time detected: %.2f hours. "
+                "Check for clock skew or timezone issues in webhook data.",
+                avg_resolution_raw,
+            )
         avg_resolution = round(float(avg_resolution_raw) if avg_resolution_raw is not None else 0.0, 1)
 
         median_resolution_raw = global_stats.get("median_resolution_hours")
+        if median_resolution_raw is not None and median_resolution_raw < 0:
+            LOGGER.warning(
+                "Negative median resolution time detected: %.2f hours. "
+                "Check for clock skew or timezone issues in webhook data.",
+                median_resolution_raw,
+            )
         median_resolution = round(
             float(median_resolution_raw) if median_resolution_raw is not None else 0.0,
             1,
         )
 
         avg_response_raw = global_stats.get("avg_response_hours")
+        if avg_response_raw is not None and avg_response_raw < 0:
+            LOGGER.warning(
+                "Negative avg response time detected: %.2f hours. "
+                "Check for clock skew or timezone issues in webhook data.",
+                avg_response_raw,
+            )
         avg_response = round(float(avg_response_raw) if avg_response_raw is not None else 0.0, 1)
 
         avg_comments_raw = global_stats.get("avg_comments")

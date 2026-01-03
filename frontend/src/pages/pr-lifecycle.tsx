@@ -254,7 +254,7 @@ export function PRLifecyclePage(): React.ReactElement {
         <div className="min-w-0 max-w-sm">
           <div className="flex items-center gap-2 mb-1">
             <a
-              href={`https://github.com/${item.repository}/pull/${item.pr_number.toString()}`}
+              href={`https://github.com/${item.repository}/pull/${item.pr_number}`}
               target="_blank"
               rel="noopener noreferrer"
               className="font-mono text-sm font-bold text-primary hover:underline flex-shrink-0"
@@ -323,7 +323,7 @@ export function PRLifecyclePage(): React.ReactElement {
             handleOpenPRStory(item.repository, item.pr_number);
           }}
           className="h-8 w-8 p-0"
-          aria-label={`View PR story for #${item.pr_number.toString()}`}
+          aria-label={`View PR story for #${item.pr_number}`}
         >
           <History className="h-4 w-4" />
         </Button>
@@ -379,7 +379,7 @@ export function PRLifecyclePage(): React.ReactElement {
             columns={commentsColumns}
             data={prAggregatedData}
             isLoading={commentsLoading}
-            keyExtractor={(item: PRAggregated) => `${item.repository}#${item.pr_number.toString()}`}
+            keyExtractor={(item: PRAggregated) => `${item.repository}#${item.pr_number}`}
             emptyMessage="No PR comments data available. Enable pull_request_review_thread webhooks to see data."
           />
           <div className="text-sm text-muted-foreground">Showing {prAggregatedData.length} PRs</div>
