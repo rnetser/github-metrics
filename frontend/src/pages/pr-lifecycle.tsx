@@ -147,10 +147,7 @@ export function PRLifecyclePage(): React.ReactElement {
         },
         {
           label: "Avg Comments per Thread",
-          value:
-            typeof commentsData.summary.avg_comments_per_thread === "number"
-              ? commentsData.summary.avg_comments_per_thread.toFixed(1)
-              : "-",
+          value: commentsData.summary.avg_comments_per_thread.toFixed(1),
           tooltip:
             "Average comments per review thread. Counted from pull_request_review_comment created events.",
         },
@@ -162,10 +159,7 @@ export function PRLifecyclePage(): React.ReactElement {
         },
         {
           label: "Resolution Rate",
-          value:
-            typeof commentsData.summary.resolution_rate === "number"
-              ? `${commentsData.summary.resolution_rate.toFixed(1)}%`
-              : "-",
+          value: `${commentsData.summary.resolution_rate.toFixed(1)}%`,
           tooltip:
             "Percentage of threads resolved. (Resolved threads / Total threads) × 100. From pull_request_review_thread events.",
         },
@@ -248,7 +242,7 @@ export function PRLifecyclePage(): React.ReactElement {
         <div className="min-w-0 max-w-sm">
           <div className="flex items-center gap-2 mb-1">
             <a
-              href={`https://github.com/${item.repository}/pull/${String(item.pr_number)}`}
+              href={`https://github.com/${item.repository}/pull/${item.pr_number.toString()}`}
               target="_blank"
               rel="noopener noreferrer"
               className="font-mono text-sm font-bold text-primary hover:underline flex-shrink-0"
@@ -317,7 +311,7 @@ export function PRLifecyclePage(): React.ReactElement {
             handleOpenPRStory(item.repository, item.pr_number);
           }}
           className="h-8 w-8 p-0"
-          aria-label={`View PR story for #${String(item.pr_number)}`}
+          aria-label={`View PR story for #${item.pr_number.toString()}`}
         >
           <History className="h-4 w-4" />
         </Button>
@@ -373,7 +367,7 @@ export function PRLifecyclePage(): React.ReactElement {
             columns={commentsColumns}
             data={prAggregatedData}
             isLoading={commentsLoading}
-            keyExtractor={(item: PRAggregated) => `${item.repository}#${String(item.pr_number)}`}
+            keyExtractor={(item: PRAggregated) => `${item.repository}#${item.pr_number.toString()}`}
             emptyMessage="No PR comments data available. Enable pull_request_review_thread webhooks to see data."
           />
           <div className="text-sm text-muted-foreground">Showing {prAggregatedData.length} PRs</div>
