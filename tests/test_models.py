@@ -100,10 +100,9 @@ class TestPrCreatorsIndexMigration:
         migration = self._load_migration()
         assert migration.depends_on is None
 
-    def test_upgrade_creates_correct_index(self) -> None:
-        """Test that upgrade creates the ix_webhooks_repo_pr_number_created_at index."""
+    def _run_upgrade_and_get_sql(self) -> str:
+        """Run the upgrade migration and return the DDL SQL string."""
         migration = self._load_migration()
-
         mock_bind = MagicMock()
 
         with patch.object(migration.op, "get_bind", return_value=mock_bind):
@@ -112,42 +111,11 @@ class TestPrCreatorsIndexMigration:
         assert mock_bind.execute.call_count == 2
         commit_sql = str(mock_bind.execute.call_args_list[0][0][0].text).strip()
         assert commit_sql == "COMMIT"
-        executed_sql = str(mock_bind.execute.call_args_list[1][0][0].text).strip()
-        assert INDEX_NAME in executed_sql
-        assert "CONCURRENTLY" in executed_sql
-        assert "IF NOT EXISTS" in executed_sql
-        assert "pr_number IS NOT NULL" in executed_sql
+        return str(mock_bind.execute.call_args_list[1][0][0].text).strip()
 
-    def test_upgrade_targets_webhooks_table(self) -> None:
-        """Test that upgrade creates the index on the webhooks table."""
+    def _run_downgrade_and_get_sql(self) -> str:
+        """Run the downgrade migration and return the DDL SQL string."""
         migration = self._load_migration()
-
-        mock_bind = MagicMock()
-
-        with patch.object(migration.op, "get_bind", return_value=mock_bind):
-            migration.upgrade()
-
-        assert mock_bind.execute.call_count == 2
-        executed_sql = str(mock_bind.execute.call_args_list[1][0][0].text).strip()
-        assert "ON webhooks" in executed_sql
-
-    def test_upgrade_index_column_order(self) -> None:
-        """Test that the upgrade SQL specifies columns in the correct order."""
-        migration = self._load_migration()
-
-        mock_bind = MagicMock()
-
-        with patch.object(migration.op, "get_bind", return_value=mock_bind):
-            migration.upgrade()
-
-        assert mock_bind.execute.call_count == 2
-        executed_sql = str(mock_bind.execute.call_args_list[1][0][0].text).strip()
-        assert "repository, pr_number, created_at ASC" in executed_sql
-
-    def test_downgrade_drops_correct_index(self) -> None:
-        """Test that downgrade drops the ix_webhooks_repo_pr_number_created_at index."""
-        migration = self._load_migration()
-
         mock_bind = MagicMock()
 
         with patch.object(migration.op, "get_bind", return_value=mock_bind):
@@ -156,7 +124,29 @@ class TestPrCreatorsIndexMigration:
         assert mock_bind.execute.call_count == 2
         commit_sql = str(mock_bind.execute.call_args_list[0][0][0].text).strip()
         assert commit_sql == "COMMIT"
-        executed_sql = str(mock_bind.execute.call_args_list[1][0][0].text).strip()
+        return str(mock_bind.execute.call_args_list[1][0][0].text).strip()
+
+    def test_upgrade_creates_correct_index(self) -> None:
+        """Test that upgrade creates the ix_webhooks_repo_pr_number_created_at index."""
+        executed_sql = self._run_upgrade_and_get_sql()
+        assert INDEX_NAME in executed_sql
+        assert "CONCURRENTLY" in executed_sql
+        assert "IF NOT EXISTS" in executed_sql
+        assert "pr_number IS NOT NULL" in executed_sql
+
+    def test_upgrade_targets_webhooks_table(self) -> None:
+        """Test that upgrade creates the index on the webhooks table."""
+        executed_sql = self._run_upgrade_and_get_sql()
+        assert "ON webhooks" in executed_sql
+
+    def test_upgrade_index_column_order(self) -> None:
+        """Test that the upgrade SQL specifies columns in the correct order."""
+        executed_sql = self._run_upgrade_and_get_sql()
+        assert "repository, pr_number, created_at ASC" in executed_sql
+
+    def test_downgrade_drops_correct_index(self) -> None:
+        """Test that downgrade drops the ix_webhooks_repo_pr_number_created_at index."""
+        executed_sql = self._run_downgrade_and_get_sql()
         assert "DROP INDEX CONCURRENTLY" in executed_sql
         assert INDEX_NAME in executed_sql
         assert "IF EXISTS" in executed_sql
