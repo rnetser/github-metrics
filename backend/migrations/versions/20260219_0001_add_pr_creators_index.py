@@ -25,35 +25,37 @@ def upgrade() -> None:
     """Create composite index for DISTINCT ON (repository, pr_number) queries.
 
     Uses CONCURRENTLY to avoid locking the table during index creation.
-    Must run outside a transaction (autocommit mode).
+    CONCURRENTLY cannot run inside a transaction, so the active Alembic
+    transaction is committed first.
     """
     conn = op.get_bind()
-    # CONCURRENTLY requires autocommit (no transaction)
-    with conn.execution_options(isolation_level="AUTOCOMMIT"):
-        conn.execute(
-            text(
-                """
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_webhooks_repo_pr_number_created_at
-                ON webhooks (repository, pr_number, created_at ASC)
-                WHERE pr_number IS NOT NULL
-                """
-            )
+    # CONCURRENTLY cannot run inside a transaction — commit Alembic's active transaction
+    conn.execute(text("COMMIT"))
+    conn.execute(
+        text(
+            """
+            CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_webhooks_repo_pr_number_created_at
+            ON webhooks (repository, pr_number, created_at ASC)
+            WHERE pr_number IS NOT NULL
+            """
         )
+    )
 
 
 def downgrade() -> None:
     """Drop the composite index.
 
     Uses CONCURRENTLY to avoid locking the table during index removal.
-    Must run outside a transaction (autocommit mode).
+    CONCURRENTLY cannot run inside a transaction, so the active Alembic
+    transaction is committed first.
     """
     conn = op.get_bind()
-    # CONCURRENTLY requires autocommit (no transaction)
-    with conn.execution_options(isolation_level="AUTOCOMMIT"):
-        conn.execute(
-            text(
-                """
-                DROP INDEX CONCURRENTLY IF EXISTS ix_webhooks_repo_pr_number_created_at
-                """
-            )
+    # CONCURRENTLY cannot run inside a transaction — commit Alembic's active transaction
+    conn.execute(text("COMMIT"))
+    conn.execute(
+        text(
+            """
+            DROP INDEX CONCURRENTLY IF EXISTS ix_webhooks_repo_pr_number_created_at
+            """
         )
+    )

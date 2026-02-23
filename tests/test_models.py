@@ -109,13 +109,14 @@ class TestPrCreatorsIndexMigration:
         with patch.object(migration.op, "get_bind", return_value=mock_bind):
             migration.upgrade()
 
-        mock_bind.execution_options.assert_called_once_with(isolation_level="AUTOCOMMIT")
-        executed_sql = mock_bind.execute.call_args[0][0]
-        sql_text = str(executed_sql.text).strip()
-        assert INDEX_NAME in sql_text
-        assert "CONCURRENTLY" in sql_text
-        assert "IF NOT EXISTS" in sql_text
-        assert "pr_number IS NOT NULL" in sql_text
+        assert mock_bind.execute.call_count == 2
+        commit_sql = str(mock_bind.execute.call_args_list[0][0][0].text).strip()
+        assert commit_sql == "COMMIT"
+        executed_sql = str(mock_bind.execute.call_args_list[1][0][0].text).strip()
+        assert INDEX_NAME in executed_sql
+        assert "CONCURRENTLY" in executed_sql
+        assert "IF NOT EXISTS" in executed_sql
+        assert "pr_number IS NOT NULL" in executed_sql
 
     def test_upgrade_targets_webhooks_table(self) -> None:
         """Test that upgrade creates the index on the webhooks table."""
@@ -126,7 +127,8 @@ class TestPrCreatorsIndexMigration:
         with patch.object(migration.op, "get_bind", return_value=mock_bind):
             migration.upgrade()
 
-        executed_sql = str(mock_bind.execute.call_args[0][0].text).strip()
+        assert mock_bind.execute.call_count == 2
+        executed_sql = str(mock_bind.execute.call_args_list[1][0][0].text).strip()
         assert "ON webhooks" in executed_sql
 
     def test_upgrade_index_column_order(self) -> None:
@@ -138,7 +140,8 @@ class TestPrCreatorsIndexMigration:
         with patch.object(migration.op, "get_bind", return_value=mock_bind):
             migration.upgrade()
 
-        executed_sql = str(mock_bind.execute.call_args[0][0].text).strip()
+        assert mock_bind.execute.call_count == 2
+        executed_sql = str(mock_bind.execute.call_args_list[1][0][0].text).strip()
         assert "repository, pr_number, created_at ASC" in executed_sql
 
     def test_downgrade_drops_correct_index(self) -> None:
@@ -150,7 +153,10 @@ class TestPrCreatorsIndexMigration:
         with patch.object(migration.op, "get_bind", return_value=mock_bind):
             migration.downgrade()
 
-        mock_bind.execution_options.assert_called_once_with(isolation_level="AUTOCOMMIT")
-        executed_sql = str(mock_bind.execute.call_args[0][0].text).strip()
+        assert mock_bind.execute.call_count == 2
+        commit_sql = str(mock_bind.execute.call_args_list[0][0][0].text).strip()
+        assert commit_sql == "COMMIT"
+        executed_sql = str(mock_bind.execute.call_args_list[1][0][0].text).strip()
         assert "DROP INDEX CONCURRENTLY" in executed_sql
         assert INDEX_NAME in executed_sql
+        assert "IF EXISTS" in executed_sql
