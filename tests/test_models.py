@@ -25,7 +25,7 @@ class TestWebhookCompositeIndex:
         for arg in Webhook.__table_args__:
             if isinstance(arg, Index) and arg.name == name:
                 return arg
-        raise AssertionError(f"Index {name} not found in __table_args__")
+        raise AssertionError(f"Index {name!r} not found")
 
     def test_table_args_contains_composite_index(self) -> None:
         """Test that Webhook.__table_args__ includes the composite index."""
