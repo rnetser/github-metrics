@@ -31,6 +31,14 @@ def upgrade() -> None:
     conn = op.get_bind()
     # CONCURRENTLY cannot run inside a transaction — commit Alembic's active transaction
     conn.execute(text("COMMIT"))
+    # Drop any existing invalid index left by a prior failed CONCURRENTLY build
+    conn.execute(
+        text(
+            """
+            DROP INDEX CONCURRENTLY IF EXISTS ix_webhooks_repo_pr_number_created_at
+            """
+        )
+    )
     conn.execute(
         text(
             """
@@ -40,6 +48,8 @@ def upgrade() -> None:
             """
         )
     )
+    # Re-open a transaction so Alembic can update alembic_version
+    conn.execute(text("BEGIN"))
 
 
 def downgrade() -> None:
@@ -59,3 +69,5 @@ def downgrade() -> None:
             """
         )
     )
+    # Re-open a transaction so Alembic can update alembic_version
+    conn.execute(text("BEGIN"))
