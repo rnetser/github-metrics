@@ -100,6 +100,13 @@ class TestPrCreatorsIndexMigration:
         executed_sql = self._run_upgrade_and_get_sql()
         assert "repository, pr_number, created_at ASC" in executed_sql
 
+    def test_upgrade_drops_invalid_index_before_create(self) -> None:
+        """Test that upgrade drops any existing invalid index before creating."""
+        drop_sql = self._run_migration_and_get_sql("upgrade", expected_call_count=4, sql_index=1)
+        assert "DROP INDEX CONCURRENTLY" in drop_sql
+        assert "IF EXISTS" in drop_sql
+        assert INDEX_NAME in drop_sql
+
     def test_downgrade_drops_correct_index(self) -> None:
         """Test that downgrade drops the ix_webhooks_repo_pr_number_created_at index."""
         executed_sql = self._run_downgrade_and_get_sql()
